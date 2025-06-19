@@ -1,0 +1,179 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+# Vue/Vite specific logs
+vite.config.*.timestamp-*
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+coverage
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Local development files
+*.local
+.local
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Cache directories
+.npm
+.eslintcache
+.stylelintcache
+.cache
+.parcel-cache
+.vite/
+# Vite specific
+.vite-temp/
+.rollup.cache/
+# Turbo
+.turbo
+# TypeScript cache
+*.tsbuildinfo
+.tsbuildinfo
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Temporary folders
+tmp/
+temp/
+
+# Testing
+/cypress/videos/
+/cypress/screenshots/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+# Vitest
+coverage/
+.nyc_output/
+# Jest
+jest-coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Package manager lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
+
+# Vue/Vite specific
+# HMR (Hot Module Replacement) files
+*.hot-update.js
+*.hot-update.json
+# Storybook
+.storybook/
+storybook-static/
+
+# Security and credentials (additional patterns)
+*.key
+*.pem
+*.crt
+*.p12
+.auth
+auth.json
+secrets.json
+.secrets
+
+# DetectionForge specific
+# Exported configurations (may contain sensitive data)
+detectionforge-config-*.json
+detectionforge-backup-*.json
+backtest-results-*.json
+# Local development configurations
+config.local.*
+*.local.config.*
+
+# Development and debugging
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+# Keep extensions.json for project recommendations
+!.vscode/extensions.json
+# Debug logs
+debug.log
+error.log
+
+# Cloud and deployment
+.vercel
+.netlify
+.firebase/
+.aws/
+.gcp/
+# Docker
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore.local
+
+# Monitoring and analytics
+.sentry-cli/
+.sourcemaps/
+
+# Deployment scripts
+deploy-*.ps1
+deploy-*.sh
+
+# Development specific files
+# Local configuration overrides
+*.local.json
+*.dev.json
+config.local.*
+# Backup files
+*.backup
+*.bak
+*.orig
+# Log files from IDEs
+*.log.*
