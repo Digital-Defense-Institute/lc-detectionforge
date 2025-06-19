@@ -2,9 +2,9 @@
 
 ![DetectionForge Logo](public/detection_forge_blue.svg)
 
-[![Deploy to GitHub Pages](https://github.com/Digital-Defense-Institute/lc-detectionforge/actions/workflows/deploy.yml/badge.svg)](https://github.com/Digital-Defense-Institute/lc-detectionforge/actions/workflows/deploy.yml)
-[![GitHub Stars](https://img.shields.io/github/stars/Digital-Defense-Institute/lc-detectionforge?style=social)](https://github.com/Digital-Defense-Institute/lc-detectionforge)
-[![License](https://img.shields.io/github/license/Digital-Defense-Institute/lc-detectionforge)](https://github.com/Digital-Defense-Institute/lc-detectionforge/blob/main/LICENSE)
+[![Deploy to GitHub Pages](https://github.com/Digital-Defense-Institute/lc-detectionforge/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/Digital-Defense-Institute/lc-detectionforge/actions/workflows/deploy.yml)
+[![GitHub Stars](https://img.shields.io/github/stars/Digital-Defense-Institute/lc-detectionforge?style=social)](https://github.com/Digital-Defense-Institute/lc-detectionforge/stargazers)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/Digital-Defense-Institute/lc-detectionforge/blob/main/LICENSE)
 
 A comprehensive detection engineering environment built for crafting, validating, and testing detection rules on [LimaCharlie](https://limacharlie.io). Leveraging modern technologies such as Vue 3, TypeScript, and Vite, this platform delivers a seamless development experience for security engineers.
 
