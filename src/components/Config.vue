@@ -70,7 +70,9 @@
             >
               Save Credentials
             </button>
-            <button class="btn btn-danger" @click="clearCredentials">Clear Credentials</button>
+            <button class="btn btn-danger" :disabled="!hasCredentials" @click="clearCredentials">
+              Clear Credentials
+            </button>
           </div>
         </div>
       </div>
@@ -88,7 +90,13 @@
 
         <div v-if="!hasCredentials" class="warning-text">
           <strong>🔒 Credentials Required:</strong> You must save your credentials above before you
-          can add organizations.
+          can add organizations or perform API operations.
+        </div>
+
+        <!-- Add status indicator for background URL fetching -->
+        <div v-if="isFetchingMissingUrls" class="info-text fetching-urls">
+          <strong>🔄 Fetching URLs:</strong> Automatically retrieving organization URLs for testing
+          and backtesting...
         </div>
 
         <div class="org-input-group">
@@ -120,11 +128,25 @@
           <div v-if="organizations.length === 0" class="empty-state">No organizations saved</div>
           <div v-for="org in organizations" :key="org.oid" class="org-item">
             <div class="org-info">
-              <div class="org-name">{{ org.name }}</div>
+              <div class="org-name">
+                {{ org.name }}
+                <!-- Add indicator for organizations without URLs -->
+                <span
+                  v-if="!organizationHasUrls(org.oid)"
+                  class="missing-urls-indicator"
+                  title="URLs not yet fetched"
+                >
+                  ⚠️
+                </span>
+              </div>
               <div class="org-id">{{ org.oid }}</div>
             </div>
             <div class="org-actions">
-              <button class="btn btn-small btn-danger" @click="removeOrganization(org.oid)">
+              <button
+                class="btn btn-small btn-danger"
+                :disabled="!hasCredentials"
+                @click="removeOrganization(org.oid)"
+              >
                 Remove
               </button>
             </div>
@@ -409,6 +431,7 @@
           <a href="https://github.com/Digital-Defense-Institute/lc-detectionforge" target="_blank"
             >Open Source on GitHub</a
           >
+          • <RouterLink to="/changelog" class="version-link">v{{ currentVersion }}</RouterLink>
         </p>
       </div>
     </div>
@@ -416,13 +439,14 @@
 </template>
 
 <script setup lang="ts">
-/* eslint-disable no-console */
 import { ref, onMounted, watch } from 'vue'
 import { useStorage } from '../composables/useStorage'
 import { useAuth } from '../composables/useAuth'
 import { useApi } from '../composables/useApi'
 import { useAppStore } from '../stores/app'
 import { useConfigManager } from '../composables/useConfigManager'
+import { logger } from '../utils/logger'
+import { getCurrentVersion } from '../utils/version'
 import Logo from './Logo.vue'
 
 // Initialize composables
@@ -431,6 +455,7 @@ const auth = useAuth()
 const api = useApi()
 const appStore = useAppStore()
 const configManager = useConfigManager()
+const currentVersion = getCurrentVersion()
 
 // Reactive form data
 const newOid = ref('')
@@ -440,6 +465,7 @@ const orgUrls = ref<{ url?: string } | null>(null)
 const fetchingOrgUrls = ref(false)
 const isAddingOrg = ref(false)
 const isTestingUrls = ref(false)
+const isFetchingMissingUrls = ref(false)
 
 // Bulk import state
 const showBulkImportDialog = ref(false)
@@ -508,6 +534,56 @@ const configSummary = getConfigurationSummary // This is now a computed ref, not
 const _getOrgName = (oid: string) => {
   const org = organizations.value.find((o) => o.oid === oid)
   return org ? org.name : oid
+}
+
+// Helper function to check if organization has URLs
+const organizationHasUrls = (oid: string): boolean => {
+  const storedUrls = storage.getOrganizationUrls(oid)
+  const replayUrl = storage.getOrganizationReplayUrl(oid)
+  return !!(storedUrls && replayUrl)
+}
+
+// Function to fetch URLs for organizations that don't have them
+const fetchMissingOrganizationUrls = async (): Promise<void> => {
+  const credentials = storage.getCredentials()
+  if (!credentials || !hasCredentials.value) {
+    return
+  }
+
+  const orgsWithoutUrls = organizations.value.filter((org) => !organizationHasUrls(org.oid))
+
+  if (orgsWithoutUrls.length === 0) {
+    return
+  }
+
+  isFetchingMissingUrls.value = true
+
+  try {
+    for (const org of orgsWithoutUrls) {
+      try {
+        await fetchOrganizationUrls(org.oid)
+      } catch (error) {
+        logger.error(`Failed to fetch URLs for ${org.oid}:`, error)
+        // Continue with other organizations even if one fails
+      }
+    }
+
+    const successCount = orgsWithoutUrls.filter((org) => organizationHasUrls(org.oid)).length
+
+    if (successCount > 0) {
+      // Only show notification if significant number of URLs were fetched
+      if (successCount >= 3) {
+        appStore.addNotification(
+          'success',
+          `Automatically fetched URLs for ${successCount} organization(s)`,
+        )
+      }
+    }
+  } catch (error) {
+    logger.error('Failed to fetch missing organization URLs:', error)
+  } finally {
+    isFetchingMissingUrls.value = false
+  }
 }
 
 // Helper functions for formatting API data
@@ -684,6 +760,9 @@ const addOrganization = async () => {
     return
   }
 
+  // Show starting notification
+  appStore.addNotification('info', `Adding organization ${oid}...`)
+
   isAddingOrg.value = true
 
   try {
@@ -744,7 +823,7 @@ const fetchOrganizationUrls = async (oid: string) => {
       storage.setOrganizationUrls(oid, urls)
     }
   } catch (error) {
-    console.error('Failed to fetch organization URLs:', error)
+    logger.error('Failed to fetch organization URLs:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     appStore.addNotification('error', `Failed to fetch organization URLs: ${errorMessage}`)
     orgUrls.value = null
@@ -843,7 +922,7 @@ const bulkImportOrganizations = async () => {
 
         bulkImportResults.value!.success++
       } catch (error) {
-        console.error(`Failed to import organization ${oid}:`, error)
+        logger.error(`Failed to import organization ${oid}:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         bulkImportResults.value!.failed++
         bulkImportResults.value!.errors.push(`${oid}: ${errorMessage}`)
@@ -860,7 +939,7 @@ const bulkImportOrganizations = async () => {
       appStore.addNotification('error', `Failed to import all ${failed} organization(s)`)
     }
   } catch (error) {
-    console.error('Bulk import failed:', error)
+    logger.error('Bulk import failed:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     appStore.addNotification('error', `Bulk import failed: ${errorMessage}`)
   } finally {
@@ -910,6 +989,12 @@ const testApiCall = async () => {
       throw new Error('No organizations configured')
     }
 
+    // Show starting notification
+    appStore.addNotification(
+      'info',
+      `Starting API tests for ${organizations.value.length} organization(s)...`,
+    )
+
     // Clear previous results
     apiResults.value = []
 
@@ -942,7 +1027,7 @@ const testApiCall = async () => {
           showRawData: false,
         })
       } catch (error) {
-        console.error(`API test failed for ${org.oid}:`, error)
+        logger.error(`API test failed for ${org.oid}:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
         apiResults.value.push({
@@ -973,7 +1058,7 @@ const testApiCall = async () => {
       )
     }
   } catch (error) {
-    console.error('API test failed:', error)
+    logger.error('API test failed:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     apiResults.value = [
       {
@@ -994,6 +1079,12 @@ const testOrganizationUrls = async () => {
     appStore.addNotification('error', 'No organizations configured')
     return
   }
+
+  // Show starting notification
+  appStore.addNotification(
+    'info',
+    `Starting URL tests for ${organizations.value.length} organization(s)...`,
+  )
 
   isTestingUrls.value = true
   apiResults.value = []
@@ -1043,7 +1134,7 @@ const testOrganizationUrls = async () => {
           })
         }
       } catch (error) {
-        console.error(`URL test failed for ${org.oid}:`, error)
+        logger.error(`URL test failed for ${org.oid}:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
         urlResults.push({
@@ -1097,7 +1188,7 @@ const testOrganizationUrls = async () => {
       appStore.addNotification('warning', message)
     }
   } catch (error) {
-    console.error('URL testing failed:', error)
+    logger.error('URL testing failed:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     apiResults.value = [
       {
@@ -1157,11 +1248,14 @@ const generateJWTForOrg = async (oid: string) => {
 const exportConfig = async () => {
   if (isExporting.value) return
 
+  // Show starting notification
+  appStore.addNotification('info', 'Exporting configuration...')
+
   try {
-    await downloadConfiguration(`detectionforge-config-${Date.now()}`)
+    await downloadConfiguration(`detectionforge-config-${Date.now()}.json`)
     appStore.addNotification('success', 'Configuration exported successfully')
   } catch (error) {
-    console.error('Export failed:', error)
+    logger.error('Export failed:', error)
     appStore.addNotification(
       'error',
       `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1182,6 +1276,12 @@ const handleConfigFileSelected = (event: Event) => {
 
 const importConfig = async () => {
   if (!selectedConfigFile.value || isImporting.value) return
+
+  // Show starting notification
+  appStore.addNotification(
+    'info',
+    `Importing configuration from ${selectedConfigFile.value.name}...`,
+  )
 
   try {
     const fileContent = await selectedConfigFile.value.text()
@@ -1204,12 +1304,17 @@ const importConfig = async () => {
         configFileInput.value.value = ''
       }
 
+      // Automatically fetch URLs for any imported organizations that don't have them
+      setTimeout(() => {
+        fetchMissingOrganizationUrls()
+      }, 500) // Small delay to ensure storage is fully updated
+
       appStore.addNotification('success', 'Configuration imported successfully')
     } else {
       appStore.addNotification('error', 'Configuration import failed - see details below')
     }
   } catch (error) {
-    console.error('Import failed:', error)
+    logger.error('Import failed:', error)
     lastImportResult.value = {
       success: false,
       imported: { organizations: 0, settings: 0, detectionRules: 0, drafts: 0 },
@@ -1249,7 +1354,7 @@ const clearAllConfig = async () => {
 
     appStore.addNotification('success', 'All configuration cleared successfully')
   } catch (error) {
-    console.error('Clear configuration failed:', error)
+    logger.error('Clear configuration failed:', error)
     appStore.addNotification('error', 'Failed to clear configuration')
   }
 }
@@ -1284,12 +1389,31 @@ const loadSavedCredentials = () => {
 // Watch for changes to update auth status
 watch([hasCredentials, organizations], updateAuthStatus)
 
+// Watch for changes to credentials and organizations to auto-fetch missing URLs
+watch([hasCredentials, organizations], async () => {
+  updateAuthStatus()
+
+  // If we now have credentials and organizations, check for missing URLs
+  if (hasCredentials.value && organizations.value.length > 0) {
+    // Small delay to avoid rapid successive calls
+    setTimeout(() => {
+      fetchMissingOrganizationUrls()
+    }, 500)
+  }
+})
+
 // Initialize on mount
 onMounted(async () => {
   loadSavedCredentials()
   loadSavedOrgUrls()
   updateAuthStatus()
   appStore.initialize()
+
+  // Automatically fetch URLs for organizations that don't have them
+  // Wait a bit for everything to initialize
+  setTimeout(() => {
+    fetchMissingOrganizationUrls()
+  }, 1000)
 })
 
 // Toggle expansion of API test results
@@ -1337,6 +1461,21 @@ const toggleDataView = (index: number) => {
   border: 1px solid #ffeaa7;
   border-radius: 4px;
   font-size: 0.9em;
+}
+
+.fetching-urls {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 0.9em;
+}
+
+.missing-urls-indicator {
+  margin-left: 8px;
+  font-size: 0.8em;
+  cursor: help;
 }
 
 .current-setting {
@@ -1416,6 +1555,21 @@ const toggleDataView = (index: number) => {
   background-color: #6c757d;
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* General disabled button styling */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transition: opacity 0.2s ease;
+}
+
+.btn-primary:disabled {
+  background-color: #6c757d;
+}
+
+.btn-danger:disabled {
+  background-color: #6c757d;
 }
 
 /* Inline results summary next to button */

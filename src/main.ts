@@ -46,6 +46,12 @@ const router = createRouter({
       component: () => import('./components/Config.vue'), // Dynamic import
       meta: { title: 'Configuration - DetectionForge' },
     },
+    {
+      path: '/changelog',
+      name: 'Changelog',
+      component: () => import('./components/Changelog.vue'), // Dynamic import
+      meta: { title: 'Changelog - DetectionForge' },
+    },
     { path: '/rules', redirect: '/workbench' }, // Redirect old route for backward compatibility
   ],
 })

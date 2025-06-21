@@ -212,6 +212,7 @@
         </p>
         <RouterLink to="/config" class="btn home">Start Configuration</RouterLink>
         <RouterLink to="/workbench" class="btn home">Detection Workbench</RouterLink>
+        <RouterLink to="/changelog" class="btn btn-secondary home">Changelog</RouterLink>
         <a
           href="https://docs.limacharlie.io/docs/detection-and-response"
           target="_blank"
@@ -231,6 +232,7 @@
           <a href="https://github.com/Digital-Defense-Institute/lc-detectionforge" target="_blank"
             >Open Source on GitHub</a
           >
+          • <RouterLink to="/changelog" class="version-link">v{{ currentVersion }}</RouterLink>
         </p>
       </div>
     </div>
@@ -239,5 +241,8 @@
 
 <script setup lang="ts">
 import Logo from './Logo.vue'
+import { getCurrentVersion } from '../utils/version'
+
+const currentVersion = getCurrentVersion()
 // Home page component
 </script>

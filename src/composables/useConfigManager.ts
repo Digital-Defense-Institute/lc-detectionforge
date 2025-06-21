@@ -1,11 +1,12 @@
 import { ref, computed } from 'vue'
 import { useStorage } from './useStorage'
 import { useAppStore } from '../stores/app'
+import { getCurrentVersion } from '../utils/version'
 
 interface ConfigurationExport {
   version: string
   exportDate: string
-  appVersion?: string
+  appVersion: string
   data: {
     organizations: Record<string, unknown>[]
     settings: Record<string, unknown>
@@ -101,7 +102,7 @@ export function useConfigManager() {
       const exportData: ConfigurationExport = {
         version: CONFIG_VERSION,
         exportDate: new Date().toISOString(),
-        appVersion: '1.0.0', // Could be dynamically retrieved
+        appVersion: getCurrentVersion(),
         data: {
           organizations: [],
           settings: {},
@@ -215,6 +216,20 @@ export function useConfigManager() {
       } else if (importData.version !== CONFIG_VERSION) {
         result.warnings.push(
           `Version mismatch: importing ${importData.version}, current is ${CONFIG_VERSION}`,
+        )
+      }
+
+      // App version compatibility check
+      const currentAppVersion = getCurrentVersion()
+      if (importData.appVersion) {
+        if (importData.appVersion !== currentAppVersion) {
+          result.warnings.push(
+            `App version mismatch: config exported from v${importData.appVersion}, current app is v${currentAppVersion}`,
+          )
+        }
+      } else {
+        result.warnings.push(
+          'Config has no app version info - exported from older DetectionForge version',
         )
       }
 
@@ -437,7 +452,7 @@ export function useConfigManager() {
   const clearAllConfiguration = async (createBackup = true) => {
     try {
       if (createBackup) {
-        await downloadConfiguration(`detectionforge-backup-before-clear-${Date.now()}`)
+        await downloadConfiguration(`detectionforge-backup-before-clear-${Date.now()}.json`)
       }
 
       const keys = getAllDetectionForgeKeys()

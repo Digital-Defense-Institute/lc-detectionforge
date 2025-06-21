@@ -1,7 +1,7 @@
 {
   "name": "lc-detectionforge",
   "description": "A comprehensive detection engineering environment for crafting, validating, and testing LimaCharlie detection rules",
-  "version": "0.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -12,7 +12,10 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.6",
@@ -46,7 +49,7 @@
     "eslint-plugin-vue": "~10.0.0",
     "jiti": "^2.4.2",
     "npm-run-all2": "^7.0.2",
-    "prettier": "3.5.3",
+    "prettier": "^3.5.3",
     "tsx": "^4.20.3",
     "typescript": "~5.8.0",
     "vite": "^6.2.4",

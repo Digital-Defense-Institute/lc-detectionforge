@@ -1278,6 +1278,18 @@ body.config {
   text-decoration: underline;
 }
 
+.footer .version-link {
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.footer .version-link:hover {
+  background: rgba(52, 152, 219, 0.1);
+  color: #5dade2;
+}
+
 .footer .heart {
   color: #3498db;
   font-size: 1.1em;

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { useStorage } from '../composables/useStorage'
 import { useAuth } from '../composables/useAuth'
 import { useApi as _useApi } from '../composables/useApi'
+import { logger } from '../utils/logger'
 
 interface AppState {
   isInitialized: boolean
@@ -89,15 +90,26 @@ export const useAppStore = defineStore('app', {
 
     // Remove a notification
     removeNotification(id: string) {
-      const index = this.notifications.findIndex((n) => n.id === id)
-      if (index > -1) {
-        this.notifications.splice(index, 1)
+      try {
+        const index = this.notifications.findIndex((n) => n.id === id)
+        if (index > -1) {
+          this.notifications.splice(index, 1)
+        }
+      } catch (error) {
+        // Silently handle any errors when removing notifications
+        // This prevents external script conflicts from breaking our notification system
+        logger.warn('Error removing notification:', error)
       }
     },
 
     // Clear all notifications
     clearNotifications() {
-      this.notifications = []
+      try {
+        this.notifications = []
+      } catch (error) {
+        // Silently handle any errors when clearing notifications
+        logger.warn('Error clearing notifications:', error)
+      }
     },
 
     // Clear notifications of a specific type

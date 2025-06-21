@@ -1134,6 +1134,7 @@ hives:
           <a href="https://github.com/Digital-Defense-Institute/lc-detectionforge" target="_blank"
             >Open Source on GitHub</a
           >
+          • <RouterLink to="/changelog" class="version-link">v{{ currentVersion }}</RouterLink>
         </p>
       </div>
     </div>
@@ -1148,6 +1149,7 @@ import { useStorage } from '../composables/useStorage'
 import { useAuth } from '../composables/useAuth'
 import { sanitizeHtml } from '../utils/sanitizer'
 import { logger } from '../utils/logger'
+import { getCurrentVersion } from '../utils/version'
 import Logo from './Logo.vue'
 // CodeMirror v6 imports
 import {
@@ -1177,6 +1179,7 @@ const appStore = useAppStore()
 const api = useApi()
 const storage = useStorage()
 const auth = useAuth()
+const currentVersion = getCurrentVersion()
 
 // Template refs
 const detectEditorRef = ref<HTMLTextAreaElement>()
