@@ -92,7 +92,7 @@ const { isDark, toggleTheme } = useTheme()
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--theme-toggle-icon-color, #666);
+  color: white;
   transition: transform 0.3s ease;
 }
 
@@ -101,7 +101,7 @@ const { isDark, toggleTheme } = useTheme()
 }
 
 .theme-toggle--dark .theme-toggle__icon {
-  color: var(--theme-toggle-dark-icon-color, #ccc);
+  color: white;
 }
 
 /* Animation for icon transitions */

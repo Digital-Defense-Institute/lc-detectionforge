@@ -328,7 +328,7 @@
         <!-- Export Section -->
         <div class="config-actions-section">
           <h4>Export Configuration</h4>
-          <div class="button-group">
+          <div class="button-group export-button-group">
             <button
               class="btn btn-primary"
               :disabled="isExporting || configSummary.totalKeys === 0"
@@ -1496,12 +1496,15 @@ const toggleDataView = (index: number) => {
 }
 
 .api-result pre {
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
   padding: 10px;
   border-radius: 4px;
   margin: 10px 0;
   font-size: 12px;
   overflow-x: auto;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  transition: all var(--transition-speed) ease;
 }
 
 /* Multi-select organization styles */
@@ -1609,7 +1612,7 @@ const toggleDataView = (index: number) => {
 }
 
 .result-header:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-hover);
   border-radius: 4px;
   margin: 0 -8px;
   padding: 8px;
@@ -1624,14 +1627,16 @@ const toggleDataView = (index: number) => {
 .result-details {
   margin-top: 8px;
   padding-left: 16px;
-  border-left: 2px solid #dee2e6;
+  border-left: 2px solid var(--border-secondary);
+  transition: border-color var(--transition-speed) ease;
 }
 
 /* Formatted API data display */
 .data-controls {
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: border-color var(--transition-speed) ease;
 }
 
 .toggle-view-btn {
@@ -1651,29 +1656,33 @@ const toggleDataView = (index: number) => {
 
 .formatted-data {
   background-color: var(--bg-tertiary);
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-secondary);
   border-radius: 6px;
   padding: 15px;
   margin: 10px 0;
+  transition: all var(--transition-speed) ease;
 }
 
 .raw-data {
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
   padding: 15px;
   border-radius: 6px;
   margin: 10px 0;
   font-size: 0.8em;
   overflow-x: auto;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-secondary);
   max-height: 400px;
   overflow-y: auto;
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
 }
 
 .data-row {
   display: flex;
   align-items: center;
   padding: 6px 0;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: border-color var(--transition-speed) ease;
 }
 
 .data-row:last-child {
@@ -1694,7 +1703,9 @@ const toggleDataView = (index: number) => {
   padding: 2px 6px;
   border-radius: 3px;
   background-color: var(--bg-secondary);
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-tertiary);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
 }
 
 .data-value.value-neutral {
@@ -1715,7 +1726,7 @@ const toggleDataView = (index: number) => {
 }
 
 .data-value.value-default {
-  color: #333;
+  color: var(--text-primary);
   background-color: var(--bg-secondary);
 }
 
@@ -2044,6 +2055,11 @@ input[type='file'] {
   margin-bottom: 3px;
   font-size: 0.9em;
   color: #721c24;
+}
+
+/* Center the export button */
+.export-button-group {
+  justify-content: center;
 }
 
 /* Responsive modal */
