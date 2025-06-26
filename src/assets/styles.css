@@ -2020,6 +2020,29 @@ body.config {
   letter-spacing: 0.5px;
 }
 
+.timeframe-info {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.timeframe-item {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.timeframe-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeframe-item strong {
+  color: #2c3e50;
+  margin-right: 8px;
+}
+
 .matches-section {
   margin-top: 25px;
 }
@@ -2568,6 +2591,10 @@ body.config {
 }
 
 .progress-current {
+  width: 100%;
+}
+
+.serial-progress {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2969,8 +2996,10 @@ body.config {
     max-height: 95vh;
   }
 
+
+
   .reference-modal-header {
-    padding: 16px 20px;
+    padding:   16px 20px;
   }
 
   .reference-modal-header h3 {
@@ -3026,21 +3055,26 @@ body.config {
   }
 }
 
-@media (max-width: 480px) {
-  .reference-modal-header {
-    padding: 12px 16px;
+/* Responsive design for organization status */
+@media (max-width: 768px) {
+  .org-status-item {
+    grid-template-columns: 35px 1fr auto;
+    padding: 10px 12px;
+    gap: 8px;
   }
 
-  .reference-modal-content {
-    padding: 16px;
+  .org-status-name {
+    font-size: 14px;
   }
 
-  .reference-section {
-    margin-bottom: 24px;
+  .org-status-oid {
+    font-size: 10px;
   }
 
-  .reference-column {
-    padding: 12px;
+  .org-status-label {
+    font-size: 10px;
+    padding: 3px 6px;
+    min-width: 60px;
   }
 }
 
@@ -3459,4 +3493,252 @@ body.config {
   color: #dc3545;
   font-size: 12px;
   font-style: italic;
+}
+
+/* =============================================================================
+   PARALLEL EXECUTION CHECKBOX STYLES
+   ============================================================================= */
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  flex: 1;
+}
+
+/* Parallel progress styles */
+.parallel-progress {
+  width: 100%;
+}
+
+.parallel-progress h5 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.org-status-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  width: 100%;
+}
+
+.org-status-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4;
+  transition: background-color 0.2s ease;
+  gap: 12px;
+}
+
+.org-status-item:last-child {
+  border-bottom: none;
+}
+
+.org-status-item.pending {
+  background-color: #fff3cd;
+}
+
+.org-status-item.running {
+  background-color: #cce5ff;
+  animation: pulse 2s infinite;
+}
+
+.org-status-item.completed {
+  background-color: #d4edda;
+}
+
+.org-status-item.error {
+  background-color: #f8d7da;
+}
+
+.org-status-icon {
+  font-size: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.org-status-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.org-status-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 15px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.org-status-oid {
+  font-size: 11px;
+  color: #6c757d;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.org-status-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: center;
+}
+
+.org-status-item.pending .org-status-label {
+  color: #856404;
+  background-color: rgba(255, 243, 205, 0.8);
+  border: 1px solid #ffeaa7;
+}
+
+.org-status-item.running .org-status-label {
+  color: #004085;
+  background-color: rgba(204, 229, 255, 0.8);
+  border: 1px solid #74b9ff;
+}
+
+.org-status-item.completed .org-status-label {
+  color: #155724;
+  background-color: rgba(212, 237, 218, 0.8);
+  border: 1px solid #00b894;
+}
+
+.org-status-item.error .org-status-label {
+  color: #721c24;
+  background-color: rgba(248, 215, 218, 0.8);
+  border: 1px solid #e17055;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* =============================================================================
+   SLIDER TOGGLE COMPONENTS
+   ============================================================================= */
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2c3e50;
+  gap: 12px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #ddd;
+  border-radius: 12px;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch.active {
+  background: #667eea;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch.active::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  flex: 1;
+  font-size: 14px;
+}
+
+/* Hide the original checkbox input for toggle switches */
+.toggle-input {
+  display: none;
+}
+
+/* =============================================================================
+   FORM INPUT CONSISTENCY IMPROVEMENTS
+   ============================================================================= */
+
+/* Missing input type styles for better consistency */
+.datetime-input, .number-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 14px;
+  color: #2c3e50;
+  background: white;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.datetime-input:focus, .number-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.datetime-input:hover, .number-input:hover {
+  border-color: #dee2e6;
+}
+
+/* Enhanced button consistency */
+.btn-large {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 120px;
+  border-radius: 6px;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 80px;
+  border-radius: 4px;
 }

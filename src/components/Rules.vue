@@ -487,6 +487,64 @@
                     />
                     <small>Maximum number of rule evaluations (0 = no limit)</small>
                   </div>
+                  <div class="input-group">
+                    <label class="toggle-label">
+                      <input
+                        v-model="backtestConfig.runInParallel"
+                        type="checkbox"
+                        class="toggle-input"
+                      />
+                      <div
+                        class="toggle-switch"
+                        :class="{ active: backtestConfig.runInParallel }"
+                      ></div>
+                      <span class="toggle-text">Run organizations in parallel</span>
+                    </label>
+                    <small>
+                      (Recommended) Parallel execution is faster but may hit rate or local bandwidth
+                      throughput limits. Disable if you encounter errors.
+                    </small>
+                  </div>
+
+                  <!-- Performance Optimization Settings -->
+
+                  <div class="input-group">
+                    <label class="toggle-label">
+                      <input
+                        v-model="backtestConfig.isStateful"
+                        type="checkbox"
+                        class="toggle-input"
+                      />
+                      <div
+                        class="toggle-switch"
+                        :class="{ active: backtestConfig.isStateful }"
+                      ></div>
+                      <span class="toggle-text">Enable stateful processing</span>
+                    </label>
+                    <small>
+                      Only enable if your detection rule uses stateful operations (like counters,
+                      time windows, or tracking). Not needed for simple stateless rules.
+                    </small>
+                  </div>
+
+                  <div class="input-group">
+                    <label class="toggle-label">
+                      <input
+                        v-model="backtestConfig.useChunkedResults"
+                        type="checkbox"
+                        class="toggle-input"
+                      />
+                      <div
+                        class="toggle-switch"
+                        :class="{ active: backtestConfig.useChunkedResults }"
+                      ></div>
+                      <span class="toggle-text">Use chunked results for massive datasets</span>
+                    </label>
+                    <small>
+                      ⚠️ WARNING: Only enable for extremely large datasets that cause timeouts.
+                      Creates multiple API calls which can be slower for normal datasets.
+                    </small>
+                  </div>
                 </div>
               </div>
             </div>
@@ -502,6 +560,14 @@
                     ? `🔄 Running Backtest for ${backtestSelectedOids.length} Org${backtestSelectedOids.length !== 1 ? 's' : ''}...`
                     : `🔍 Run Backtest${backtestSelectedOids.length > 1 ? ` (${backtestSelectedOids.length} Orgs)` : ''}`
                 }}
+              </button>
+              <button
+                v-if="isRunningBacktest"
+                class="btn btn-warning"
+                :disabled="isCancellingBacktest"
+                @click="cancelBacktest"
+              >
+                {{ isCancellingBacktest ? '⏹️ Cancelling...' : '⏹️ Cancel Backtest' }}
               </button>
               <button
                 class="btn btn-secondary"
@@ -529,50 +595,246 @@
                 ></div>
               </div>
               <div class="progress-current">
-                <span class="current-org-icon">🏢</span>
-                <div class="current-org-info">
-                  <div class="current-org-name">
-                    {{ getOrgNameOnly(backtestProgress.currentOid) }}
+                <div v-if="!backtestConfig.runInParallel" class="serial-progress">
+                  <span class="current-org-icon">🏢</span>
+                  <div class="current-org-info">
+                    <div class="current-org-name">
+                      {{ getOrgNameOnly(backtestProgress.currentOid) }}
+                    </div>
+                    <div class="current-org-oid">{{ backtestProgress.currentOid }}</div>
                   </div>
-                  <div class="current-org-oid">{{ backtestProgress.currentOid }}</div>
+                </div>
+                <div v-else class="parallel-progress">
+                  <h5>Organization Status</h5>
+                  <div
+                    class="org-status-list"
+                    :style="{
+                      maxHeight: Math.min(backtestProgress.orgStatuses.length * 40, 20 * 40) + 'px',
+                      overflowY: 'auto',
+                    }"
+                  >
+                    <div
+                      v-for="orgStatus in sortedOrgStatuses"
+                      :key="orgStatus.oid"
+                      class="org-status-item"
+                      :class="orgStatus.status"
+                      style="display: flex; align-items: center; gap: 8px; min-height: 40px"
+                    >
+                      <span class="org-status-icon" style="flex-shrink: 0">
+                        {{
+                          orgStatus.status === 'pending'
+                            ? '⏳'
+                            : orgStatus.status === 'running'
+                              ? '🔄'
+                              : orgStatus.status === 'completed'
+                                ? '✅'
+                                : orgStatus.status === 'cancelled'
+                                  ? '⏹️'
+                                  : orgStatus.status === 'timeout'
+                                    ? '⏰'
+                                    : '❌'
+                        }}
+                      </span>
+                      <div class="org-status-info" style="flex: 1; min-width: 0">
+                        <div class="org-status-name">{{ getOrgNameOnly(orgStatus.oid) }}</div>
+                        <div class="org-status-oid">{{ orgStatus.oid }}</div>
+                      </div>
+                      <div class="org-status-label" style="flex-shrink: 0">
+                        {{
+                          orgStatus.status === 'pending'
+                            ? 'Waiting'
+                            : orgStatus.status === 'running'
+                              ? 'Running'
+                              : orgStatus.status === 'completed'
+                                ? 'Complete'
+                                : orgStatus.status === 'cancelled'
+                                  ? 'Cancelled'
+                                  : orgStatus.status === 'timeout'
+                                    ? 'Timeout'
+                                    : 'Failed'
+                        }}
+                      </div>
+                      <div
+                        v-if="orgStatus.startTime"
+                        class="org-timing"
+                        style="
+                          display: flex;
+                          align-items: center;
+                          white-space: nowrap;
+                          flex-shrink: 0;
+                        "
+                      >
+                        <span style="margin-right: 4px">⏱️</span>
+                        <span v-if="orgStatus.status === 'running'" class="running-time">
+                          {{ getRunningTime(orgStatus.startTime) }}
+                        </span>
+                        <span v-else-if="orgStatus.duration" class="completed-time">
+                          {{ formatDuration(orgStatus.duration) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Backtest Results -->
             <div v-if="backtestResults" class="backtest-results">
-              <div class="results-header">
-                <h4>Backtest Results</h4>
-                <div class="results-timestamp">
-                  Completed: {{ formatTimestamp(backtestResults.completedAt) }}
+              <div
+                class="results-header"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: flex-start;
+                  margin-bottom: 16px;
+                "
+              >
+                <div>
+                  <h4>Backtest Results</h4>
+                  <div class="results-timestamp">
+                    Started: {{ formatTimestamp(backtestResults.executionStats.startedAt) }} |
+                    Completed: {{ formatTimestamp(backtestResults.completedAt) }} | Duration:
+                    {{ backtestResults.executionStats.totalExecutionTime.toFixed(2) }}s
+                  </div>
                 </div>
+                <button
+                  class="btn btn-info btn-small"
+                  title="Copy backtest summary as Markdown table to clipboard"
+                  @click="exportBacktestSummaryAsMarkdown"
+                >
+                  📋 Copy Summary
+                </button>
               </div>
 
               <!-- Overall Statistics Summary -->
               <div class="stats-summary">
-                <div class="stat-card">
+                <div
+                  class="stat-card"
+                  :title="
+                    backtestResults.totalStats.n_proc === 0
+                      ? 'Events Processed shows 0 when LimaCharlie\'s pre-filtering (by time range, event type, and content matching) efficiently eliminates events before full rule evaluation. This indicates optimal performance - your rule was tested, but no events needed expensive processing.'
+                      : ''
+                  "
+                >
                   <div class="stat-number">
                     {{ backtestResults.totalStats.n_proc.toLocaleString() }}
                   </div>
-                  <div class="stat-label">Total Events Processed</div>
+                  <div class="stat-label">
+                    Total Events Processed
+                    <span
+                      v-if="backtestResults.totalStats.n_proc === 0"
+                      class="info-icon"
+                      style="margin-left: 4px; color: #4a90e2; cursor: help; font-size: 0.9em"
+                    >
+                      ℹ️
+                    </span>
+                  </div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-number">
                     {{ backtestResults.totalStats.n_eval.toLocaleString() }}
                   </div>
-                  <div class="stat-label">Total Rule Evaluations</div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Total Rule Evaluations
+                  </div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-number">
                     {{ backtestResults.totalStats.totalMatches.toLocaleString() }}
                   </div>
-                  <div class="stat-label">Total Matches Found</div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Total Matches Found
+                  </div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-number">
                     {{ backtestResults.totalStats.wall_time.toFixed(2) }}s
                   </div>
-                  <div class="stat-label">Total Execution Time</div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    API Processing Time
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.executionStats.totalExecutionTime.toFixed(2) }}s
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Total Backtest Time
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.timeframe.durationDays.toFixed(1) }}
+                  </div>
+                  <div class="stat-label">Days Covered</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.completionStats.completedOrgs }} /
+                    {{ backtestResults.completionStats.totalOrgs }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Orgs Completed
+                  </div>
+                </div>
+                <div
+                  v-if="
+                    backtestResults.completionStats.failedOrgs > 0 ||
+                    backtestResults.completionStats.cancelledOrgs > 0 ||
+                    backtestResults.completionStats.timeoutOrgs > 0
+                  "
+                  class="stat-card"
+                >
+                  <div class="stat-number">
+                    {{
+                      backtestResults.completionStats.failedOrgs +
+                      backtestResults.completionStats.cancelledOrgs +
+                      backtestResults.completionStats.timeoutOrgs
+                    }}
+                  </div>
+                  <div
+                    class="stat-label"
+                    style="
+                      word-wrap: break-word;
+                      overflow-wrap: break-word;
+                      hyphens: auto;
+                      text-align: center;
+                    "
+                  >
+                    {{
+                      backtestResults.completionStats.wasCancelled
+                        ? 'Failed / Cancelled / Timeout'
+                        : 'Failed / Timeout Orgs'
+                    }}
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.completionStats.orgsWithZeroHits }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Orgs with 0 Hits
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.completionStats.avgMatchesPerOrg.toFixed(1) }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Avg Matches per Org
+                  </div>
+                </div>
+              </div>
+
+              <!-- Timeframe Information -->
+              <div class="timeframe-info">
+                <div class="timeframe-item">
+                  <strong>Telemetry Start Time:</strong>
+                  {{ formatTimestamp(backtestResults.timeframe.startTime) }}
+                </div>
+                <div class="timeframe-item">
+                  <strong>Telemetry End Time:</strong>
+                  {{ formatTimestamp(backtestResults.timeframe.endTime) }}
                 </div>
               </div>
 
@@ -593,8 +855,24 @@
                     </div>
                     <div class="org-status-wrapper">
                       <span class="org-status" :class="orgResult.status">
-                        {{ orgResult.status === 'success' ? '✅' : '❌' }}
-                        {{ orgResult.status === 'success' ? 'Success' : 'Failed' }}
+                        {{
+                          orgResult.status === 'success'
+                            ? '✅'
+                            : orgResult.status === 'cancelled'
+                              ? '⏹️'
+                              : orgResult.status === 'timeout'
+                                ? '⏰'
+                                : '❌'
+                        }}
+                        {{
+                          orgResult.status === 'success'
+                            ? 'Success'
+                            : orgResult.status === 'cancelled'
+                              ? 'Cancelled'
+                              : orgResult.status === 'timeout'
+                                ? 'Timeout'
+                                : 'Failed'
+                        }}
                       </span>
                     </div>
                     <div class="org-summary">
@@ -603,6 +881,12 @@
                       </span>
                       <span v-if="orgResult.status === 'error'" class="error-text">
                         {{ orgResult.error }}
+                      </span>
+                      <span v-if="orgResult.status === 'cancelled'" class="cancelled-text">
+                        Cancelled during execution
+                      </span>
+                      <span v-if="orgResult.status === 'timeout'" class="timeout-text">
+                        Exceeded 30 minute limit
                       </span>
                       <span class="toggle-icon">{{
                         expandedOrgResults.has(orgIndex) ? '▼' : '▶'
@@ -764,17 +1048,28 @@
 
                         <!-- Load More for this org -->
                         <div
-                          v-if="orgResult.results.length > getDisplayedResultsForOrg(orgIndex)"
+                          v-if="
+                            backtestConfig.useChunkedResults
+                              ? orgHasMore[orgIndex]
+                              : orgResult.results.length > getDisplayedResultsForOrg(orgIndex)
+                          "
                           class="load-more-section"
                         >
                           <button
                             class="btn btn-small btn-primary"
+                            :disabled="orgLoadingMore[orgIndex]"
                             @click="loadMoreResultsForOrg(orgIndex)"
                           >
-                            Load More ({{
-                              orgResult.results.length - getDisplayedResultsForOrg(orgIndex)
-                            }}
-                            remaining)
+                            <span v-if="orgLoadingMore[orgIndex]">🔄 Loading more results...</span>
+                            <span v-else-if="backtestConfig.useChunkedResults">
+                              📥 Fetch More Results
+                            </span>
+                            <span v-else>
+                              Load More ({{
+                                orgResult.results.length - getDisplayedResultsForOrg(orgIndex)
+                              }}
+                              remaining)
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -784,8 +1079,25 @@
                       </div>
                     </div>
 
-                    <div v-else class="org-error-details">
+                    <div v-else-if="orgResult.status === 'error'" class="org-error-details">
                       <div class="error-message"><strong>Error:</strong> {{ orgResult.error }}</div>
+                    </div>
+                    <div v-else-if="orgResult.status === 'cancelled'" class="org-cancelled-details">
+                      <div class="cancelled-message">
+                        <strong>Cancelled:</strong> This organization was cancelled during backtest
+                        execution.
+                      </div>
+                    </div>
+                    <div v-else-if="orgResult.status === 'timeout'" class="org-timeout-details">
+                      <div class="timeout-message">
+                        <strong>Timeout:</strong> This organization exceeded the 30-minute execution
+                        limit.
+                      </div>
+                      <div class="timeout-guidance">
+                        The query timed out because the result set may be too large. Try narrowing
+                        the time range, adding more filters, or use the LC Query Console, which
+                        supports pagination for large datasets.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1159,12 +1471,7 @@ import {
   lineNumbers,
   drawSelection,
 } from '@codemirror/view'
-import {
-  autocompletion,
-  closeBrackets,
-  CompletionContext,
-  type CompletionResult,
-} from '@codemirror/autocomplete'
+import { autocompletion, closeBrackets } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { yaml as yamlLang } from '@codemirror/lang-yaml'
@@ -1174,6 +1481,7 @@ import { foldGutter, codeFolding, foldKeymap } from '@codemirror/language'
 import { bracketMatching } from '@codemirror/language'
 import { linter, lintGutter } from '@codemirror/lint'
 import * as yaml from 'js-yaml'
+import { DRCompletionEngine } from '../utils/drCompletionEngine'
 
 const appStore = useAppStore()
 const api = useApi()
@@ -1255,2359 +1563,6 @@ const yamlLinter = linter((view) => {
 
   return diagnostics
 })
-
-// Simplified LimaCharlie D&R autocompletion with editor awareness
-const limaCharlieCompletions = (context: CompletionContext): CompletionResult | null => {
-  const word = context.matchBefore(/\w*/)
-  if (!word) return null
-
-  // Get line context
-  const line = context.state.doc.lineAt(context.pos)
-  const beforeCursor = line.text.slice(0, context.pos - line.from)
-
-  // Determine active editor - simpler approach using the view's DOM
-  let activeEditor = 'detect'
-
-  // Check if this CodeMirror instance is attached to the respond editor
-  if (context.view?.dom) {
-    // Look for the original textarea that was replaced by CodeMirror
-    const parentPanel = context.view.dom.closest('.editor-panel')
-    if (parentPanel) {
-      const label = parentPanel.querySelector('label[for="respondEditor"]')
-      if (label) {
-        activeEditor = 'respond'
-      } else {
-        const detectLabel = parentPanel.querySelector('label[for="detectEditor"]')
-        if (detectLabel) {
-          activeEditor = 'detect'
-        }
-      }
-    }
-  }
-
-  // Fallback: check if there's a respond editor textarea in the DOM and if it's focused
-  if (activeEditor === 'detect') {
-    const respondTextarea = document.getElementById('respondEditor')
-    if (respondTextarea && respondTextarea.style.display !== 'none') {
-      // If respond editor exists and is visible, check if CodeMirror replaced it
-      const cmWrapper = respondTextarea.nextElementSibling
-      if (cmWrapper && cmWrapper.classList.contains('cm-editor')) {
-        if (context.view?.dom && cmWrapper.contains(context.view.dom)) {
-          activeEditor = 'respond'
-        }
-      }
-    }
-  }
-
-  // Context detection - handle YAML list items with dashes
-  const isAfterColon = /(?:^|\s|-\s*)(\w+):\s*$/.test(beforeCursor)
-  const contextMatch = beforeCursor.match(/(?:^|\s|-\s*)(\w+):\s*$/)
-  const fieldContext = contextMatch ? contextMatch[1] : null
-
-  // Detect if we're inside an action block by looking at previous lines
-  const docText = context.state.doc.toString()
-  const currentLine = context.state.doc.lineAt(context.pos)
-  const linesBeforeCursor = docText.slice(0, currentLine.from).split('\n')
-
-  let insideActionBlock = null
-  const _actionIndentLevel = -1
-
-  // Look backwards to find the most recent action declaration
-  for (let i = linesBeforeCursor.length - 1; i >= 0; i--) {
-    const line = linesBeforeCursor[i]
-    const actionMatch = line.match(/^(\s*)-\s*action:\s*(\w+)/)
-
-    if (actionMatch) {
-      const indentLevel = actionMatch[1].length
-      const indentMatch = currentLine.text.match(/^(\s*)/)
-      const currentLineIndent = indentMatch ? indentMatch[1].length : 0
-
-      // Check if current line is indented more than the action line (inside the block)
-      if (currentLineIndent > indentLevel) {
-        insideActionBlock = actionMatch[2] // The action type (report, task, etc.)
-        void _actionIndentLevel // Suppressed unused variable
-        break
-      } else {
-        // Found an action but we're not inside it (same or less indentation)
-        break
-      }
-    }
-
-    // If we hit another list item at the same level, we're not in the action block
-    if (line.match(/^(\s*)-\s*\w+:/) && !line.includes('action:')) {
-      break
-    }
-  }
-
-  // Debug logging (only in development)
-  logger.debug('beforeCursor:', JSON.stringify(beforeCursor))
-  logger.debug('isAfterColon:', isAfterColon)
-  logger.debug('fieldContext:', fieldContext)
-  logger.debug('activeEditor:', activeEditor)
-  logger.debug('insideActionBlock:', insideActionBlock)
-
-  const completions = [
-    // === DETECT EDITOR ONLY ===
-
-    // Core detection structure
-    { label: 'event', type: 'property', info: 'Event type to monitor', editor: 'detect' },
-    { label: 'op', type: 'property', info: 'Operator for comparison', editor: 'detect' },
-    { label: 'path', type: 'property', info: 'Field path in event data', editor: 'detect' },
-    { label: 'value', type: 'property', info: 'Value to match against', editor: 'detect' },
-    {
-      label: 're',
-      type: 'property',
-      info: 'Regular expression pattern for matches operator',
-      editor: 'detect',
-    },
-    {
-      label: 'case sensitive',
-      type: 'property',
-      info: 'Case sensitivity flag (true/false)',
-      editor: 'detect',
-    },
-    {
-      label: 'not',
-      type: 'property',
-      info: 'Inverts the result of the rule (true/false)',
-      editor: 'detect',
-    },
-    {
-      label: 'max',
-      type: 'property',
-      info: 'Maximum value for string distance operator',
-      editor: 'detect',
-    },
-    {
-      label: 'name',
-      type: 'property',
-      info: 'Platform name for is platform operator',
-      editor: 'detect',
-    },
-    {
-      label: 'tag',
-      type: 'property',
-      info: 'Tag name for is tagged operator',
-      editor: 'detect',
-    },
-    {
-      label: 'resource',
-      type: 'property',
-      info: 'Resource path for lookup operator (e.g., lcr://lookup/malwaredomains)',
-      editor: 'detect',
-    },
-    {
-      label: 'rule',
-      type: 'property',
-      info: 'Single nested rule for scope operator',
-      editor: 'detect',
-    },
-    {
-      label: 'cidr',
-      type: 'property',
-      info: 'CIDR network mask for cidr operator (e.g., 10.16.1.0/24)',
-      editor: 'detect',
-    },
-    {
-      label: 'seconds',
-      type: 'property',
-      info: 'Number of seconds for "is older than" operator',
-      editor: 'detect',
-    },
-    {
-      label: 'sub domain',
-      type: 'property',
-      info: 'Sub domain index or slice notation for "sub domain" operator (e.g., 0, 1, -1)',
-      editor: 'detect',
-    },
-    {
-      label: 'rules',
-      type: 'property',
-      info: 'Nested rules for logical operations',
-      editor: 'detect',
-    },
-    {
-      label: 'times',
-      type: 'property',
-      info: 'Time descriptors specifying when the operator is valid (list of time constraints)',
-      editor: 'detect',
-    },
-    {
-      label: 'target',
-      type: 'property',
-      info: 'Target scope for the detection rule (e.g., deployment for sensor management events)',
-      editor: 'detect',
-    },
-
-    // Time descriptor properties (for times: field)
-    {
-      label: 'day_of_week_start',
-      type: 'property',
-      info: 'Starting day of week (1=Monday, 7=Sunday)',
-      editor: 'detect',
-    },
-    {
-      label: 'day_of_week_end',
-      type: 'property',
-      info: 'Ending day of week (1=Monday, 7=Sunday)',
-      editor: 'detect',
-    },
-    {
-      label: 'time_of_day_start',
-      type: 'property',
-      info: 'Starting time of day in 24-hour format (0-2359, e.g., 1430 for 2:30 PM)',
-      editor: 'detect',
-    },
-    {
-      label: 'time_of_day_end',
-      type: 'property',
-      info: 'Ending time of day in 24-hour format (0-2359, e.g., 1730 for 5:30 PM)',
-      editor: 'detect',
-    },
-    {
-      label: 'tz',
-      type: 'property',
-      info: 'Time zone from TZ database (e.g., America/Los_Angeles, UTC, Europe/London)',
-      editor: 'detect',
-    },
-
-    // Common operators (for op: field)
-    { label: 'is', type: 'keyword', info: 'Exact match', editor: 'detect', field: 'op' },
-    { label: 'contains', type: 'keyword', info: 'String contains', editor: 'detect', field: 'op' },
-    {
-      label: 'starts with',
-      type: 'keyword',
-      info: 'String starts with',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'ends with',
-      type: 'keyword',
-      info: 'String ends with',
-      editor: 'detect',
-      field: 'op',
-    },
-    { label: 'exists', type: 'keyword', info: 'Field exists check', editor: 'detect', field: 'op' },
-    {
-      label: 'matches',
-      type: 'keyword',
-      info: 'Regular expression match',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'string distance',
-      type: 'keyword',
-      info: 'Levenshtein distance comparison for similar strings',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is 32 bit',
-      type: 'keyword',
-      info: 'Matches if sensor is 32-bit architecture',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is 64 bit',
-      type: 'keyword',
-      info: 'Matches if sensor is 64-bit architecture',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is arm',
-      type: 'keyword',
-      info: 'Matches if sensor is ARM architecture',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is platform',
-      type: 'keyword',
-      info: 'Checks if the event is from a sensor of the given platform',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is tagged',
-      type: 'keyword',
-      info: 'Determines if the tag supplied in the tag parameter is already associated with the sensor',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'lookup',
-      type: 'keyword',
-      info: 'Looks up a value against a lookup add-on (resource) such as a threat feed',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'scope',
-      type: 'keyword',
-      info: 'Limits the scope of matching to a specific part of the event',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'cidr',
-      type: 'keyword',
-      info: 'Checks if an IP address is contained within a given CIDR network mask',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is private address',
-      type: 'keyword',
-      info: 'Checks if an IP address is a private address as defined by RFC 1918',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is public address',
-      type: 'keyword',
-      info: 'Checks if an IP address is a public address as defined by RFC 1918',
-      editor: 'detect',
-      field: 'op',
-    },
-
-    // Transform operators
-    {
-      label: 'file name',
-      type: 'keyword',
-      info: 'Extracts the file name from a file path (transform operator)',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'sub domain',
-      type: 'keyword',
-      info: 'Extracts a sub domain from a domain or URL (transform operator)',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is older than',
-      type: 'keyword',
-      info: 'Checks if a timestamp is older than the specified number of seconds (transform operator)',
-      editor: 'detect',
-      field: 'op',
-    },
-
-    { label: 'and', type: 'keyword', info: 'Logical AND', editor: 'detect', field: 'op' },
-    { label: 'or', type: 'keyword', info: 'Logical OR', editor: 'detect', field: 'op' },
-    {
-      label: 'is greater than',
-      type: 'keyword',
-      info: 'Numeric greater than comparison (artifact target)',
-      editor: 'detect',
-      field: 'op',
-    },
-    {
-      label: 'is lower than',
-      type: 'keyword',
-      info: 'Numeric less than comparison (artifact target)',
-      editor: 'detect',
-      field: 'op',
-    },
-
-    // EDR Event Types (for event: field)
-    {
-      label: 'AUTORUN_CHANGE',
-      type: 'constant',
-      info: 'Autorun registry entry change',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'CLOUD_NOTIFICATION',
-      type: 'constant',
-      info: 'Cloud platform notification',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'CODE_IDENTITY',
-      type: 'constant',
-      info: 'File/code signatures',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'CONNECTED',
-      type: 'constant',
-      info: 'Sensor connected to LC cloud',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DATA_DROPPED',
-      type: 'constant',
-      info: 'Data was dropped due to rate limiting',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DEBUG_DATA_REP',
-      type: 'constant',
-      info: 'Debug data response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DELETED_SENSOR',
-      type: 'constant',
-      info: 'Sensor deletion events (for use with undelete sensor action)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DIR_FINDHASH_REP',
-      type: 'constant',
-      info: 'Directory find hash response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DIR_LIST_REP',
-      type: 'constant',
-      info: 'Directory listing response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DISCONNECTED',
-      type: 'constant',
-      info: 'Sensor disconnected from LC cloud',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DNS_REQUEST',
-      type: 'constant',
-      info: 'DNS queries',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'DRIVER_CHANGE',
-      type: 'constant',
-      info: 'Driver/kernel module change',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'EXEC_OOB',
-      type: 'constant',
-      info: 'Out-of-band execution',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'EXISTING_PROCESS',
-      type: 'constant',
-      info: 'Process already running when sensor started',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'EXPORT_COMPLETE',
-      type: 'constant',
-      info: 'Export operation completed',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FIM_ADD',
-      type: 'constant',
-      info: 'File integrity monitoring - file added',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FIM_DEL',
-      type: 'constant',
-      info: 'File integrity monitoring - file deleted',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FIM_HIT',
-      type: 'constant',
-      info: 'File integrity monitoring - file modified',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_CREATE',
-      type: 'constant',
-      info: 'File creation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_DEL_REP',
-      type: 'constant',
-      info: 'File deletion response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_DELETE',
-      type: 'constant',
-      info: 'File deletion',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_GET_REP',
-      type: 'constant',
-      info: 'File get response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_HASH_REP',
-      type: 'constant',
-      info: 'File hash response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_INFO_REP',
-      type: 'constant',
-      info: 'File information response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_MODIFIED',
-      type: 'constant',
-      info: 'File modification',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_MOV_REP',
-      type: 'constant',
-      info: 'File move response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'FILE_TYPE_ACCESSED',
-      type: 'constant',
-      info: 'File type accessed',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'GET_DOCUMENT_REP',
-      type: 'constant',
-      info: 'Get document response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'GET_EXFIL_EVENT_REP',
-      type: 'constant',
-      info: 'Get exfiltration event response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'HIDDEN_MODULE_DETECTED',
-      type: 'constant',
-      info: 'Hidden module detected',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'HISTORY_DUMP_REP',
-      type: 'constant',
-      info: 'History dump response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'HTTP_REQUEST',
-      type: 'constant',
-      info: 'HTTP request',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'HTTP_REQUEST_HEADERS',
-      type: 'constant',
-      info: 'HTTP request headers',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'HTTP_RESPONSE_HEADERS',
-      type: 'constant',
-      info: 'HTTP response headers',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'INGEST',
-      type: 'constant',
-      info: 'Data ingestion event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'LOG_GET_REP',
-      type: 'constant',
-      info: 'Log get response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'LOG_LIST_REP',
-      type: 'constant',
-      info: 'Log list response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_FIND_HANDLES_REP',
-      type: 'constant',
-      info: 'Memory find handles response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_FIND_STRING_REP',
-      type: 'constant',
-      info: 'Memory find string response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_HANDLES_REP',
-      type: 'constant',
-      info: 'Memory handles response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_MAP_REP',
-      type: 'constant',
-      info: 'Memory map response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_READ_REP',
-      type: 'constant',
-      info: 'Memory read response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MEM_STRINGS_REP',
-      type: 'constant',
-      info: 'Memory strings response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MODULE_LOAD',
-      type: 'constant',
-      info: 'Module/library load',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'MODULE_MEM_DISK_MISMATCH',
-      type: 'constant',
-      info: 'Module memory/disk mismatch',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NETSTAT_REP',
-      type: 'constant',
-      info: 'Network statistics response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NETWORK_CONNECTIONS',
-      type: 'constant',
-      info: 'Network activity',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NETWORK_SUMMARY',
-      type: 'constant',
-      info: 'Network summary information',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_DOCUMENT',
-      type: 'constant',
-      info: 'New document created',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_NAMED_PIPE',
-      type: 'constant',
-      info: 'Named pipe creation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_PROCESS',
-      type: 'constant',
-      info: 'Process creation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_REMOTE_THREAD',
-      type: 'constant',
-      info: 'Remote thread creation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_TCP4_CONNECTION',
-      type: 'constant',
-      info: 'New TCP IPv4 connection',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_TCP6_CONNECTION',
-      type: 'constant',
-      info: 'New TCP IPv6 connection',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_UDP4_CONNECTION',
-      type: 'constant',
-      info: 'New UDP IPv4 connection',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'NEW_UDP6_CONNECTION',
-      type: 'constant',
-      info: 'New UDP IPv6 connection',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OPEN_NAMED_PIPE',
-      type: 'constant',
-      info: 'Named pipe opened',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_AUTORUNS_REP',
-      type: 'constant',
-      info: 'OS autoruns response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_DRIVERS_REP',
-      type: 'constant',
-      info: 'OS drivers response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_KILL_PROCESS_REP',
-      type: 'constant',
-      info: 'OS kill process response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_PACKAGES_REP',
-      type: 'constant',
-      info: 'OS packages response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_PROCESSES_REP',
-      type: 'constant',
-      info: 'OS processes response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_RESUME_REP',
-      type: 'constant',
-      info: 'OS resume response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_SERVICES_REP',
-      type: 'constant',
-      info: 'OS services response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_SUSPEND_REP',
-      type: 'constant',
-      info: 'OS suspend response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_USERS_REP',
-      type: 'constant',
-      info: 'OS users response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'OS_VERSION_REP',
-      type: 'constant',
-      info: 'OS version response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'PCAP_LIST_INTERFACES_REP',
-      type: 'constant',
-      info: 'PCAP list interfaces response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'PROCESS_ENVIRONMENT',
-      type: 'constant',
-      info: 'Process environment variables',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'RECEIPT',
-      type: 'constant',
-      info: 'Receipt confirmation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REGISTRY_CREATE',
-      type: 'constant',
-      info: 'Registry key creation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REGISTRY_DELETE',
-      type: 'constant',
-      info: 'Registry key deletion',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REGISTRY_LIST_REP',
-      type: 'constant',
-      info: 'Registry list response',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REGISTRY_WRITE',
-      type: 'constant',
-      info: 'Registry key write',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REJOIN_NETWORK',
-      type: 'constant',
-      info: 'Sensor rejoined network',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'REMOTE_PROCESS_HANDLE',
-      type: 'constant',
-      info: 'Remote process handle access',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SEGREGATE_NETWORK',
-      type: 'constant',
-      info: 'Sensor network segregation',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SENSITIVE_PROCESS_ACCESS',
-      type: 'constant',
-      info: 'Sensitive process access',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SERVICE_CHANGE',
-      type: 'constant',
-      info: 'Service state change',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SHUTTING_DOWN',
-      type: 'constant',
-      info: 'Sensor shutting down',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SSH_LOGIN',
-      type: 'constant',
-      info: 'SSH login event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SSH_LOGOUT',
-      type: 'constant',
-      info: 'SSH logout event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'STARTING_UP',
-      type: 'constant',
-      info: 'Sensor starting up',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'TERMINATE_PROCESS',
-      type: 'constant',
-      info: 'Process termination',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'TERMINATE_TCP4_CONNECTION',
-      type: 'constant',
-      info: 'TCP IPv4 connection termination',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'TERMINATE_TCP6_CONNECTION',
-      type: 'constant',
-      info: 'TCP IPv6 connection termination',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'TERMINATE_UDP4_CONNECTION',
-      type: 'constant',
-      info: 'UDP IPv4 connection termination',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'TERMINATE_UDP6_CONNECTION',
-      type: 'constant',
-      info: 'UDP IPv6 connection termination',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'THREAD_INJECTION',
-      type: 'constant',
-      info: 'Thread injection detected',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'USER_LOGIN',
-      type: 'constant',
-      info: 'User login event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'USER_LOGOUT',
-      type: 'constant',
-      info: 'User logout event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'USER_OBSERVED',
-      type: 'constant',
-      info: 'User activity observed',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'VOLUME_MOUNT',
-      type: 'constant',
-      info: 'Volume mount event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'VOLUME_UNMOUNT',
-      type: 'constant',
-      info: 'Volume unmount event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'WEL',
-      type: 'constant',
-      info: 'Windows Event Logs',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'YARA_DETECTION',
-      type: 'constant',
-      info: 'YARA rule detection',
-      editor: 'detect',
-      field: 'event',
-    },
-
-    // Platform (non-sensor) event types - available via various targets
-    {
-      label: 'ACK_MESSAGES',
-      type: 'constant',
-      info: 'Acknowledge messages event (used by some LC Sensors like USP)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'BACKOFF',
-      type: 'constant',
-      info: 'Flow control event - provides seconds sensor should wait before sending events',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'billing_record',
-      type: 'constant',
-      info: 'Billable records event for the Organization (billing target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'CLOUD_ADAPTER_DISABLED',
-      type: 'constant',
-      info: 'Cloud Adapter disabled due to errors',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'QUOTA_CHANGED',
-      type: 'constant',
-      info: 'Organization quota changed event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'RUN',
-      type: 'constant',
-      info: 'Emitted after run command (payload, shell command, etc.)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SELF_TEST_RESULT',
-      type: 'constant',
-      info: 'Power-on-self-test (POST) result from sensor',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SENSOR_CRASH',
-      type: 'constant',
-      info: 'Sensor crash event with telemetry data',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SET_PERFORMANCE_MODE',
-      type: 'constant',
-      info: 'Performance mode enabled in kernel (e.g., disables file tracking)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'SYNC',
-      type: 'constant',
-      info: 'Heartbeat event to cloud (sent every 10 minutes by default)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'UNLOAD_KERNEL',
-      type: 'constant',
-      info: 'Manual unloading of kernel component',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'UPDATE',
-      type: 'constant',
-      info: 'Configuration update for specific collector within endpoint',
-      editor: 'detect',
-      field: 'event',
-    },
-
-    // Common event paths (for path: field)
-    {
-      label: 'event/FILE_PATH',
-      type: 'string',
-      info: 'Executable path',
-      editor: 'detect',
-      field: 'path',
-    },
-    {
-      label: 'event/COMMAND_LINE',
-      type: 'string',
-      info: 'Command line args',
-      editor: 'detect',
-      field: 'path',
-    },
-    {
-      label: 'event/USER_NAME',
-      type: 'string',
-      info: 'User account',
-      editor: 'detect',
-      field: 'path',
-    },
-    { label: 'event/HASH', type: 'string', info: 'File hash', editor: 'detect', field: 'path' },
-    {
-      label: 'routing/hostname',
-      type: 'string',
-      info: 'Sensor hostname',
-      editor: 'detect',
-      field: 'path',
-    },
-    {
-      label: 'routing/event_type',
-      type: 'string',
-      info: 'Event type, e.g., NEW_PROCESS',
-      editor: 'detect',
-      field: 'path',
-    },
-    {
-      label: 'routing/sid',
-      type: 'string',
-      info: 'Sensor ID',
-      editor: 'detect',
-      field: 'path',
-    },
-    {
-      label: 'routing/oid',
-      type: 'string',
-      info: 'Organization ID',
-      editor: 'detect',
-      field: 'path',
-    },
-
-    // Platform names (for name: field when using is platform operator)
-    {
-      label: 'windows',
-      type: 'constant',
-      info: 'Windows platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'linux',
-      type: 'constant',
-      info: 'Linux platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'macos',
-      type: 'constant',
-      info: 'macOS platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'ios',
-      type: 'constant',
-      info: 'iOS platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'android',
-      type: 'constant',
-      info: 'Android platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'chrome',
-      type: 'constant',
-      info: 'Chrome platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'vpn',
-      type: 'constant',
-      info: 'VPN platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'text',
-      type: 'constant',
-      info: 'Text platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'json',
-      type: 'constant',
-      info: 'JSON platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'gcp',
-      type: 'constant',
-      info: 'Google Cloud Platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'aws',
-      type: 'constant',
-      info: 'Amazon Web Services platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'carbon_black',
-      type: 'constant',
-      info: 'Carbon Black platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'crowdstrike',
-      type: 'constant',
-      info: 'CrowdStrike platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: '1password',
-      type: 'constant',
-      info: '1Password platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'office365',
-      type: 'constant',
-      info: 'Office 365 platform',
-      editor: 'detect',
-      field: 'name',
-    },
-    {
-      label: 'msdefender',
-      type: 'constant',
-      info: 'Microsoft Defender platform',
-      editor: 'detect',
-      field: 'name',
-    },
-
-    // Target values (for target: field)
-    {
-      label: 'edr',
-      type: 'constant',
-      info: 'EDR target scope (default for endpoint detection rules)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'detection',
-      type: 'constant',
-      info: 'Detection target scope (run rules on detections generated by other rules)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'deployment',
-      type: 'constant',
-      info: 'Deployment target scope (sensor management events like enrollment, sensor_clone, deleted_sensor)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'artifact',
-      type: 'constant',
-      info: 'Artifact target scope (parsed artifacts run through rule engine)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'artifact_event',
-      type: 'constant',
-      info: 'Artifact event target scope (unparsed log lifecycle events like ingest, export_complete)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'schedule',
-      type: 'constant',
-      info: 'Schedule target scope (scheduled rule execution)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'audit',
-      type: 'constant',
-      info: 'Audit target scope (audit log events)',
-      editor: 'detect',
-      field: 'target',
-    },
-    {
-      label: 'billing',
-      type: 'constant',
-      info: 'Billing target scope (billing-related events)',
-      editor: 'detect',
-      field: 'target',
-    },
-
-    // Artifact-specific properties (for artifact target)
-    {
-      label: 'artifact path',
-      type: 'property',
-      info: "Matches the start of the artifact's path string (e.g., /auth.log)",
-      editor: 'detect',
-    },
-    {
-      label: 'artifact type',
-      type: 'property',
-      info: "Matches the artifact's type string (e.g., pcap, zeek, auth, wel)",
-      editor: 'detect',
-    },
-    {
-      label: 'artifact source',
-      type: 'property',
-      info: "Matches the artifact's source string (e.g., hostname-123)",
-      editor: 'detect',
-    },
-
-    // Common artifact types (for artifact type: field)
-    {
-      label: 'pcap',
-      type: 'constant',
-      info: 'Packet capture artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'zeek',
-      type: 'constant',
-      info: 'Zeek network analysis artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'auth',
-      type: 'constant',
-      info: 'Authentication log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'wel',
-      type: 'constant',
-      info: 'Windows Event Log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'syslog',
-      type: 'constant',
-      info: 'System log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'nginx',
-      type: 'constant',
-      info: 'Nginx log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'apache',
-      type: 'constant',
-      info: 'Apache log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-    {
-      label: 'firewall',
-      type: 'constant',
-      info: 'Firewall log artifact type',
-      editor: 'detect',
-      field: 'artifact type',
-    },
-
-    // Common deployment events (for deployment target)
-    {
-      label: 'enrollment',
-      type: 'constant',
-      info: 'Sensor enrollment event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'sensor_clone',
-      type: 'constant',
-      info: 'Sensor clone detected event (duplicate sensor IDs)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'sensor_over_quota',
-      type: 'constant',
-      info: 'Sensor over quota event',
-      editor: 'detect',
-      field: 'event',
-    },
-
-    // Common artifact lifecycle events (for artifact_event target)
-    {
-      label: 'ingest',
-      type: 'constant',
-      info: 'Artifact ingestion event',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: 'export_complete',
-      type: 'constant',
-      info: 'Artifact export completion event',
-      editor: 'detect',
-      field: 'event',
-    },
-
-    // Resource paths (for resource: field when using lookup operator)
-    {
-      label: 'lcr://lookup/dyn-dns',
-      type: 'string',
-      info: 'Dynamic DNS domains resource',
-      editor: 'detect',
-      field: 'resource',
-    },
-    {
-      label: 'lcr://lookup/linux-malware-hashes',
-      type: 'string',
-      info: 'Linux malware file hashes resource',
-      editor: 'detect',
-      field: 'resource',
-    },
-    {
-      label: 'lcr://lookup/netfilter-ip-ioc',
-      type: 'string',
-      info: 'Netfilter IP indicators of compromise resource',
-      editor: 'detect',
-      field: 'resource',
-    },
-    {
-      label: 'lcr://lookup/ransomware-domains',
-      type: 'string',
-      info: 'Ransomware domains resource',
-      editor: 'detect',
-      field: 'resource',
-    },
-    {
-      label: 'lcr://lookup/tor-ips',
-      type: 'string',
-      info: 'Tor IP addresses resource',
-      editor: 'detect',
-      field: 'resource',
-    },
-
-    // Common timezones (for tz: field in time descriptors)
-    {
-      label: 'UTC',
-      type: 'constant',
-      info: 'Coordinated Universal Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'America/New_York',
-      type: 'constant',
-      info: 'Eastern Time (US & Canada)',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'America/Chicago',
-      type: 'constant',
-      info: 'Central Time (US & Canada)',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'America/Denver',
-      type: 'constant',
-      info: 'Mountain Time (US & Canada)',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'America/Los_Angeles',
-      type: 'constant',
-      info: 'Pacific Time (US & Canada)',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'Europe/London',
-      type: 'constant',
-      info: 'Greenwich Mean Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'Europe/Paris',
-      type: 'constant',
-      info: 'Central European Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'Asia/Tokyo',
-      type: 'constant',
-      info: 'Japan Standard Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'Asia/Shanghai',
-      type: 'constant',
-      info: 'China Standard Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-    {
-      label: 'Australia/Sydney',
-      type: 'constant',
-      info: 'Australian Eastern Standard Time',
-      editor: 'detect',
-      field: 'tz',
-    },
-
-    // Common deployment event values
-    {
-      label: 'deleted_sensor',
-      type: 'constant',
-      info: 'Deleted sensor event type value',
-      editor: 'detect',
-      field: 'value',
-    },
-
-    // === RESPOND EDITOR ONLY ===
-
-    // Response structure and action-specific parameters
-    { label: 'action', type: 'property', info: 'Response action type', editor: 'respond' },
-
-    // Parameters for specific action types (when inside action blocks)
-    {
-      label: 'name',
-      type: 'property',
-      info: 'Detection name',
-      editor: 'respond',
-      actionContext: ['report'],
-    },
-    {
-      label: 'publish',
-      type: 'property',
-      info: 'Whether to publish the detection (true/false, defaults to true)',
-      editor: 'respond',
-      actionContext: ['report'],
-    },
-    {
-      label: 'priority',
-      type: 'property',
-      info: 'Detection priority (integer, optional)',
-      editor: 'respond',
-      actionContext: ['report'],
-    },
-    {
-      label: 'metadata',
-      type: 'property',
-      info: 'Free-form metadata for the detection (supports templating)',
-      editor: 'respond',
-      actionContext: ['report'],
-    },
-    {
-      label: 'detect_data',
-      type: 'property',
-      info: 'Additional free-form field for extraction of specific elements (supports templating)',
-      editor: 'respond',
-      actionContext: ['report'],
-    },
-    {
-      label: 'tag',
-      type: 'property',
-      info: 'Tag name',
-      editor: 'respond',
-      actionContext: ['add tag', 'remove tag', 'add hive tag', 'remove hive tag'],
-    },
-    {
-      label: 'ttl',
-      type: 'property',
-      info: 'Time to live (seconds)',
-      editor: 'respond',
-      actionContext: ['add tag', 'add var'],
-    },
-    {
-      label: 'entire_device',
-      type: 'property',
-      info: 'Apply tag to all sensors on the device (true/false)',
-      editor: 'respond',
-      actionContext: ['add tag'],
-    },
-    {
-      label: 'command',
-      type: 'property',
-      info: 'Sensor command (supports templating like {{ .event.FILE_PATH }})',
-      editor: 'respond',
-      actionContext: ['task'],
-    },
-    {
-      label: 'investigation',
-      type: 'property',
-      info: 'Unique identifier for the task and any events emitted from the sensor as a result',
-      editor: 'respond',
-      actionContext: ['task'],
-    },
-    {
-      label: 'duration',
-      type: 'property',
-      info: 'Duration to wait (e.g., "10s", "30s", "1m" or integer seconds, max 1 minute)',
-      editor: 'respond',
-      actionContext: ['wait'],
-    },
-    {
-      label: 'suppression',
-      type: 'property',
-      info: 'Suppression configuration to reduce frequency of repetitive alerts',
-      editor: 'respond',
-      actionContext: ['report', 'add tag', 'task', 'isolate'],
-    },
-    {
-      label: 'name',
-      type: 'property',
-      info: 'Variable name',
-      editor: 'respond',
-      actionContext: ['add var', 'del var'],
-    },
-    {
-      label: 'name',
-      type: 'property',
-      info: 'Output name',
-      editor: 'respond',
-      actionContext: ['output'],
-    },
-    {
-      label: 'value',
-      type: 'property',
-      info: 'Variable value',
-      editor: 'respond',
-      actionContext: ['add var'],
-    },
-    {
-      label: 'extension name',
-      type: 'property',
-      info: 'Name of the extension to request',
-      editor: 'respond',
-      actionContext: ['extension request'],
-    },
-    {
-      label: 'extension action',
-      type: 'property',
-      info: 'Action to trigger on the extension',
-      editor: 'respond',
-      actionContext: ['extension request'],
-    },
-    {
-      label: 'extension request',
-      type: 'property',
-      info: 'Request parameters to send to the extension',
-      editor: 'respond',
-      actionContext: ['extension request'],
-    },
-    {
-      label: 'hive name',
-      type: 'property',
-      info: 'Name of the Hive to operate on (e.g., dr-general)',
-      editor: 'respond',
-      actionContext: ['add hive tag', 'remove hive tag'],
-    },
-    {
-      label: 'record name',
-      type: 'property',
-      info: 'Name of the record within the Hive (e.g., my-rule)',
-      editor: 'respond',
-      actionContext: ['add hive tag', 'remove hive tag'],
-    },
-    {
-      label: 'tag',
-      type: 'property',
-      info: 'Tag name for Hive record tagging',
-      editor: 'respond',
-      actionContext: ['add hive tag', 'remove hive tag'],
-    },
-
-    // Suppression properties (for suppression: field)
-    {
-      label: 'max_count',
-      type: 'property',
-      info: 'Maximum number of times action can execute during the period',
-      editor: 'respond',
-    },
-    {
-      label: 'min_count',
-      type: 'property',
-      info: 'Minimum number of activations required before action triggers (threshold activation)',
-      editor: 'respond',
-    },
-    {
-      label: 'count_path',
-      type: 'property',
-      info: 'Path to integer value used to increment suppression counter (e.g., event/record/v)',
-      editor: 'respond',
-    },
-    {
-      label: 'period',
-      type: 'property',
-      info: 'Time period for suppression (e.g., 1h, 30m, 300s)',
-      editor: 'respond',
-    },
-    {
-      label: 'is_global',
-      type: 'property',
-      info: 'Whether suppression operates globally within org (true) or per-sensor (false)',
-      editor: 'respond',
-    },
-    {
-      label: 'keys',
-      type: 'property',
-      info: 'List of template strings for uniqueness key (supports {{ .event.FIELD }} templating)',
-      editor: 'respond',
-    },
-
-    // Common actions (for action: field)
-    {
-      label: 'report',
-      type: 'keyword',
-      info: 'Generate detection alert',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'add tag',
-      type: 'keyword',
-      info: 'Tag the sensor',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'remove tag',
-      type: 'keyword',
-      info: 'Remove tag from the sensor',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'task',
-      type: 'keyword',
-      info: 'Execute sensor command',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'isolate network',
-      type: 'keyword',
-      info: 'Persistently isolate sensor from network (survives reboots)',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'add var',
-      type: 'keyword',
-      info: 'Add variable to sensor',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'del var',
-      type: 'keyword',
-      info: 'Delete variable from sensor',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'extension request',
-      type: 'keyword',
-      info: 'Perform asynchronous request to subscribed extension',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'seal',
-      type: 'keyword',
-      info: 'Persistently seal sensor with tamper resistance (survives reboots)',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'unseal',
-      type: 'keyword',
-      info: 'Remove seal status from sensor',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'output',
-      type: 'keyword',
-      info: 'Output custom data',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'rejoin network',
-      type: 'keyword',
-      info: 'Removes the isolation status of a sensor that had it set using isolate network',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'undelete sensor',
-      type: 'keyword',
-      info: 'Un-deletes a sensor that was previously deleted (allows sensors to rejoin the fleet)',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'wait',
-      type: 'keyword',
-      info: 'Add delay (up to 1 minute) before running the next response action',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'add hive tag',
-      type: 'keyword',
-      info: 'Adds a tag to a Hive record (useful for marking D&R rules automatically)',
-      editor: 'respond',
-      field: 'action',
-    },
-    {
-      label: 'remove hive tag',
-      type: 'keyword',
-      info: 'Removes a tag from a Hive record',
-      editor: 'respond',
-      field: 'action',
-    },
-
-    // Common commands (for command: field)
-    {
-      label: 'history_dump',
-      type: 'constant',
-      info: 'Get process history',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'file_get',
-      type: 'constant',
-      info: 'Download file',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'file_hash',
-      type: 'constant',
-      info: 'Hash file',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'artifact_get {{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'Download file using templated path',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'file_get {{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'Get file using templated path',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'file_hash {{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'Hash file using templated path',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'dir_list {{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'List directory contents using templated path',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'reg_list {{ .event.REGISTRY_KEY }}',
-      type: 'template',
-      info: 'List registry key using templated path',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'process_list',
-      type: 'constant',
-      info: 'List all running processes',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'network_list',
-      type: 'constant',
-      info: 'List network connections',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'mem_map {{ .event.PROCESS_ID }}',
-      type: 'template',
-      info: 'Get memory map of specific process',
-      editor: 'respond',
-      field: 'command',
-    },
-    {
-      label: 'yara_scan {{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'YARA scan specific file',
-      editor: 'respond',
-      field: 'command',
-    },
-
-    // Template functions (for name:, value:, command:, investigation: fields, and suppression keys)
-    {
-      label: '{{ .routing.hostname }}',
-      type: 'template',
-      info: 'Sensor hostname',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .event.FILE_PATH }}',
-      type: 'template',
-      info: 'Event file path',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .event.COMMAND_LINE }}',
-      type: 'template',
-      info: 'Event command line',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .event.USER_NAME }}',
-      type: 'template',
-      info: 'Event user name',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .event.HASH }}',
-      type: 'template',
-      info: 'Event file hash',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .event.PROCESS_ID }}',
-      type: 'template',
-      info: 'Event process ID',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .routing.sid }}',
-      type: 'template',
-      info: 'Sensor ID',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: '{{ .routing.oid }}',
-      type: 'template',
-      info: 'Organization ID',
-      editor: 'respond',
-      field: ['name', 'value', 'command', 'investigation', 'keys'],
-    },
-    {
-      label: 'susp-process-inv',
-      type: 'constant',
-      info: 'Suspicious process investigation identifier',
-      editor: 'respond',
-      field: 'investigation',
-    },
-    {
-      label: 'malware-{{ .event.HASH }}',
-      type: 'template',
-      info: 'Malware investigation with hash identifier',
-      editor: 'respond',
-      field: 'investigation',
-    },
-    {
-      label: 'incident-{{ .routing.hostname }}-{{ .event.PROCESS_ID }}',
-      type: 'template',
-      info: 'Incident investigation with hostname and process ID',
-      editor: 'respond',
-      field: 'investigation',
-    },
-    {
-      label: 'forensic-{{ .routing.sid }}',
-      type: 'template',
-      info: 'Forensic investigation with sensor ID',
-      editor: 'respond',
-      field: 'investigation',
-    },
-    {
-      label: 'sensor-mgmt-{{ .routing.hostname }}',
-      type: 'template',
-      info: 'Sensor management investigation with hostname',
-      editor: 'respond',
-      field: 'investigation',
-    },
-
-    // Duration values for wait action (for duration: field)
-    {
-      label: '5s',
-      type: 'constant',
-      info: '5 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '10s',
-      type: 'constant',
-      info: '10 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '15s',
-      type: 'constant',
-      info: '15 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '30s',
-      type: 'constant',
-      info: '30 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '45s',
-      type: 'constant',
-      info: '45 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '1m',
-      type: 'constant',
-      info: '1 minute duration (60 seconds)',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '500ms',
-      type: 'constant',
-      info: '500 milliseconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '1000ms',
-      type: 'constant',
-      info: '1000 milliseconds (1 second) duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '2s',
-      type: 'constant',
-      info: '2 seconds duration',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '5',
-      type: 'constant',
-      info: '5 seconds (integer format)',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '10',
-      type: 'constant',
-      info: '10 seconds (integer format)',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '30',
-      type: 'constant',
-      info: '30 seconds (integer format)',
-      editor: 'respond',
-      field: 'duration',
-    },
-    {
-      label: '60',
-      type: 'constant',
-      info: '60 seconds (integer format)',
-      editor: 'respond',
-      field: 'duration',
-    },
-
-    // Hive name values
-    {
-      label: 'dr-general',
-      type: 'constant',
-      info: 'General detection rules hive',
-      editor: 'respond',
-      field: 'hive name',
-    },
-
-    // Record name examples
-    {
-      label: 'my-rule',
-      type: 'constant',
-      info: 'Example record name',
-      editor: 'respond',
-      field: 'record name',
-    },
-
-    // Additional common tag values for hive operations
-    {
-      label: 'high-volume',
-      type: 'constant',
-      info: 'High volume tag for hive records such as D&R rules',
-      editor: 'respond',
-      field: 'tag',
-      actionContext: ['add hive tag', 'remove hive tag'],
-    },
-
-    // Wildcard pattern events (platform events with organization-specific suffixes)
-    {
-      label: '*_per_cloud_adapter',
-      type: 'constant',
-      info: 'Wildcard pattern for cloud adapter-specific events',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '*_per_org',
-      type: 'constant',
-      info: 'Wildcard pattern for organization-specific events',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '*_per_sensor',
-      type: 'constant',
-      info: 'Wildcard pattern for sensor-specific events',
-      editor: 'detect',
-      field: 'event',
-    },
-
-    // Schedule events (for schedule target) - triggered automatically at intervals
-    {
-      label: '30m_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 30 minutes per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '30m_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 30 minutes per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '1h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 1 hour per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '1h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 1 hour per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '3h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 3 hours per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '3h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 3 hours per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '6h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 6 hours per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '6h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 6 hours per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '12h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 12 hours per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '12h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 12 hours per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '24h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 24 hours (daily) per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '24h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 24 hours (daily) per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '168h_per_org',
-      type: 'constant',
-      info: 'Schedule event: every 168 hours (weekly) per organization (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-    {
-      label: '168h_per_sensor',
-      type: 'constant',
-      info: 'Schedule event: every 168 hours (weekly) per sensor (schedule target)',
-      editor: 'detect',
-      field: 'event',
-    },
-  ]
-
-  // Filter by active editor first
-  let editorFiltered = completions.filter(
-    (comp) => comp.editor === activeEditor || comp.editor === 'both',
-  )
-
-  // Filter by field context if we're after a colon
-  if (isAfterColon && fieldContext) {
-    // In a field context - only show values for that specific field
-    editorFiltered = editorFiltered.filter((comp) => {
-      if (!comp.field) return false
-
-      if (Array.isArray(comp.field)) {
-        return comp.field.includes(fieldContext)
-      }
-      return comp.field === fieldContext
-    })
-  } else {
-    // Not in a field context - show structural properties
-    editorFiltered = editorFiltered.filter((comp) => {
-      if (comp.field) return false // Don't show field-specific values
-
-      // If we're inside an action block, filter by action context
-      if (insideActionBlock && comp.actionContext) {
-        return comp.actionContext.includes(insideActionBlock)
-      }
-
-      // If we have actionContext requirement but we're not in an action block, don't show
-      if (comp.actionContext && !insideActionBlock) {
-        return false
-      }
-
-      return true
-    })
-  }
-
-  // Filter by search term
-  const searchFiltered = editorFiltered.filter((comp) =>
-    comp.label.toLowerCase().includes(word.text.toLowerCase()),
-  )
-
-  return {
-    from: word.from,
-    options: searchFiltered,
-  }
-}
 
 // Reactive state
 const currentRule = reactive({
@@ -3807,13 +1762,67 @@ const overallTestResults = ref<OverallTestResults | null>(null)
 // Backtesting
 const showBacktest = ref(false)
 const isRunningBacktest = ref(false)
-const backtestProgress = ref({ current: 0, total: 0, currentOrgName: '', currentOid: '' })
+const isCancellingBacktest = ref(false)
+let backtestAbortController: AbortController | null = null
+const timingUpdateInterval = ref<number | null>(null)
+const currentTime = ref(Date.now())
+
+// Computed property for sorted org statuses during execution
+const sortedOrgStatuses = computed(() => {
+  if (!isRunningBacktest.value) {
+    // When not running, maintain original order
+    return backtestProgress.value.orgStatuses
+  }
+
+  // During execution, sort: running first, then pending, then completed/failed/timeout/cancelled
+  return [...backtestProgress.value.orgStatuses].sort((a, b) => {
+    const statusPriority = {
+      running: 1,
+      pending: 2,
+      completed: 3,
+      timeout: 3,
+      error: 3,
+      cancelled: 3,
+    }
+
+    const aPriority = statusPriority[a.status] || 4
+    const bPriority = statusPriority[b.status] || 4
+
+    // If same priority, maintain original order by using the original index
+    if (aPriority === bPriority) {
+      const aIndex = backtestProgress.value.orgStatuses.findIndex((org) => org.oid === a.oid)
+      const bIndex = backtestProgress.value.orgStatuses.findIndex((org) => org.oid === b.oid)
+      return aIndex - bIndex
+    }
+
+    return aPriority - bPriority
+  })
+})
+const backtestProgress = ref({
+  current: 0,
+  total: 0,
+  currentOrgName: '',
+  currentOid: '',
+  orgStatuses: [] as Array<{
+    oid: string
+    orgName: string
+    status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled' | 'timeout'
+    startTime?: number
+    endTime?: number
+    duration?: number
+  }>,
+})
 const backtestResults = ref<BacktestResults | null>(null)
 const displayedResults = ref(10) // Start by showing 10 results
 const expandedMatches = ref(new Set<string>()) // Changed to string to support org-match format
 const activeMatchTab = ref<Record<string, string>>({}) // Changed to string keys
 const expandedOrgResults = ref(new Set<number>()) // Track which org results are expanded
 const orgDisplayedResults = ref<Record<number, number>>({}) // Track displayed results per org
+
+// Cursor-based pagination state
+const orgCursors = ref<Record<number, string>>({}) // Track cursors per org
+const orgHasMore = ref<Record<number, boolean>>({}) // Track if more results available per org
+const orgLoadingMore = ref<Record<number, boolean>>({}) // Track loading state per org
 
 // Backtest-specific organization selection
 const backtestSelectedOids = ref<string[]>([])
@@ -3823,6 +1832,9 @@ const backtestConfig = reactive({
   endDateTime: '',
   eventLimit: 0,
   evalLimit: 0,
+  runInParallel: true, // Default to parallel execution for better performance
+  isStateful: false, // Default to non-stateful for better performance
+  useChunkedResults: false, // Opt-in for chunked results
 })
 
 // Computed property to check if backtest can run
@@ -3915,6 +1927,26 @@ interface BacktestResults {
     totalMatches: number
     wall_time: number
   }
+  timeframe: {
+    startTime: string
+    endTime: string
+    durationDays: number
+  }
+  executionStats: {
+    startedAt: string
+    completedAt: string
+    totalExecutionTime: number
+  }
+  completionStats: {
+    totalOrgs: number
+    completedOrgs: number
+    failedOrgs: number
+    cancelledOrgs: number
+    timeoutOrgs: number
+    wasCancelled: boolean
+    orgsWithZeroHits: number
+    avgMatchesPerOrg: number
+  }
 }
 
 interface BacktestResponse {
@@ -3934,7 +1966,7 @@ interface BacktestResponse {
 interface BacktestOrgResult {
   oid: string
   orgName: string
-  status: 'success' | 'error'
+  status: 'success' | 'error' | 'cancelled' | 'timeout'
   error?: string
   stats?: {
     n_scan: number
@@ -3993,7 +2025,9 @@ onMounted(async () => {
     bracketMatching(),
     closeBrackets(),
     autocompletion({
-      override: [limaCharlieCompletions],
+      activateOnTyping: true,
+      closeOnBlur: true,
+      override: [DRCompletionEngine.getCompletions],
     }),
     search(),
     codeFolding(),
@@ -5496,6 +3530,30 @@ async function runBacktest() {
 
   try {
     isRunningBacktest.value = true
+    isCancellingBacktest.value = false
+
+    // Create AbortController for this backtest session
+    backtestAbortController = new AbortController()
+
+    // Start timing update interval for real-time display
+    timingUpdateInterval.value = window.setInterval(() => {
+      currentTime.value = Date.now()
+    }, 1000)
+
+    const backtestStartTime = Date.now()
+    const backtestStartTimestamp = new Date().toISOString()
+
+    // Clear previous results before starting new backtest
+    backtestResults.value = null
+    expandedMatches.value.clear()
+    activeMatchTab.value = {}
+    expandedOrgResults.value.clear()
+    displayedResults.value = 10
+
+    // Clear cursor-based pagination state
+    orgCursors.value = {}
+    orgHasMore.value = {}
+    orgLoadingMore.value = {}
 
     // Ensure we have selected organizations for backtest
     if (!backtestSelectedOids.value || backtestSelectedOids.value.length === 0) {
@@ -5506,12 +3564,17 @@ async function runBacktest() {
     const startTimestamp = Math.floor(new Date(backtestConfig.startDateTime).getTime() / 1000)
     const endTimestamp = Math.floor(new Date(backtestConfig.endDateTime).getTime() / 1000)
 
+    // Calculate timeframe statistics
+    const startTime = new Date(backtestConfig.startDateTime)
+    const endTime = new Date(backtestConfig.endDateTime)
+    const durationMs = endTime.getTime() - startTime.getTime()
+    const durationDays = Math.round((durationMs / (1000 * 60 * 60 * 24)) * 100) / 100 // Round to 2 decimal places
+
     appStore.addNotification(
       'info',
-      `Starting backtest for ${backtestSelectedOids.value.length} organization(s)... This may take several minutes for large time ranges.`,
+      `Starting ${backtestConfig.runInParallel ? 'parallel' : 'sequential'} backtest for ${backtestSelectedOids.value.length} organization(s)... This may take several minutes for large time ranges.`,
     )
 
-    const orgResults: BacktestOrgResult[] = []
     const totalStats = {
       n_proc: 0,
       n_eval: 0,
@@ -5523,74 +3586,344 @@ async function runBacktest() {
     backtestProgress.value = {
       current: 0,
       total: backtestSelectedOids.value.length,
-      currentOrgName: '',
+      currentOrgName: backtestConfig.runInParallel ? 'Running in parallel...' : '',
       currentOid: '',
+      orgStatuses: backtestSelectedOids.value.map((oid) => ({
+        oid,
+        orgName: auth.getOrgName(oid),
+        status: 'pending' as const,
+      })),
     }
 
-    // Run backtest for each selected organization
-    for (let i = 0; i < backtestSelectedOids.value.length; i++) {
-      const oid = backtestSelectedOids.value[i]
+    let orgResults: BacktestOrgResult[] = []
 
-      try {
-        // Update progress
-        backtestProgress.value.current = i + 1
-        backtestProgress.value.currentOid = oid
-        backtestProgress.value.currentOrgName = auth.getOrgName(oid)
+    if (backtestConfig.runInParallel) {
+      // PARALLEL EXECUTION
+      // Create backtest promises for all organizations
+      const backtestPromises = backtestSelectedOids.value.map(async (oid) => {
+        try {
+          // Check for cancellation before starting
+          if (isCancellingBacktest.value) {
+            throw new Error('Backtest cancelled')
+          }
 
-        // Get the replay URL specific to this organization
-        const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
-        if (!orgReplayUrl) {
-          throw new Error(`Replay URL not available for organization ${oid}`)
+          // Update status to running and track start time
+          const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+          if (orgStatus) {
+            orgStatus.status = 'running'
+            orgStatus.startTime = Date.now()
+          }
+
+          // Get the replay URL specific to this organization
+          const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+          if (!orgReplayUrl) {
+            throw new Error(`Replay URL not available for organization ${oid}`)
+          }
+
+          // Check for cancellation before API call
+          if (isCancellingBacktest.value) {
+            throw new Error('Backtest cancelled')
+          }
+
+          // Run the backtest for this org
+          const response = await api.backtestDetectionRule(
+            orgReplayUrl,
+            oid,
+            currentRule.detectLogic,
+            currentRule.respondLogic,
+            startTimestamp,
+            endTimestamp,
+            backtestConfig.eventLimit,
+            backtestConfig.evalLimit,
+            backtestAbortController || undefined,
+            30 * 60 * 1000, // 30 minute timeout
+            !backtestConfig.isStateful,
+            false, // isDryRun
+            '', // Initial cursor (empty string for new queries)
+            backtestConfig.useChunkedResults ? 50000 : 0,
+          )
+
+          // Update progress for completed organization (atomic operation)
+          backtestProgress.value.current++
+
+          // Update status to completed and track end time
+          if (orgStatus) {
+            orgStatus.status = 'completed'
+            orgStatus.endTime = Date.now()
+            if (orgStatus.startTime) {
+              orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+            }
+          }
+
+          // Store cursor information for pagination
+          const orgIndex = backtestSelectedOids.value.indexOf(oid)
+          if (orgIndex >= 0 && backtestConfig.useChunkedResults) {
+            orgCursors.value[orgIndex] = response.cursor || ''
+            orgHasMore.value[orgIndex] = response.has_more || false
+          }
+
+          // Return successful result
+          return {
+            oid,
+            orgName: auth.getOrgName(oid),
+            status: 'success' as const,
+            stats: response.stats,
+            results: response.results || [],
+            did_match: response.did_match,
+            is_dry_run: response.is_dry_run,
+          }
+        } catch (error: unknown) {
+          // Update progress for failed organization (atomic operation)
+          backtestProgress.value.current++
+
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          const isCancelled =
+            errorMessage === 'Backtest cancelled' ||
+            (error instanceof DOMException && error.name === 'AbortError')
+          const isTimeout = errorMessage.includes('Backtest timeout')
+
+          // Update status appropriately and track end time
+          const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+          if (orgStatus) {
+            orgStatus.status = isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error'
+            orgStatus.endTime = Date.now()
+            if (orgStatus.startTime) {
+              orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+            }
+          }
+
+          // Return appropriate result
+          return {
+            oid,
+            orgName: auth.getOrgName(oid),
+            status: (isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error') as
+              | 'cancelled'
+              | 'timeout'
+              | 'error',
+            ...(isCancelled || isTimeout ? {} : { error: errorMessage }),
+          }
+        }
+      })
+
+      // Wait for all backtests to complete or handle cancellation with total timeout
+      const totalTimeoutMs = 45 * 60 * 1000 // 45 minutes for parallel execution
+      const totalTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Parallel backtest total timeout: Exceeded 45 minutes'))
+        }, totalTimeoutMs)
+      })
+
+      const settledPromises = await Promise.race([
+        Promise.allSettled(backtestPromises),
+        totalTimeoutPromise,
+      ]).catch(async (error) => {
+        // If total timeout occurred, abort all operations and wait for settled results
+        if (error.message.includes('total timeout')) {
+          if (backtestAbortController) {
+            backtestAbortController.abort()
+          }
+          // Wait a bit for abort to propagate then get settled results
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          return Promise.allSettled(backtestPromises)
+        }
+        throw error
+      })
+
+      // Extract results from settled promises (each promise already handles its own error/cancellation state)
+      orgResults = settledPromises.map((result) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        } else {
+          // This should rarely happen since promises handle their own errors, but just in case
+          const errorMessage =
+            result.reason instanceof Error ? result.reason.message : 'Unknown error'
+          return {
+            oid: 'unknown',
+            orgName: 'Unknown',
+            status: 'error' as const,
+            error: errorMessage,
+          }
+        }
+      })
+    } else {
+      // SERIAL EXECUTION (Original behavior)
+      for (let i = 0; i < backtestSelectedOids.value.length; i++) {
+        // Check for cancellation before processing each org
+        if (isCancellingBacktest.value) {
+          // Mark remaining orgs as cancelled
+          for (let j = i; j < backtestSelectedOids.value.length; j++) {
+            const remainingOid = backtestSelectedOids.value[j]
+            const orgStatus = backtestProgress.value.orgStatuses.find(
+              (org) => org.oid === remainingOid,
+            )
+            if (orgStatus) {
+              orgStatus.status = 'cancelled'
+            }
+            orgResults.push({
+              oid: remainingOid,
+              orgName: auth.getOrgName(remainingOid),
+              status: 'cancelled' as const,
+            })
+          }
+          break
         }
 
-        // Run the backtest for this org
-        const response = await api.backtestDetectionRule(
-          orgReplayUrl,
-          oid,
-          currentRule.detectLogic,
-          currentRule.respondLogic,
-          startTimestamp,
-          endTimestamp,
-          backtestConfig.eventLimit,
-          backtestConfig.evalLimit,
-        )
+        const oid = backtestSelectedOids.value[i]
 
-        // Add successful result
-        orgResults.push({
-          oid,
-          orgName: auth.getOrgName(oid),
-          status: 'success',
-          stats: response.stats,
-          results: response.results || [],
-          did_match: response.did_match,
-          is_dry_run: response.is_dry_run,
-        })
+        try {
+          // Update progress
+          backtestProgress.value.current = i + 1
+          backtestProgress.value.currentOid = oid
+          backtestProgress.value.currentOrgName = auth.getOrgName(oid)
 
-        // Update total stats
-        totalStats.n_proc += response.stats?.n_proc || 0
-        totalStats.n_eval += response.stats?.n_eval || 0
-        totalStats.totalMatches += response.results?.length || 0
-        totalStats.wall_time += response.stats?.wall_time || 0
-      } catch (error: unknown) {
-        // Backtest failed for this organization - handle error
-        void error // Suppress unused variable warning
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          // Update org status if tracking and start timing
+          const runningOrgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+          if (runningOrgStatus) {
+            runningOrgStatus.status = 'running'
+            runningOrgStatus.startTime = Date.now()
+          }
 
-        // Add failed result
-        orgResults.push({
-          oid,
-          orgName: auth.getOrgName(oid),
-          status: 'error',
-          error: errorMessage,
-        })
+          // Get the replay URL specific to this organization
+          const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+          if (!orgReplayUrl) {
+            throw new Error(`Replay URL not available for organization ${oid}`)
+          }
+
+          // Run the backtest for this org
+          const response = await api.backtestDetectionRule(
+            orgReplayUrl,
+            oid,
+            currentRule.detectLogic,
+            currentRule.respondLogic,
+            startTimestamp,
+            endTimestamp,
+            backtestConfig.eventLimit,
+            backtestConfig.evalLimit,
+            backtestAbortController || undefined,
+            30 * 60 * 1000, // 30 minute timeout
+            !backtestConfig.isStateful,
+            false, // isDryRun
+            '', // Initial cursor (empty string for new queries)
+            backtestConfig.useChunkedResults ? 50000 : 0,
+          )
+
+          // Store cursor information for pagination
+          const orgIndex = orgResults.length // Current index before pushing
+          if (backtestConfig.useChunkedResults) {
+            orgCursors.value[orgIndex] = response.cursor || ''
+            orgHasMore.value[orgIndex] = response.has_more || false
+          }
+
+          // Add successful result
+          orgResults.push({
+            oid,
+            orgName: auth.getOrgName(oid),
+            status: 'success',
+            stats: response.stats,
+            results: response.results || [],
+            did_match: response.did_match,
+            is_dry_run: response.is_dry_run,
+          })
+
+          // Update org status to completed and track timing
+          const completedOrgStatus = backtestProgress.value.orgStatuses.find(
+            (org) => org.oid === oid,
+          )
+          if (completedOrgStatus) {
+            completedOrgStatus.status = 'completed'
+            completedOrgStatus.endTime = Date.now()
+            if (completedOrgStatus.startTime) {
+              completedOrgStatus.duration =
+                completedOrgStatus.endTime - completedOrgStatus.startTime
+            }
+          }
+        } catch (error: unknown) {
+          // Backtest failed for this organization - handle error
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          const isCancelled =
+            errorMessage === 'Backtest cancelled' ||
+            (error instanceof DOMException && error.name === 'AbortError')
+          const isTimeout = errorMessage.includes('Backtest timeout')
+
+          // Add appropriate result
+          orgResults.push({
+            oid,
+            orgName: auth.getOrgName(oid),
+            status: (isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error') as
+              | 'cancelled'
+              | 'timeout'
+              | 'error',
+            ...(isCancelled || isTimeout ? {} : { error: errorMessage }),
+          })
+
+          // Update org status appropriately and track timing
+          const errorOrgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+          if (errorOrgStatus) {
+            errorOrgStatus.status = isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error'
+            errorOrgStatus.endTime = Date.now()
+            if (errorOrgStatus.startTime) {
+              errorOrgStatus.duration = errorOrgStatus.endTime - errorOrgStatus.startTime
+            }
+          }
+        }
       }
+    }
+
+    // Calculate total stats from all successful results
+    orgResults.forEach((result) => {
+      if (result.status === 'success' && result.stats) {
+        totalStats.n_proc += result.stats.n_proc || 0
+        totalStats.n_eval += result.stats.n_eval || 0
+        totalStats.totalMatches += result.results?.length || 0
+        totalStats.wall_time += result.stats.wall_time || 0
+      }
+    })
+
+    // Calculate execution timing
+    const backtestEndTime = Date.now()
+    const backtestCompletedTimestamp = new Date().toISOString()
+    const totalExecutionTime = (backtestEndTime - backtestStartTime) / 1000 // Convert to seconds
+
+    // Calculate additional metrics
+    const successfulOrgs = orgResults.filter((r) => r.status === 'success')
+    const orgsWithZeroHits = successfulOrgs.filter(
+      (r) => !r.results || r.results.length === 0,
+    ).length
+    const totalMatchesAcrossOrgs = successfulOrgs.reduce(
+      (sum, r) => sum + (r.results?.length || 0),
+      0,
+    )
+    const avgMatchesPerOrg =
+      successfulOrgs.length > 0 ? totalMatchesAcrossOrgs / successfulOrgs.length : 0
+
+    // Calculate completion stats
+    const completionStats = {
+      totalOrgs: backtestSelectedOids.value.length,
+      completedOrgs: orgResults.filter((r) => r.status === 'success').length,
+      failedOrgs: orgResults.filter((r) => r.status === 'error').length,
+      cancelledOrgs: orgResults.filter((r) => r.status === 'cancelled').length,
+      timeoutOrgs: orgResults.filter((r) => r.status === 'timeout').length,
+      wasCancelled: isCancellingBacktest.value,
+      orgsWithZeroHits,
+      avgMatchesPerOrg,
     }
 
     // Store results with completion timestamp
     backtestResults.value = {
-      completedAt: new Date().toISOString(),
+      completedAt: backtestCompletedTimestamp,
       orgResults,
       totalStats,
+      timeframe: {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        durationDays: durationDays,
+      },
+      executionStats: {
+        startedAt: backtestStartTimestamp,
+        completedAt: backtestCompletedTimestamp,
+        totalExecutionTime: totalExecutionTime,
+      },
+      completionStats,
     }
 
     // Reset display state
@@ -5598,15 +3931,35 @@ async function runBacktest() {
     activeMatchTab.value = {}
     displayedResults.value = 10
 
-    const successfulOrgs = orgResults.filter((r) => r.status === 'success')
-    const failedOrgs = orgResults.filter((r) => r.status === 'error')
+    const completedOrgs = orgResults.filter((r) => r.status === 'success')
+    const errorOrgs = orgResults.filter((r) => r.status === 'error')
+    const abortedOrgs = orgResults.filter((r) => r.status === 'cancelled')
+    const timedOutOrgs = orgResults.filter((r) => r.status === 'timeout')
 
-    let message = `Backtest completed! Found ${totalStats.totalMatches} total matches out of ${totalStats.n_proc.toLocaleString()} events processed across ${successfulOrgs.length} organization(s).`
-    if (failedOrgs.length > 0) {
-      message += ` ${failedOrgs.length} organization(s) failed.`
+    let message = ''
+    if (isCancellingBacktest.value) {
+      message = `Backtest cancelled! Showing results from ${completedOrgs.length} completed organization(s).`
+      const issues = []
+      if (errorOrgs.length > 0) issues.push(`${errorOrgs.length} failed`)
+      if (abortedOrgs.length > 0) issues.push(`${abortedOrgs.length} cancelled`)
+      if (timedOutOrgs.length > 0) issues.push(`${timedOutOrgs.length} timed out`)
+      if (issues.length > 0) {
+        message += ` ${issues.join(', ')}.`
+      }
+      message += ` Found ${totalStats.totalMatches} total matches.`
+      appStore.addNotification('warning', message)
+    } else {
+      message = `Backtest completed! Found ${totalStats.totalMatches} total matches out of ${totalStats.n_proc.toLocaleString()} events processed across ${completedOrgs.length} organization(s).`
+      const issues = []
+      if (errorOrgs.length > 0) issues.push(`${errorOrgs.length} failed`)
+      if (timedOutOrgs.length > 0) issues.push(`${timedOutOrgs.length} timed out`)
+      if (issues.length > 0) {
+        message += ` ${issues.join(', ')}.`
+      }
+      const notificationType =
+        timedOutOrgs.length > 0 || errorOrgs.length > 0 ? 'warning' : 'success'
+      appStore.addNotification(notificationType, message)
     }
-
-    appStore.addNotification('success', message)
   } catch (error: unknown) {
     // Backtest execution failed - handle error
     void error // Suppress unused variable warning
@@ -5614,7 +3967,22 @@ async function runBacktest() {
     appStore.addNotification('error', `Backtest failed: ${errorMessage}`)
   } finally {
     isRunningBacktest.value = false
-    backtestProgress.value = { current: 0, total: 0, currentOrgName: '', currentOid: '' }
+    isCancellingBacktest.value = false
+    backtestAbortController = null
+
+    // Clear timing update interval
+    if (timingUpdateInterval.value) {
+      clearInterval(timingUpdateInterval.value)
+      timingUpdateInterval.value = null
+    }
+
+    backtestProgress.value = {
+      current: 0,
+      total: 0,
+      currentOrgName: '',
+      currentOid: '',
+      orgStatuses: [],
+    }
   }
 }
 
@@ -5649,8 +4017,79 @@ function getDisplayedResultsForOrg(orgIndex: number): number {
   return orgDisplayedResults.value[orgIndex] || 10
 }
 
-function loadMoreResultsForOrg(orgIndex: number) {
-  orgDisplayedResults.value[orgIndex] = (orgDisplayedResults.value[orgIndex] || 10) + 10
+async function loadMoreResultsForOrg(orgIndex: number) {
+  // If not using chunked results, fall back to simple display increment
+  if (!backtestConfig.useChunkedResults || !backtestResults.value) {
+    orgDisplayedResults.value[orgIndex] = (orgDisplayedResults.value[orgIndex] || 10) + 10
+    return
+  }
+
+  const orgResult = backtestResults.value.orgResults[orgIndex]
+  if (!orgResult || orgResult.status !== 'success' || !orgCursors.value[orgIndex]) {
+    return
+  }
+
+  // Set loading state
+  orgLoadingMore.value[orgIndex] = true
+
+  try {
+    const storage = useStorage()
+    const api = useApi()
+
+    // Get organization details
+    const oid = orgResult.oid
+    const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+    if (!orgReplayUrl) {
+      throw new Error(`Replay URL not available for organization ${oid}`)
+    }
+
+    // Parse timeframe from backtest results
+    const timeframe = backtestResults.value.timeframe
+    const startTimestamp = new Date(timeframe.startTime).getTime()
+    const endTimestamp = new Date(timeframe.endTime).getTime()
+
+    // Fetch more results using the stored cursor
+    const response = await api.backtestDetectionRule(
+      orgReplayUrl,
+      oid,
+      currentRule.detectLogic,
+      currentRule.respondLogic,
+      startTimestamp,
+      endTimestamp,
+      0, // Use chunk size for limits
+      0,
+      undefined, // No abort controller for additional fetches
+      10 * 60 * 1000, // 10 minute timeout
+      !backtestConfig.isStateful,
+      false, // isDryRun
+      orgCursors.value[orgIndex], // Use stored cursor
+      50000,
+    )
+
+    // Append new results to existing results
+    if (response.results && Array.isArray(response.results)) {
+      orgResult.results = [...(orgResult.results || []), ...response.results]
+    }
+
+    // Update cursor for next fetch
+    if (response.cursor) {
+      orgCursors.value[orgIndex] = response.cursor
+      orgHasMore.value[orgIndex] = response.has_more || false
+    } else {
+      // No more results available
+      orgHasMore.value[orgIndex] = false
+    }
+
+    // Update display count to show new results
+    orgDisplayedResults.value[orgIndex] = orgResult.results?.length || 0
+  } catch (error) {
+    logger.error('Failed to fetch more results:', error)
+    // Fall back to simple display increment on error
+    orgDisplayedResults.value[orgIndex] = (orgDisplayedResults.value[orgIndex] || 10) + 10
+  } finally {
+    // Clear loading state
+    orgLoadingMore.value[orgIndex] = false
+  }
 }
 
 function _loadMoreResults() {
@@ -5666,6 +4105,7 @@ function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
       organization: orgResult.orgName,
       oid: orgResult.oid,
       completed_at: backtestResults.value?.completedAt,
+      timeframe: backtestResults.value?.timeframe,
       stats: orgResult.stats,
     },
     matches: orgResult.results,
@@ -5689,7 +4129,10 @@ function _exportBacktestResults() {
     backtest_metadata: {
       rule_name: currentRule.name,
       completed_at: backtestResults.value.completedAt,
+      timeframe: backtestResults.value.timeframe,
       total_stats: backtestResults.value.totalStats,
+      execution_stats: backtestResults.value.executionStats,
+      completion_stats: backtestResults.value.completionStats,
       organizations: backtestResults.value.orgResults.length,
     },
     org_results: backtestResults.value.orgResults,
@@ -5708,6 +4151,85 @@ function _exportBacktestResults() {
   appStore.addNotification('success', 'Backtest results exported successfully')
 }
 
+function exportBacktestSummaryAsMarkdown() {
+  if (!backtestResults.value) return
+
+  const results = backtestResults.value
+
+  // Format execution timeline
+  const startedTime = new Date(results.executionStats.startedAt).toLocaleString()
+  const completedTime = new Date(results.completedAt).toLocaleString()
+  const duration = `${results.executionStats.totalExecutionTime.toFixed(2)}s`
+
+  // Format telemetry timeframe
+  const telemetryStart = new Date(results.timeframe.startTime).toLocaleString()
+  const telemetryEnd = new Date(results.timeframe.endTime).toLocaleString()
+
+  // Calculate additional metrics
+  const failedTimeoutCount =
+    results.completionStats.failedOrgs +
+    results.completionStats.cancelledOrgs +
+    results.completionStats.timeoutOrgs
+
+  const markdown = `# Backtest Summary
+
+**Rule:** ${currentRule.name}
+
+## Execution Timeline
+**Started:** ${startedTime} | **Completed:** ${completedTime} | **Duration:** ${duration}
+
+## Telemetry Timeframe
+**Start:** ${telemetryStart} | **End:** ${telemetryEnd} | **Days Covered:** ${results.timeframe.durationDays.toFixed(1)}
+
+## Metrics Summary
+
+| Metric | Value |
+|--------|-------|
+| Total Events Processed | ${results.totalStats.n_proc.toLocaleString()} |
+| Total Rule Evaluations | ${results.totalStats.n_eval.toLocaleString()} |
+| Total Matches Found | ${results.totalStats.totalMatches.toLocaleString()} |
+| API Processing Time | ${results.totalStats.wall_time.toFixed(2)}s |
+| Total Backtest Time | ${results.executionStats.totalExecutionTime.toFixed(2)}s |
+| Organizations Completed | ${results.completionStats.completedOrgs} / ${results.completionStats.totalOrgs} |
+| Failed / Cancelled / Timeout | ${failedTimeoutCount} |
+| Organizations with 0 Hits | ${results.completionStats.orgsWithZeroHits} |
+| Average Matches per Org | ${results.completionStats.avgMatchesPerOrg.toFixed(1)} |
+
+## Organization Breakdown
+
+| Organization | Status | Matches | Duration |
+|-------------|--------|---------|----------|
+${results.orgResults
+  .map((org) => {
+    const matchCount = org.results?.length || 0
+    const duration = org.stats?.wall_time ? `${org.stats.wall_time.toFixed(2)}s` : 'N/A'
+    const statusIcon =
+      org.status === 'success'
+        ? '✅'
+        : org.status === 'timeout'
+          ? '⏰'
+          : org.status === 'cancelled'
+            ? '⏹️'
+            : '❌'
+    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${duration} |`
+  })
+  .join('\n')}
+
+---
+*Generated by DetectionForge on ${new Date().toLocaleString()}*`
+
+  // Copy to clipboard
+  navigator.clipboard
+    .writeText(markdown)
+    .then(() => {
+      appStore.addNotification('success', 'Backtest summary copied to clipboard as Markdown')
+    })
+    .catch((err) => {
+      logger.error('Failed to copy to clipboard:', err)
+      appStore.addNotification('error', 'Failed to copy to clipboard')
+    })
+}
+
 function clearBacktestResults() {
   backtestResults.value = null
   expandedMatches.value.clear()
@@ -5715,7 +4237,35 @@ function clearBacktestResults() {
   expandedOrgResults.value.clear()
   orgDisplayedResults.value = {}
   displayedResults.value = 10
-  backtestProgress.value = { current: 0, total: 0, currentOrgName: '', currentOid: '' }
+
+  // Clear cursor-based pagination state
+  orgCursors.value = {}
+  orgHasMore.value = {}
+  orgLoadingMore.value = {}
+
+  backtestProgress.value = {
+    current: 0,
+    total: 0,
+    currentOrgName: '',
+    currentOid: '',
+    orgStatuses: [],
+  }
+}
+
+function cancelBacktest() {
+  if (!isRunningBacktest.value) return
+
+  isCancellingBacktest.value = true
+
+  // Abort all in-flight requests
+  if (backtestAbortController) {
+    backtestAbortController.abort()
+  }
+
+  appStore.addNotification(
+    'info',
+    'Cancelling backtest... Will save results from completed organizations.',
+  )
 }
 
 function _formatOrgDisplay(oid: string): string {
@@ -5745,6 +4295,25 @@ function formatTimestamp(timestamp: string | number): string {
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString()
+}
+
+function formatDuration(durationMs: number): string {
+  const seconds = Math.floor(durationMs / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`
+  }
+  return `${remainingSeconds}s`
+}
+
+// Create a computed function for real-time updates
+const getRunningTime = (startTime: number) => {
+  // Force reactivity by reading currentTime
+  const now = currentTime.value
+  const durationMs = now - startTime
+  return formatDuration(durationMs)
 }
 
 // Event Schema Functions
