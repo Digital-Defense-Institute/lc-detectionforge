@@ -2,7 +2,10 @@
   <body class="home">
     <div class="container home">
       <div class="header home">
-        <Logo variant="white" size="large" />
+        <div class="header-theme-toggle">
+          <ThemeToggle />
+        </div>
+        <Logo variant="auto" size="large" />
         <p>
           A specialized environment for crafting, validating, and testing LimaCharlie detection
           rules
@@ -205,7 +208,7 @@
       </div>
 
       <div class="cta-section">
-        <h2 style="margin-top: 0">Ready to Start Detection Engineering?</h2>
+        <h2 class="cta-title">Ready to Start Detection Engineering?</h2>
         <p>
           Configure your LimaCharlie credentials and begin crafting detection rules for your
           security operations.
@@ -241,6 +244,7 @@
 
 <script setup lang="ts">
 import Logo from './Logo.vue'
+import ThemeToggle from './ThemeToggle.vue'
 import { getCurrentVersion } from '../utils/version'
 
 const currentVersion = getCurrentVersion()

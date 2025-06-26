@@ -25,6 +25,10 @@
 
 <script setup lang="ts">
 import Notifications from './components/Notifications.vue'
+import { useTheme } from './composables/useTheme'
+
+// Initialize theme system
+useTheme()
 
 // Main app component with router outlet and notifications
 </script>

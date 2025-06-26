@@ -9,6 +9,7 @@
         <div class="nav-links">
           <RouterLink to="/" class="nav-link">← Home</RouterLink>
           <RouterLink to="/config" class="nav-link">Configuration</RouterLink>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -1463,6 +1464,7 @@ import { sanitizeHtml } from '../utils/sanitizer'
 import { logger } from '../utils/logger'
 import { getCurrentVersion } from '../utils/version'
 import Logo from './Logo.vue'
+import ThemeToggle from './ThemeToggle.vue'
 // CodeMirror v6 imports
 import {
   EditorView,
@@ -3640,7 +3642,6 @@ async function runBacktest() {
             !backtestConfig.isStateful,
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
-            backtestConfig.useChunkedResults ? 50000 : 0,
           )
 
           // Update progress for completed organization (atomic operation)
@@ -3804,7 +3805,6 @@ async function runBacktest() {
             !backtestConfig.isStateful,
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
-            backtestConfig.useChunkedResults ? 50000 : 0,
           )
 
           // Store cursor information for pagination
@@ -4063,7 +4063,6 @@ async function loadMoreResultsForOrg(orgIndex: number) {
       !backtestConfig.isStateful,
       false, // isDryRun
       orgCursors.value[orgIndex], // Use stored cursor
-      50000,
     )
 
     // Append new results to existing results

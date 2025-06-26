@@ -9,6 +9,7 @@
         <div class="nav-links">
           <RouterLink to="/" class="nav-link">← Home</RouterLink>
           <RouterLink to="/workbench" class="nav-link">Detection Workbench</RouterLink>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -448,6 +449,7 @@ import { useConfigManager } from '../composables/useConfigManager'
 import { logger } from '../utils/logger'
 import { getCurrentVersion } from '../utils/version'
 import Logo from './Logo.vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 // Initialize composables
 const storage = useStorage()
@@ -1439,7 +1441,7 @@ const toggleDataView = (index: number) => {
 .org-urls-info {
   margin-top: 15px;
   padding: 15px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   border: 1px solid #dee2e6;
   border-radius: 6px;
 }
@@ -1457,15 +1459,15 @@ const toggleDataView = (index: number) => {
 .loading-urls {
   margin-top: 10px;
   padding: 10px;
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: 4px;
   font-size: 0.9em;
 }
 
 .fetching-urls {
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: 4px;
   padding: 10px;
   margin: 10px 0;
@@ -1504,11 +1506,11 @@ const toggleDataView = (index: number) => {
 
 /* Multi-select organization styles */
 .org-item.primary {
-  border-left: 4px solid #007bff;
+  border-left: 4px solid var(--brand-blue);
 }
 
 .primary-badge {
-  background-color: #007bff;
+  background-color: var(--brand-blue);
   color: white;
   font-size: 0.7em;
   padding: 2px 6px;
@@ -1522,7 +1524,7 @@ const toggleDataView = (index: number) => {
 }
 
 .selected-org-item {
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   border: 1px solid #dee2e6;
   border-radius: 4px;
   padding: 8px 12px;
@@ -1531,13 +1533,13 @@ const toggleDataView = (index: number) => {
 }
 
 .primary-indicator {
-  color: #007bff;
+  color: var(--brand-blue);
   font-weight: bold;
   margin-left: 8px;
 }
 
 .btn-secondary {
-  background-color: #6c757d;
+  background-color: var(--text-tertiary);
   color: white;
   border: none;
   padding: 6px 12px;
@@ -1545,14 +1547,15 @@ const toggleDataView = (index: number) => {
   cursor: pointer;
   font-size: 0.85em;
   margin-right: 8px;
+  transition: background-color var(--transition-speed) ease;
 }
 
 .btn-secondary:hover {
-  background-color: #5a6268;
+  opacity: var(--button-hover-opacity);
 }
 
 .btn-secondary:disabled {
-  background-color: #6c757d;
+  background-color: var(--text-tertiary);
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1565,11 +1568,13 @@ const toggleDataView = (index: number) => {
 }
 
 .btn-primary:disabled {
-  background-color: #6c757d;
+  background-color: var(--text-tertiary);
+  color: white;
 }
 
 .btn-danger:disabled {
-  background-color: #6c757d;
+  background-color: var(--text-tertiary);
+  color: white;
 }
 
 /* Inline results summary next to button */
@@ -1612,7 +1617,7 @@ const toggleDataView = (index: number) => {
 
 .expand-icon {
   font-size: 0.8em;
-  color: #6c757d;
+  color: var(--text-tertiary);
   margin-left: auto;
 }
 
@@ -1632,7 +1637,7 @@ const toggleDataView = (index: number) => {
 .toggle-view-btn {
   font-size: 0.8em;
   padding: 4px 8px;
-  background-color: #6c757d;
+  background-color: var(--text-tertiary);
   color: white;
   border: none;
   border-radius: 3px;
@@ -1641,11 +1646,11 @@ const toggleDataView = (index: number) => {
 }
 
 .toggle-view-btn:hover {
-  background-color: #5a6268;
+  opacity: var(--button-hover-opacity);
 }
 
 .formatted-data {
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   border: 1px solid #dee2e6;
   border-radius: 6px;
   padding: 15px;
@@ -1677,7 +1682,7 @@ const toggleDataView = (index: number) => {
 
 .data-key {
   font-weight: 600;
-  color: #495057;
+  color: var(--text-secondary);
   min-width: 160px;
   margin-right: 12px;
   font-size: 0.9em;
@@ -1688,13 +1693,13 @@ const toggleDataView = (index: number) => {
   font-size: 0.85em;
   padding: 2px 6px;
   border-radius: 3px;
-  background-color: #ffffff;
+  background-color: var(--bg-secondary);
   border: 1px solid #e9ecef;
 }
 
 .data-value.value-neutral {
-  color: #6c757d;
-  background-color: #f8f9fa;
+  color: var(--text-tertiary);
+  background-color: var(--bg-tertiary);
 }
 
 .data-value.value-positive {
@@ -1711,7 +1716,7 @@ const toggleDataView = (index: number) => {
 
 .data-value.value-default {
   color: #333;
-  background-color: #ffffff;
+  background-color: var(--bg-secondary);
 }
 
 /* API Results styling */
@@ -1755,17 +1760,23 @@ const toggleDataView = (index: number) => {
 .config-section {
   margin-top: 30px;
   padding: 20px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
   border-radius: 6px;
+  transition:
+    background-color var(--transition-speed) ease,
+    border-color var(--transition-speed) ease;
 }
 
 .config-summary {
   margin-top: 15px;
   padding: 15px;
-  background-color: #ffffff;
-  border: 1px solid #dee2e6;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: 6px;
+  transition:
+    background-color var(--transition-speed) ease,
+    border-color var(--transition-speed) ease;
 }
 
 .summary-stats {
@@ -1778,16 +1789,27 @@ const toggleDataView = (index: number) => {
 .stat-item {
   flex: 1 1 45%;
   margin-bottom: 10px;
+  padding: 15px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  transition:
+    background-color var(--transition-speed) ease,
+    border-color var(--transition-speed) ease;
+  text-align: center;
 }
 
 .stat-number {
   font-size: 1.5em;
   font-weight: bold;
+  color: var(--brand-purple);
 }
 
 .stat-label {
   font-size: 0.9em;
-  color: #6c757d;
+  color: var(--text-muted);
+  transition: color var(--transition-speed) ease;
+  margin-top: 5px;
 }
 
 .config-actions-section {
@@ -1818,7 +1840,8 @@ input[type='file'] {
 .selected-file {
   margin-left: 10px;
   font-size: 0.9em;
-  color: #333;
+  color: var(--text-primary);
+  transition: color var(--transition-speed) ease;
 }
 
 .import-options {
@@ -1829,7 +1852,8 @@ input[type='file'] {
 
 .checkbox-label {
   font-size: 0.9em;
-  color: #333;
+  color: var(--text-primary);
+  transition: color var(--transition-speed) ease;
 }
 
 .import-results {
@@ -1918,7 +1942,7 @@ input[type='file'] {
   border: none;
   font-size: 1.5em;
   cursor: pointer;
-  color: #6c757d;
+  color: var(--text-tertiary);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -1930,8 +1954,8 @@ input[type='file'] {
 }
 
 .close-btn:hover {
-  background-color: #f8f9fa;
-  color: #495057;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -1958,7 +1982,7 @@ input[type='file'] {
 }
 
 .bulk-input:disabled {
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   opacity: 0.7;
 }
 
@@ -1972,7 +1996,7 @@ input[type='file'] {
 .import-results {
   margin-top: 20px;
   padding: 15px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   border: 1px solid #dee2e6;
   border-radius: 6px;
 }
