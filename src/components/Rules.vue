@@ -1425,11 +1425,7 @@ hives:
 
                 <div class="import-options">
                   <label class="checkbox-wrapper">
-                    <input
-                      type="checkbox"
-                      v-model="autoOpenTopRule"
-                      :disabled="isImportingIaC"
-                    />
+                    <input v-model="autoOpenTopRule" type="checkbox" :disabled="isImportingIaC" />
                     <span class="checkbox-label">Automatically open first imported rule</span>
                   </label>
                 </div>
@@ -4891,23 +4887,22 @@ async function importFromIaC() {
 
       // Auto-open the first successfully imported rule if checkbox is checked
       if (autoOpenTopRule.value) {
-        const firstSuccessfulImport = importedRules.find(rule => rule.success)
+        const firstSuccessfulImport = importedRules.find((rule) => rule.success)
         if (firstSuccessfulImport) {
           // Find the rule ID by name from the saved rules
           const savedRulesList = JSON.parse(localStorage.getItem(DETECTION_RULES_KEY) || '[]')
-          const ruleToOpen = savedRulesList.find((r: DetectionRule) => r.name === firstSuccessfulImport.name)
+          const ruleToOpen = savedRulesList.find(
+            (r: DetectionRule) => r.name === firstSuccessfulImport.name,
+          )
           if (ruleToOpen) {
-                         // Use nextTick to ensure the DOM is updated before loading the rule
-             nextTick(() => {
-               loadRule(ruleToOpen.id)
-               // Add notification that rule was loaded to editor
-               appStore.addNotification(
-                 'info',
-                 `Loaded "${firstSuccessfulImport.name}" to editor`
-               )
-               // Close the import modal
-               showImportIaCModal.value = false
-             })
+            // Use nextTick to ensure the DOM is updated before loading the rule
+            nextTick(() => {
+              loadRule(ruleToOpen.id)
+              // Add notification that rule was loaded to editor
+              appStore.addNotification('info', `Loaded "${firstSuccessfulImport.name}" to editor`)
+              // Close the import modal
+              showImportIaCModal.value = false
+            })
           }
         }
       }
