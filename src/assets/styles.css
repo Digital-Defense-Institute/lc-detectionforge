@@ -2365,6 +2365,10 @@ body.config {
 
 .cta-title {
   margin-top: 0;
+  margin-bottom: 15px;
+  color: white;
+  font-size: var(--font-2xl);
+  font-weight: 600;
 }
 
 .cta-section p {
