@@ -17,8 +17,8 @@
 -->
 
 <template>
-  <body class="home">
-    <div class="container home">
+  <body class="home changelog">
+    <div class="container home changelog">
       <div class="header home">
         <div class="header-theme-toggle">
           <ThemeToggle />
@@ -128,7 +128,10 @@ const navigateHome = () => {
 }
 
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
+  // Parse the date string manually to avoid timezone conversion
+  // dateString format is 'YYYY-MM-DD'
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day) // month is 0-indexed
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -136,144 +139,3 @@ const formatDate = (dateString: string): string => {
   })
 }
 </script>
-
-<style scoped>
-/* Minimal custom styles - leveraging global CSS classes */
-.nav-button {
-  position: absolute;
-  top: 30px;
-  left: 30px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.nav-button:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-1px);
-}
-
-.icon {
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-/* Version-specific styling */
-.version-header {
-  margin-bottom: 1.5rem;
-}
-
-.version-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.version {
-  font-size: 1.8rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--brand-purple);
-  transition: color var(--transition-speed) ease;
-}
-
-.date {
-  color: var(--text-secondary);
-  font-size: 1rem;
-  transition: color var(--transition-speed) ease;
-}
-
-.current-badge {
-  background: #4ade80;
-  color: #022c22;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.changes {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.change-section {
-  margin: 0;
-}
-
-.change-type {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.change-type.added {
-  color: #4ade80;
-}
-.change-type.changed {
-  color: #60a5fa;
-}
-.change-type.fixed {
-  color: #fbbf24;
-}
-.change-type.removed {
-  color: #f87171;
-}
-.change-type.security {
-  color: #a78bfa;
-}
-
-.change-section ul {
-  margin: 0;
-  padding-left: 1.5rem;
-  list-style-type: disc;
-}
-
-.change-section li {
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
-  color: var(--text-primary);
-  transition: color var(--transition-speed) ease;
-}
-
-.heart {
-  color: #f472b6;
-  font-size: 1.1rem;
-}
-
-@media (max-width: 768px) {
-  .nav-button {
-    top: 0.5rem;
-    left: 0.5rem;
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
-  .version-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .version {
-    font-size: 1.5rem;
-  }
-}
-</style>

@@ -17,7 +17,7 @@
 -->
 
 <template>
-  <div id="app">
+  <div id="app" class="detection-forge">
     <RouterView />
     <Notifications />
   </div>
@@ -32,9 +32,3 @@ useTheme()
 
 // Main app component with router outlet and notifications
 </script>
-
-<style scoped>
-#app {
-  min-height: 100vh;
-}
-</style>

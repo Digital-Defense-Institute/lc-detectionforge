@@ -77,6 +77,32 @@
   /* Transition timing */
   --transition-speed: 0.3s;
   
+  /* Design tokens - Spacing scale */
+  --space-xs: 0.25rem;    /* 4px */
+  --space-sm: 0.5rem;     /* 8px */
+  --space-md: 0.75rem;    /* 12px */
+  --space-lg: 1rem;       /* 16px */
+  --space-xl: 1.25rem;    /* 20px */
+  --space-2xl: 1.5rem;    /* 24px */
+  --space-3xl: 2rem;      /* 32px */
+  
+  /* Design tokens - Border radius scale */
+  --radius-xs: 0.125rem;  /* 2px */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.375rem;  /* 6px */
+  --radius-lg: 0.5rem;    /* 8px */
+  --radius-xl: 0.75rem;   /* 12px */
+  --radius-2xl: 1rem;     /* 16px */
+  
+  /* Design tokens - Font sizes */
+  --font-xs: 0.75rem;     /* 12px */
+  --font-sm: 0.875rem;    /* 14px */
+  --font-md: 1rem;        /* 16px */
+  --font-lg: 1.125rem;    /* 18px */
+  --font-xl: 1.25rem;     /* 20px */
+  --font-2xl: 1.5rem;     /* 24px */
+  --font-3xl: 1.875rem;   /* 30px */
+  
   /* Theme toggle */
   --theme-toggle-border: #dddddd;
   --theme-toggle-hover-bg: rgba(0, 0, 0, 0.05);
@@ -207,7 +233,7 @@ body.config {
   background: var(--gradient-header);
   color: var(--text-inverse);
   padding: 20px; /* Default for rules/config pages */
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
@@ -278,15 +304,910 @@ body.config {
 .nav-link {
   color: white;
   text-decoration: none;
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-lg);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all var(--transition-speed) ease;
 }
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.1);
   text-decoration: none;
+}
+
+/* =============================================================================
+   COMPONENT STYLES
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   App Component
+   ----------------------------------------------------------------------------- */
+#app {
+  min-height: 100vh;
+}
+
+/* -----------------------------------------------------------------------------
+   Logo Component
+   ----------------------------------------------------------------------------- */
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-image {
+  height: auto;
+  max-width: 100%;
+  transition: opacity 0.2s ease;
+}
+
+.logo-small .logo-image {
+  height: 32px;
+}
+
+.logo-container:not(.logo-small):not(.logo-large) .logo-image {
+  height: 48px;
+}
+
+.logo-large .logo-image {
+  height: 80px;
+}
+
+.logo-image:hover {
+  opacity: 0.9;
+}
+
+/* -----------------------------------------------------------------------------
+   Theme Toggle Component
+   ----------------------------------------------------------------------------- */
+.theme-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 2px solid var(--theme-toggle-border, #ddd);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.theme-toggle:hover {
+  background: var(--theme-toggle-hover-bg, rgba(0, 0, 0, 0.05));
+  border-color: var(--theme-toggle-hover-border, #999);
+}
+
+.theme-toggle:focus-visible {
+  box-shadow: 0 0 0 3px var(--theme-toggle-focus, rgba(102, 126, 234, 0.25));
+}
+
+.theme-toggle--dark {
+  border-color: var(--theme-toggle-dark-border, #555);
+}
+
+.theme-toggle--dark:hover {
+  background: var(--theme-toggle-dark-hover-bg, rgba(255, 255, 255, 0.1));
+  border-color: var(--theme-toggle-dark-hover-border, #888);
+}
+
+.theme-toggle__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover .theme-toggle__icon {
+  transform: rotate(15deg);
+}
+
+.theme-toggle--dark .theme-toggle__icon {
+  color: white;
+}
+
+/* Animation for icon transitions */
+.theme-toggle__icon svg {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-15deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Notifications Component
+   ----------------------------------------------------------------------------- */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 400px;
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) 16px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px var(--shadow-md);
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.notification-error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.notification-warning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.notification-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+}
+
+.notification-message {
+  flex: 1;
+  font-weight: 500;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: var(--font-lg);
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 12px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  color: inherit;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Changelog Component
+   ----------------------------------------------------------------------------- */
+.changelog .nav-button {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.changelog .nav-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.changelog .icon {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.changelog .version-header {
+  margin-bottom: 1.5rem;
+}
+
+.changelog .version-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.changelog .version {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--brand-purple);
+  transition: color var(--transition-speed) ease;
+}
+
+.changelog .date {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  transition: color var(--transition-speed) ease;
+}
+
+.changelog .current-badge {
+  background: var(--success);
+  color: var(--success-text);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.changelog .changes {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.changelog .change-section {
+  margin: 0;
+}
+
+.changelog .change-type {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.changelog .change-type.added {
+  color: var(--success);
+}
+
+.changelog .change-type.changed {
+  color: var(--info);
+}
+
+.changelog .change-type.fixed {
+  color: var(--warning);
+}
+
+.changelog .change-type.removed {
+  color: var(--error);
+}
+
+.changelog .change-type.security {
+  color: var(--brand-purple);
+}
+
+.changelog .change-section ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.changelog .change-section li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  transition: color var(--transition-speed) ease;
+}
+
+.changelog .heart {
+  color: var(--brand-purple);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .changelog .nav-button {
+    top: 0.5rem;
+    left: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .changelog .version-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .changelog .version {
+    font-size: 1.5rem;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Config Component - Enhanced Layout & Alignment
+   ----------------------------------------------------------------------------- */
+
+/* Section spacing and consistency */
+.config .auth-section,
+.config .org-section,
+.config .config-section {
+  margin-bottom: var(--space-3xl);
+  padding: var(--space-2xl);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  transition: all var(--transition-speed) ease;
+}
+
+.config .auth-section:hover,
+.config .org-section:hover,
+.config .config-section:hover {
+  border-color: var(--border-secondary);
+  box-shadow: 0 2px 8px var(--shadow-sm);
+}
+
+/* Form layouts and consistency */
+.config .credentials-form {
+  margin-top: var(--space-xl);
+}
+
+.config .input-group {
+  margin-bottom: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.config .input-group label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.config .credential-input,
+.config .org-input {
+  padding: var(--space-md);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-md);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+  width: 100%;
+}
+
+.config .credential-input:focus,
+.config .org-input:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
+}
+
+/* Button group alignment and spacing */
+.config .button-group {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.config .export-button-group {
+  justify-content: center;
+}
+
+/* Organization input group - improved alignment */
+.config .org-input-group {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.config .org-input-group .org-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.config .org-input-group .btn {
+  white-space: nowrap;
+}
+
+/* Organization list styling */
+.config .org-list {
+  margin-top: var(--space-xl);
+}
+
+.config .org-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-speed) ease;
+}
+
+.config .org-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+}
+
+.config .org-item.primary {
+  border-left: 4px solid var(--brand-blue);
+}
+
+.config .org-info {
+  flex: 1;
+}
+
+.config .org-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  margin-bottom: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.config .org-id {
+  color: var(--text-muted);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: var(--font-sm);
+}
+
+.config .org-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.config .empty-state {
+  text-align: center;
+  padding: var(--space-3xl);
+  color: var(--text-muted);
+  font-style: italic;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--border-secondary);
+}
+
+/* Status and info text alignment */
+.config .info-text {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--info);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.config .warning-text {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--warning-bg);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--warning);
+  color: var(--warning-text);
+  line-height: 1.6;
+}
+
+.config .fetching-urls {
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  margin: var(--space-lg) 0;
+  font-size: var(--font-sm);
+}
+
+.config .auth-status {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+.config .auth-status.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.config .auth-status.loading {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+}
+
+.config .auth-status.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+/* API Results styling - improved alignment */
+.config .api-results {
+  margin-top: var(--space-xl);
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.config .api-result {
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.config .api-result:last-child {
+  border-bottom: none;
+}
+
+.config .api-result pre {
+  background: var(--bg-tertiary);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  margin: var(--space-md);
+  font-size: var(--font-xs);
+  overflow-x: auto;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  transition: all var(--transition-speed) ease;
+}
+
+.config .inline-results-summary {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: center;
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+
+.config .success-count {
+  color: var(--success);
+}
+
+.config .failed-count {
+  color: var(--error);
+}
+
+/* Status labels in API results */
+.config .status {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.config .status.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.config .status.failed {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+/* Testing button animation */
+.config .btn-testing {
+  animation: pulse-testing 2s ease-in-out infinite;
+  position: relative;
+}
+
+.config .btn-testing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.2);
+  animation: pulse-overlay 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-testing {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px var(--shadow-md);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px var(--shadow-lg);
+  }
+}
+
+@keyframes pulse-overlay {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Telemetry Timeline Styles */
+.timeframe-info {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl);
+  margin: var(--space-2xl) 0;
+  transition: all var(--transition-speed) ease;
+}
+
+.timeframe-info h5 {
+  margin: 0 0 var(--space-xl) 0;
+  color: var(--text-primary);
+  font-size: var(--font-lg);
+  font-weight: 600;
+  text-align: center;
+}
+
+.timeline-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin: var(--space-lg) 0;
+}
+
+.timeline-endpoint {
+  flex: 0 0 auto;
+  text-align: center;
+  min-width: 140px;
+}
+
+.timeline-label {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+.timeline-time {
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: var(--bg-secondary);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.timeline-bar {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
+
+.timeline-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--brand-purple) 0%, var(--brand-blue) 100%);
+  border-radius: 2px;
+  transform: translateY(-50%);
+}
+
+.timeline-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--brand-purple);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--bg-tertiary);
+}
+
+.timeline-line::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--brand-blue);
+  border-radius: 50%;
+  transform: translate(50%, -50%);
+  border: 2px solid var(--bg-tertiary);
+}
+
+.timeline-duration {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 2px 4px var(--shadow-sm);
+}
+
+/* Timezone note styling */
+.time-zone-note {
+  text-align: center;
+  margin: var(--space-sm) 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.time-zone-note small {
+  font-size: var(--font-xs);
+}
+
+/* Configuration Summary - improved grid layout */
+.config .config-summary {
+  margin-bottom: var(--space-xl);
+}
+
+.config .summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.config .stat-item {
+  text-align: center;
+  padding: var(--space-lg);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
+}
+
+.config .stat-number {
+  display: block;
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--brand-purple);
+  margin-bottom: var(--space-sm);
+}
+
+.config .stat-label {
+  display: block;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Import/Export sections */
+.config .config-actions-section {
+  margin-bottom: var(--space-2xl);
+}
+
+.config .config-actions-section h4 {
+  margin-bottom: var(--space-lg);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.config .file-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.config .selected-file {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-style: italic;
+}
+
+.config .import-options {
+  display: flex;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.config .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.config .checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-purple);
+}
+
+/* Helper classes for specific elements */
+.config .missing-urls-indicator {
+  margin-left: var(--space-sm);
+  font-size: var(--font-sm);
+  cursor: help;
+}
+
+.config .primary-badge {
+  background-color: var(--brand-blue);
+  color: white;
+  font-size: var(--font-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-sm);
+  font-weight: bold;
+}
+
+.config .primary-indicator {
+  color: var(--brand-blue);
+  font-weight: bold;
+  margin-left: var(--space-sm);
+}
+
+@media (max-width: 768px) {
+  .config .modal-content {
+    width: 95%;
+    padding: 20px;
+    margin: 10px;
+  }
+
+  .config .button-group {
+    justify-content: stretch;
+  }
+
+  .config .button-group .btn {
+    flex: 1;
+  }
 }
 
 /* =============================================================================
@@ -302,7 +1223,7 @@ body.config {
 .container.home {
   max-width: 800px;
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 10px 30px var(--shadow-md);
   overflow: hidden;
   transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
@@ -331,7 +1252,7 @@ body.config {
   color: var(--warning-text);
   padding: 15px 20px;
   margin-bottom: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-left: 4px solid var(--warning);
   box-shadow: 0 2px 8px var(--shadow-md);
   animation: slideDown 0.3s ease-out;
@@ -364,14 +1285,14 @@ body.config {
   line-height: 1.5;
 }
 
-.warning-link {
-  color: var(--warning-text) !important;
+.detection-forge .warning-link {
+  color: var(--warning-text);
   text-decoration: underline;
   font-weight: 600;
 }
 
-.warning-link:hover {
-  color: var(--warning) !important;
+.detection-forge .warning-link:hover {
+  color: var(--warning);
   text-decoration: none;
 }
 
@@ -393,7 +1314,7 @@ body.config {
 .section {
   background: var(--bg-secondary);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 20px;
   box-shadow: 0 2px 4px var(--shadow-md);
   transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
@@ -446,9 +1367,9 @@ body.config {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: var(--font-sm);
   background: var(--input-bg);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -458,9 +1379,9 @@ body.config {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: var(--font-sm);
   background: var(--input-bg);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -500,7 +1421,7 @@ body.config {
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 8px;
-  font-size: 16px;
+  font-size: var(--font-md);
   transition: color var(--transition-speed) ease;
 }
 
@@ -509,9 +1430,9 @@ body.config {
   height: 400px;
   padding: 15px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-  font-size: 14px;
+  font-size: var(--font-sm);
   line-height: 1.5;
   resize: vertical;
   background: var(--bg-tertiary);
@@ -526,15 +1447,15 @@ body.config {
 }
 
 /* CodeMirror v6 customizations */
-.cm-editor {
-  height: 400px !important;
-  min-height: 400px !important;
-  max-height: 400px !important;
-  width: 100% !important;
+.detection-forge .cm-editor {
+  height: 400px;
+  min-height: 400px;
+  max-height: 400px;
+  width: 100%;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-  font-size: 14px;
+  font-size: var(--font-sm);
   line-height: 1.5;
   overflow: auto;
   background: var(--editor-bg);
@@ -547,14 +1468,14 @@ body.config {
   box-shadow: 0 0 0 2px var(--input-focus-shadow);
 }
 
-.cm-scroller {
-  height: 100% !important;
-  overflow: auto !important;
+.detection-forge .cm-scroller {
+  height: 100%;
+  overflow: auto;
   font-family: inherit;
 }
 
-.cm-content {
-  padding: 10px;
+.detection-forge .cm-content {
+  padding: var(--space-md);
   min-height: 100%;
   max-width: 100%;
   white-space: pre-wrap;
@@ -568,73 +1489,69 @@ body.config {
   overflow-wrap: break-word;
 }
 
-/* Dark theme line numbers and gutter styling - High specificity */
-.cm-editor.cm-editor .cm-gutters,
-.cm-editor .cm-gutters {
-  background-color: var(--editor-gutter-bg) !important;
-  border-right: none !important;
-  border: none !important;
+/* High specificity CodeMirror styling without !important */
+.detection-forge .cm-editor .cm-gutters {
+  background-color: var(--editor-gutter-bg);
+  border-right: none;
+  border: none;
 }
 
-/* Remove any borders from individual gutter elements */
-.cm-editor .cm-gutter,
-.cm-editor .cm-lineNumbers,
-.cm-editor .cm-foldGutter {
-  border-right: none !important;
-  border: none !important;
-  background-color: var(--editor-gutter-bg) !important;
+/* High specificity for individual gutter elements */
+.detection-forge .cm-editor .cm-gutter,
+.detection-forge .cm-editor .cm-lineNumbers,
+.detection-forge .cm-editor .cm-foldGutter {
+  border-right: none;
+  border: none;
+  background-color: var(--editor-gutter-bg);
 }
 
-.cm-editor.cm-editor .cm-lineNumbers .cm-gutterElement,
-.cm-editor .cm-lineNumbers .cm-gutterElement,
-.cm-gutterElement {
-  color: var(--text-muted) !important;
-  font-size: 13px !important;
+.detection-forge .cm-editor .cm-lineNumbers .cm-gutterElement,
+.detection-forge .cm-gutterElement {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
 }
 
-.cm-editor.cm-editor .cm-lineNumbers .cm-activeLineGutter,
-.cm-editor .cm-lineNumbers .cm-activeLineGutter,
-.cm-activeLineGutter {
-  background-color: var(--editor-gutter-bg) !important;
-  color: var(--editor-text) !important;
+.detection-forge .cm-editor .cm-lineNumbers .cm-activeLineGutter,
+.detection-forge .cm-activeLineGutter {
+  background-color: var(--editor-gutter-bg);
+  color: var(--editor-text);
 }
 
-.cm-editor.cm-editor .cm-activeLine,
-.cm-editor .cm-activeLine {
-  background-color: var(--editor-selection-bg) !important;
+.detection-forge .cm-editor .cm-activeLine {
+  background-color: var(--editor-selection-bg);
 }
 
 /* Additional line number styling */
-.cm-lineNumbers {
-  color: var(--text-tertiary) !important;
-  background-color: var(--editor-gutter-bg) !important;
+.detection-forge .cm-lineNumbers {
+  color: var(--text-tertiary);
+  background-color: var(--editor-gutter-bg);
 }
 
-.cm-foldGutter {
-  background-color: var(--editor-gutter-bg) !important;
+.detection-forge .cm-foldGutter {
+  background-color: var(--editor-gutter-bg);
 }
 
 /* Override any theme-specific borders or separators */
-.cm-editor .cm-gutterElement,
-.cm-editor .cm-gutter *,
-.cm-editor [class*='gutter'] {
-  border-right: none !important;
-  border-left: none !important;
+.detection-forge .cm-editor .cm-gutterElement,
+.detection-forge .cm-editor .cm-gutter *,
+.detection-forge .cm-editor [class*='gutter'] {
+  border-right: none;
+  border-left: none;
 }
 
 /* Ensure editor content area connects seamlessly with gutter */
-.cm-editor .cm-content {
-  border-left: none !important;
-  margin-left: 0 !important;
+.detection-forge .cm-editor .cm-content {
+  border-left: none;
+  margin-left: 0;
 }
 
 /* Legacy CodeMirror v5 styles (if any still exist) */
 .CodeMirror {
   height: 400px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-  font-size: 14px;
+  font-size: var(--font-sm);
   line-height: 1.5;
   background: var(--editor-bg);
   color: var(--editor-text);
@@ -663,8 +1580,8 @@ body.config {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: var(--space-sm) 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-secondary);
   background: var(--bg-tertiary);
   transition: all var(--transition-speed) ease;
@@ -813,22 +1730,79 @@ body.config {
 
 .btn {
   display: inline-block;
-  padding: 10px 20px; /* Default for forms/rules pages */
+  padding: var(--space-md) var(--space-xl); /* Default for forms/rules pages */
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-sm);
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.3s ease;
-  margin: 5px;
+  transition: all var(--transition-speed) ease;
+  margin: var(--space-xs);
+  /* Base button appearance */
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.btn:hover {
+  opacity: var(--button-hover-opacity);
+  transform: translateY(-1px);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button variants */
+.btn-primary {
+  background: var(--brand-purple);
+  color: var(--text-inverse);
+  border-color: var(--brand-purple);
+}
+
+.btn-secondary {
+  background: var(--text-tertiary);
+  color: var(--text-inverse);
+  border-color: var(--text-tertiary);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--text-inverse);
+  border-color: var(--success);
+}
+
+.btn-info {
+  background: var(--info);
+  color: var(--text-inverse);
+  border-color: var(--info);
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: var(--text-inverse);
+  border-color: var(--warning);
+}
+
+.btn-danger {
+  background: var(--error);
+  color: var(--text-inverse);
+  border-color: var(--error);
 }
 
 /* Home page specific button styles */
 .btn.home {
   background: var(--bg-secondary);
   color: var(--brand-purple);
-  padding: 12px 30px;
+  padding: var(--space-md) 30px;
   border-radius: 25px;
   font-weight: 600;
   margin: 10px;
@@ -840,25 +1814,9 @@ body.config {
   box-shadow: 0 5px 15px var(--shadow-lg);
 }
 
-.btn-primary {
-  background: var(--brand-purple);
-  color: var(--text-inverse);
-  transition: all var(--transition-speed) ease;
-}
-
+/* Enhanced button variants with specific overrides */
 .btn-primary:hover {
   background: var(--brand-purple-dark);
-  opacity: var(--button-hover-opacity);
-}
-
-.btn-secondary {
-  background: var(--text-tertiary);
-  color: var(--text-inverse);
-  transition: all var(--transition-speed) ease;
-}
-
-.btn-secondary:hover {
-  opacity: var(--button-hover-opacity);
 }
 
 /* Home page secondary button override */
@@ -866,59 +1824,20 @@ body.config {
   background: transparent;
   color: var(--text-inverse);
   border: 2px solid var(--text-inverse);
-  transition: all var(--transition-speed) ease;
 }
 
 .btn-secondary.home:hover {
   background: var(--bg-secondary);
   color: var(--brand-purple);
-}
-
-.btn-success {
-  background: var(--success);
-  color: var(--text-inverse);
-  transition: all var(--transition-speed) ease;
-}
-
-.btn-success:hover {
-  opacity: var(--button-hover-opacity);
-}
-
-.btn-info {
-  background: var(--info);
-  color: var(--text-inverse);
-  transition: all var(--transition-speed) ease;
-}
-
-.btn-info:hover {
-  opacity: var(--button-hover-opacity);
-}
-
-.btn-warning {
-  background: var(--warning);
-  color: white;
-  transition: all var(--transition-speed) ease;
-}
-
-.btn-warning:hover {
-  opacity: var(--button-hover-opacity);
-}
-
-.btn-danger {
-  background: var(--error);
-  color: var(--text-inverse);
-  transition: all var(--transition-speed) ease;
-}
-
-.btn-danger:hover {
-  opacity: var(--button-hover-opacity);
+  opacity: 1;
+  transform: translateY(-1px);
 }
 
 .saved-rules {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 10px;
   background: var(--bg-secondary);
   transition: all var(--transition-speed) ease;
@@ -949,7 +1868,7 @@ body.config {
 }
 
 .rule-meta {
-  font-size: 12px;
+  font-size: var(--font-xs);
   color: var(--text-tertiary);
   transition: color var(--transition-speed) ease;
 }
@@ -961,12 +1880,12 @@ body.config {
 
 .btn-small {
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 .message {
-  padding: 12px;
-  border-radius: 4px;
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
   margin-bottom: 15px;
 }
 
@@ -1002,10 +1921,10 @@ body.config {
 
 .toast {
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px var(--shadow-lg);
   margin-bottom: 10px;
-  padding: 16px 20px;
+  padding: var(--space-lg) 20px;
   min-width: 300px;
   max-width: 400px;
   pointer-events: auto;
@@ -1039,12 +1958,12 @@ body.config {
   align-items: center;
   margin-bottom: 8px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 
 .toast-icon {
   margin-right: 8px;
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .toast.success .toast-icon {
@@ -1072,7 +1991,7 @@ body.config {
   right: 12px;
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: var(--font-lg);
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
@@ -1087,7 +2006,7 @@ body.config {
 .rule-validation {
   margin-top: 10px;
   padding: 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: 'Courier New', monospace;
   font-size: 13px;
 }
@@ -1126,7 +2045,7 @@ body.config {
 .reference-column h4 {
   margin: 15px 0 8px 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -1134,7 +2053,7 @@ body.config {
   margin-top: 15px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 15px;
   transition: all var(--transition-speed) ease;
 }
@@ -1146,16 +2065,19 @@ body.config {
 /* Section header styles for config page */
 .section-header {
   background: var(--bg-secondary);
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  padding: var(--space-3xl);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3xl);
   box-shadow: 0 2px 4px var(--shadow-md);
   transition: all var(--transition-speed) ease;
+  text-align: center;
 }
 
 .section-header h2 {
-  margin: 0;
+  margin: 0 0 var(--space-lg) 0;
   color: var(--text-primary);
+  font-size: 1.8em;
+  font-weight: 600;
   transition: color var(--transition-speed) ease;
 }
 
@@ -1163,6 +2085,10 @@ body.config {
   margin: 0;
   line-height: 1.6;
   color: var(--text-secondary);
+  font-size: var(--font-md);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
   transition: color var(--transition-speed) ease;
 }
 
@@ -1170,19 +2096,20 @@ body.config {
 .org-section,
 .auth-section {
   background: var(--bg-secondary);
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  padding: var(--space-3xl);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3xl);
   box-shadow: 0 2px 4px var(--shadow-md);
   transition: all var(--transition-speed) ease;
 }
 
 .org-section h3,
 .auth-section h3 {
-  margin: 0 0 15px 0;
+  margin: 0 0 var(--space-2xl) 0;
   color: var(--text-primary);
-  font-size: 1.3em;
-  padding-bottom: 8px;
+  font-size: 1.4em;
+  font-weight: 600;
+  padding-bottom: var(--space-md);
   border-bottom: 2px solid var(--border-secondary);
   transition: all var(--transition-speed) ease;
 }
@@ -1201,7 +2128,7 @@ body.config {
   margin-bottom: 8px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all var(--transition-speed) ease;
 }
 
@@ -1240,10 +2167,11 @@ body.config {
 
 /* Authentication status */
 .auth-status {
-  padding: 10px 15px;
-  border-radius: 4px;
-  margin-bottom: 15px;
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2xl);
   font-weight: 500;
+  font-size: var(--font-sm);
 }
 
 .auth-status.success {
@@ -1270,38 +2198,40 @@ body.config {
 /* Info text styling */
 .info-text {
   background: var(--bg-tertiary);
-  border-left: 4px solid var(--text-tertiary);
-  padding: 12px 15px;
-  margin-bottom: 20px;
-  border-radius: 0 4px 4px 0;
+  border-left: 4px solid var(--info);
+  padding: var(--space-lg) var(--space-xl);
+  margin-bottom: var(--space-2xl);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   color: var(--text-secondary);
-  font-size: 0.95em;
-  line-height: 1.5;
+  font-size: var(--font-sm);
+  line-height: 1.6;
   transition: all var(--transition-speed) ease;
 }
 
 /* Input groups for config page */
 .input-group {
-  margin-bottom: 15px;
+  margin-bottom: var(--space-2xl);
 }
 
 .input-group label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: var(--space-sm);
   font-weight: 500;
   color: var(--text-primary);
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
 .credential-input {
   width: 100%;
-  padding: 12px;
+  padding: var(--space-lg) var(--space-md);
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-md);
   background: var(--input-bg);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
+  box-sizing: border-box;
 }
 
 .credential-input:focus {
@@ -1316,28 +2246,28 @@ body.config {
 }
 
 .message {
-  padding: 12px 15px;
-  border-radius: 4px;
-  margin-bottom: 10px;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-md);
   font-weight: 500;
 }
 
 .message.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
 }
 
 .message.error {
   background: var(--error-bg);
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
 }
 
 .message.info {
-  background: #d1ecf1;
-  color: #0c5460;
-  border: 1px solid #bee5eb;
+  background: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
 }
 
 /* Results container */
@@ -1346,7 +2276,7 @@ body.config {
   padding: 15px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   max-height: 400px;
   overflow-y: auto;
   color: var(--text-primary);
@@ -1371,7 +2301,7 @@ body.config {
 .feature {
   background: var(--bg-tertiary);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-left: 4px solid var(--brand-purple);
   transition: all var(--transition-speed) ease;
 }
@@ -1400,7 +2330,7 @@ body.config {
 }
 
 .cta-section .btn {
-  margin: 8px;
+  margin: var(--space-sm);
   display: inline-block;
 }
 
@@ -1451,7 +2381,7 @@ body.config {
   background: var(--bg-tertiary);
   padding: 20px;
   margin-bottom: 15px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   position: relative;
   padding-left: 60px;
   transition: all var(--transition-speed) ease;
@@ -1492,7 +2422,7 @@ body.config {
   background: var(--editor-bg);
   color: var(--editor-text);
   padding: 15px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: 'Courier New', monospace;
   font-size: 0.9em;
   overflow-x: auto;
@@ -1555,7 +2485,7 @@ body.config {
 .benefit {
   background: var(--bg-tertiary);
   padding: 15px 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-left: 4px solid var(--success);
   line-height: 1.6;
   transition: all var(--transition-speed) ease;
@@ -1569,21 +2499,23 @@ body.config {
 /* Organization input styles */
 .org-input-group {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-2xl);
   align-items: center;
   flex-wrap: wrap;
 }
 
 .org-input {
-  width: 200px;
-  padding: 8px 12px;
+  min-width: 240px;
+  flex: 1;
+  padding: var(--space-lg) var(--space-md);
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-md);
   background: var(--input-bg);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
+  box-sizing: border-box;
 }
 
 .org-input:focus {
@@ -1599,7 +2531,7 @@ body.config {
   color: var(--text-tertiary);
   background: var(--bg-tertiary);
   border: 1px dashed var(--border-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin: 15px 0;
   transition: all var(--transition-speed) ease;
 }
@@ -1609,7 +2541,7 @@ body.config {
   margin-bottom: 15px;
   padding: 10px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -1629,12 +2561,28 @@ body.config {
 /* Button spacing for config page */
 .config .button-group {
   display: flex;
-  gap: 10px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-xl);
 }
 
 .config .button-group button {
   margin: 0;
+  min-width: 140px;
+  padding: var(--space-lg) var(--space-2xl);
+}
+
+/* Export button group (centered) */
+.export-button-group {
+  justify-content: center !important;
+}
+
+/* Center align button groups in config actions section */
+.config-actions-section .button-group {
+  justify-content: center;
 }
 
 /* =============================================================================
@@ -1642,10 +2590,10 @@ body.config {
    ============================================================================= */
 
 .config-section {
-  background: var(--bg-secondary) !important;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3xl);
+  margin-bottom: var(--space-3xl);
   box-shadow: 0 2px 4px var(--shadow-md);
   transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
   color: var(--text-primary);
@@ -1654,15 +2602,17 @@ body.config {
 .config-section h3 {
   color: var(--text-primary);
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: var(--space-2xl);
   font-size: 1.4em;
-  font-weight: 500;
+  font-weight: 600;
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--border-secondary);
 }
 
 .config-section h4 {
   color: var(--text-primary);
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-lg);
   font-size: 1.1em;
   font-weight: 500;
 }
@@ -1670,16 +2620,17 @@ body.config {
 .config-summary {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
-  padding: 15px;
-  margin: 15px 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  margin: var(--space-2xl) 0;
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
 .summary-stats {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-xl);
+  justify-items: center;
 }
 
 .config-section .stat-item {
@@ -1687,11 +2638,11 @@ body.config {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  min-width: 80px;
-  padding: 15px;
+  min-width: 120px;
+  padding: var(--space-xl);
   background: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
@@ -1709,49 +2660,64 @@ body.config {
   transition: color var(--transition-speed) ease;
 }
 
+/* Warning text styling */
+.warning-text {
+  background: var(--warning-bg);
+  border-left: 4px solid var(--warning);
+  padding: var(--space-lg) var(--space-xl);
+  margin-bottom: var(--space-2xl);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--warning-text);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+  transition: all var(--transition-speed) ease;
+}
+
 .info-text {
   color: var(--text-secondary);
   line-height: 1.6;
-  margin-bottom: 15px;
+  margin-bottom: var(--space-xl);
   transition: color var(--transition-speed) ease;
 }
 
 .config-actions-section {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
-  padding: 20px;
-  margin: 20px 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  margin: var(--space-2xl) 0;
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
 .config-actions-section h4 {
   color: var(--text-primary);
-  margin: 0 0 15px 0;
+  margin: 0 0 var(--space-xl) 0;
   font-size: 1.1em;
-  font-weight: 500;
+  font-weight: 600;
   transition: color var(--transition-speed) ease;
 }
 
 .import-controls {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: var(--space-xl);
+  align-items: center;
 }
 
 .file-input-group {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .selected-file {
   color: var(--text-secondary);
   font-style: italic;
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   background: var(--bg-hover);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-tertiary);
   transition: all var(--transition-speed) ease;
 }
@@ -1759,12 +2725,67 @@ body.config {
 .import-options {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 15px;
+  gap: var(--space-md);
+  padding: var(--space-xl);
   background: var(--bg-secondary);
   border: 1px solid var(--border-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
+  max-width: 400px;
+  margin: 0 auto;
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+}
+
+.import-options label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  transition: color var(--transition-speed) ease;
+}
+
+.import-options input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Import results section */
+.import-results {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  margin: var(--space-2xl) 0;
+  transition: all var(--transition-speed) ease;
+}
+
+.import-results h4 {
+  color: var(--text-primary);
+  margin: 0 0 var(--space-xl) 0;
+  font-size: 1.1em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.import-status {
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: var(--font-md);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+.import-status.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.import-status.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
 }
 
 
@@ -1778,7 +2799,7 @@ body.config {
   padding: 20px;
   text-align: center;
   margin-top: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: all var(--transition-speed) ease;
 }
 
@@ -1837,7 +2858,7 @@ body.config {
 .test-event-section {
   margin-top: 20px;
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   transition: all var(--transition-speed) ease;
 }
@@ -1845,7 +2866,7 @@ body.config {
 .collapsible-header {
   padding: 15px 20px;
   background: var(--bg-secondary);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius-lg) 8px 0 0;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
@@ -1888,7 +2909,7 @@ body.config {
   background: var(--editor-bg);
   color: var(--editor-text);
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 15px;
   resize: vertical;
   min-height: 150px;
@@ -1915,7 +2936,7 @@ body.config {
 .test-result {
   margin-top: 20px;
   padding: 15px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.4;
@@ -1950,7 +2971,7 @@ body.config {
 .test-result pre {
   background: var(--bg-hover);
   padding: 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow-x: auto;
   margin: 10px 0;
   color: var(--text-primary);
@@ -1963,12 +2984,12 @@ body.config {
 
 .trace-item {
   margin: 5px 0;
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   background: var(--bg-hover);
   border-left: 3px solid var(--brand-blue);
   border-radius: 0 4px 4px 0;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 12px;
+  font-size: var(--font-xs);
   line-height: 1.4;
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -1985,7 +3006,7 @@ body.config {
   padding: 6px 10px;
   background: var(--info-bg);
   border: 1px solid var(--info-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9em;
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -2000,14 +3021,14 @@ body.config {
   padding: 15px;
   background: var(--bg-hover);
   border: 1px solid var(--border-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border-left: 4px solid var(--success);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
 }
 
 .result-field {
-  margin: 8px 0;
+  margin: var(--space-sm) 0;
   font-size: 0.9em;
 }
 
@@ -2029,16 +3050,16 @@ body.config {
 .result-json {
   margin-top: 15px;
   border: 1px solid var(--border-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: border-color var(--transition-speed) ease;
 }
 
 .result-json summary {
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   background: var(--bg-tertiary);
   cursor: pointer;
   font-weight: 500;
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-sm) 4px 0 0;
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
 }
@@ -2067,7 +3088,7 @@ body.config {
   margin-bottom: 20px;
   padding: 15px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border-left: 4px solid var(--info);
   transition: all var(--transition-speed) ease;
 }
@@ -2085,7 +3106,7 @@ body.config {
 .unit-test-item {
   margin: 15px 0;
   border: 1px solid var(--border-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   transition:
     border-color var(--transition-speed) ease,
@@ -2107,14 +3128,14 @@ body.config {
 }
 
 .unit-test-item.test-collapsed .unit-test-header {
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-bottom: none;
 }
 
 .unit-test-header {
   padding: 15px;
   background: var(--bg-tertiary);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius-lg) 8px 0 0;
   border-bottom: 1px solid var(--border-tertiary);
   display: flex;
   justify-content: space-between;
@@ -2157,7 +3178,7 @@ body.config {
   color: var(--text-primary);
   min-width: 200px;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all var(--transition-speed) ease;
 }
 
@@ -2195,7 +3216,7 @@ body.config {
 
 .status-badge {
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.8em;
   font-weight: 600;
 }
@@ -2228,14 +3249,14 @@ body.config {
 .individual-test-result {
   margin-top: 20px;
   border: 1px solid var(--border-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: border-color var(--transition-speed) ease;
 }
 
 .result-summary {
-  padding: 12px 15px;
+  padding: var(--space-md) 15px;
   background: var(--bg-tertiary);
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-md) 6px 0 0;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -2267,7 +3288,7 @@ body.config {
   margin-top: 30px;
   padding: 20px;
   background: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-left: 4px solid var(--info);
   transition: all var(--transition-speed) ease;
 }
@@ -2289,8 +3310,8 @@ body.config {
 }
 
 .stat-item {
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: var(--space-sm) 12px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 0.9em;
 }
@@ -2367,7 +3388,7 @@ body.config {
   margin-bottom: 10px;
   padding: 10px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-secondary);
   flex-wrap: wrap;
   transition: all var(--transition-speed) ease;
@@ -2375,11 +3396,11 @@ body.config {
 
 .preset-selector {
   flex: 1;
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   min-width: 200px;
   max-width: 100%;
@@ -2394,7 +3415,7 @@ body.config {
 }
 
 .preset-selector option {
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
 }
 
 .preset-controls .btn-small {
@@ -2432,7 +3453,7 @@ body.config {
 .backtest-section {
   margin-top: 20px;
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   transition: all var(--transition-speed) ease;
 }
@@ -2449,7 +3470,7 @@ body.config {
   margin-bottom: 20px;
   padding: 15px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border-left: 4px solid var(--info);
   transition: all var(--transition-speed) ease;
 }
@@ -2461,12 +3482,12 @@ body.config {
 }
 
 .backtest-warning {
-  padding: 12px 16px;
+  padding: var(--space-md) 16px;
   background: var(--warning-bg);
   border: 1px solid var(--warning-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--warning-text);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: all var(--transition-speed) ease;
 }
 
@@ -2479,7 +3500,7 @@ body.config {
   margin-bottom: 25px;
   padding: 20px;
   background: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-secondary);
   transition: all var(--transition-speed) ease;
 }
@@ -2488,7 +3509,7 @@ body.config {
 .limits-section h4 {
   margin: 0 0 15px 0;
   color: var(--text-secondary); transition: color var(--transition-speed) ease;
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .time-range-inputs,
@@ -2504,8 +3525,8 @@ body.config {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--input-border);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
   background: var(--input-bg);
 }
 
@@ -2538,8 +3559,8 @@ body.config {
 }
 
 .btn-large {
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: var(--space-md) 24px;
+  font-size: var(--font-md);
   font-weight: 600;
 }
 
@@ -2562,7 +3583,7 @@ body.config {
 
 .results-timestamp {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -2576,7 +3597,7 @@ body.config {
 .stat-card {
   background: var(--input-bg);
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -2590,7 +3611,7 @@ body.config {
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2600,7 +3621,7 @@ body.config {
 .timeframe-info {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 30px;
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
@@ -2608,7 +3629,7 @@ body.config {
 
 .timeframe-item {
   margin-bottom: 10px;
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-secondary); transition: color var(--transition-speed) ease;
 }
 
@@ -2632,7 +3653,7 @@ body.config {
   margin-bottom: 20px;
   padding: 15px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
 }
 
@@ -2648,7 +3669,7 @@ body.config {
 }
 
 .results-showing {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   transition: color var(--transition-speed) ease;
 }
@@ -2661,7 +3682,7 @@ body.config {
 
 .match-item {
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--input-bg);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -2692,7 +3713,7 @@ body.config {
   color: var(--text-secondary); transition: color var(--transition-speed) ease;
   background: var(--bg-tertiary);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .match-hostname {
@@ -2704,13 +3725,13 @@ body.config {
   background: #e3f2fd;
   color: #1976d2;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 13px;
   font-weight: 500;
 }
 
 .match-toggle {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   transition: color var(--transition-speed) ease;
 }
@@ -2729,7 +3750,7 @@ body.config {
   border: none;
   background: var(--bg-tertiary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-sm);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
@@ -2756,9 +3777,9 @@ body.config {
 }
 
 .field {
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border-left: 3px solid #3498db;
 }
 
@@ -2785,8 +3806,8 @@ body.config {
   background: #2d3748;
   color: #e2e8f0;
   padding: 15px;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
   line-height: 1.4;
   overflow-x: auto;
   margin: 0;
@@ -2811,7 +3832,7 @@ body.config {
 
 .no-matches p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 
 /* =============================================================================
@@ -2825,12 +3846,12 @@ body.config {
 .org-results-section h5 {
   color: var(--text-primary); transition: color var(--transition-speed) ease;
   margin-bottom: 20px;
-  font-size: 18px;
+  font-size: var(--font-lg);
 }
 
 .org-result-card {
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--input-bg);
   margin-bottom: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -2867,12 +3888,12 @@ body.config {
 .org-name {
   font-weight: 600;
   color: var(--text-primary); transition: color var(--transition-speed) ease;
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .org-id {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-sm);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   transition: color var(--transition-speed) ease;
 }
@@ -2885,7 +3906,7 @@ body.config {
 
 .org-status {
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 13px;
   font-weight: 500;
 }
@@ -2907,7 +3928,7 @@ body.config {
   align-items: center;
   gap: 15px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -2917,7 +3938,7 @@ body.config {
 }
 
 .toggle-icon {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   transition: color var(--transition-speed) ease;
 }
@@ -2939,7 +3960,7 @@ body.config {
   gap: 15px;
   padding: 15px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
 }
 
@@ -2956,7 +3977,7 @@ body.config {
 }
 
 .org-stat .stat-label {
-  font-size: 12px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2970,19 +3991,19 @@ body.config {
 .org-matches h6 {
   color: var(--text-primary); transition: color var(--transition-speed) ease;
   margin-bottom: 15px;
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .org-matches .matches-header {
   background: var(--bg-tertiary);
-  padding: 12px 15px;
+  padding: var(--space-md) 15px;
   margin-bottom: 15px;
   transition: background var(--transition-speed) ease;
 }
 
 .org-matches .matches-header h6 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 
 .org-matches .matches-controls {
@@ -2994,7 +4015,7 @@ body.config {
 }
 
 .org-matches .match-header {
-  padding: 12px 15px;
+  padding: var(--space-md) 15px;
 }
 
 .org-matches .match-info {
@@ -3002,7 +4023,7 @@ body.config {
 }
 
 .org-matches .match-timestamp {
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 .load-more-section {
@@ -3015,7 +4036,7 @@ body.config {
   padding: 15px;
   background: var(--error-bg);
   border: 1px solid #f5c6cb;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .error-message {
@@ -3036,7 +4057,7 @@ body.config {
   padding: 15px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
@@ -3050,22 +4071,22 @@ body.config {
 }
 
 .org-icon {
-  font-size: 18px;
+  font-size: var(--font-lg);
 }
 
 .org-count {
   background: #3498db;
   color: white;
   padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xl);
+  font-size: var(--font-sm);
   font-weight: 700;
   min-width: 24px;
   text-align: center;
 }
 
 .org-label {
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .org-list {
@@ -3099,7 +4120,7 @@ body.config {
   background: #2196f3;
   color: white;
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -3109,17 +4130,17 @@ body.config {
 .no-orgs-warning {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
-  color: #856404;
-  font-size: 14px;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  color: var(--warning-text);
+  font-size: var(--font-sm);
 }
 
 .warning-icon {
-  font-size: 16px;
+  font-size: var(--font-lg);
 }
 
 /* Backtest Progress Indicator */
@@ -3128,7 +4149,7 @@ body.config {
   padding: 20px;
   background: var(--info-bg);
   border: 1px solid var(--info-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   animation: pulse 2s infinite;
   transition: all var(--transition-speed) ease;
 }
@@ -3155,14 +4176,14 @@ body.config {
 .progress-header h4 {
   margin: 0;
   color: var(--brand-blue);
-  font-size: 16px;
+  font-size: var(--font-md);
   transition: color var(--transition-speed) ease;
 }
 
 .progress-stats {
   color: var(--brand-blue);
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -3170,7 +4191,7 @@ body.config {
   width: 100%;
   height: 8px;
   background: #bbdefb;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   margin-bottom: 12px;
 }
@@ -3178,7 +4199,7 @@ body.config {
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #2196f3, #1976d2);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -3191,11 +4212,11 @@ body.config {
   align-items: center;
   gap: 8px;
   color: #1976d2;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 
 .current-org-icon {
-  font-size: 16px;
+  font-size: var(--font-md);
 }
 
 .current-org-info {
@@ -3212,7 +4233,7 @@ body.config {
   color: var(--text-tertiary);
   transition: color var(--transition-speed) ease;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 /* =============================================================================
@@ -3242,7 +4263,7 @@ body.config {
   color: white;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3291,7 +4312,7 @@ body.config {
   padding: 20px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
@@ -3324,7 +4345,7 @@ body.config {
   padding: 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
@@ -3332,9 +4353,9 @@ body.config {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: var(--space-md);
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   background: var(--bg-secondary);
@@ -3386,7 +4407,7 @@ body.config {
 }
 
 .org-selection-item .org-id {
-  font-size: 12px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   transition: color var(--transition-speed) ease;
@@ -3406,14 +4427,14 @@ body.config {
 .selection-warning {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
-  color: #856404;
-  font-size: 14px;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-md) var(--space-md);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  color: var(--warning-text);
+  font-size: var(--font-sm);
 }
 
 /* =============================================================================
@@ -3439,7 +4460,7 @@ body.config {
 /* Modal Container */
 .reference-modal {
   background: var(--input-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 900px;
   max-height: 90vh;
@@ -3485,7 +4506,7 @@ body.config {
   font-size: 24px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: background 0.2s ease;
   display: flex;
   align-items: center;
@@ -3507,16 +4528,16 @@ body.config {
 
 .reference-intro {
   margin-bottom: 24px;
-  padding: 16px;
+  padding: var(--space-lg);
   background: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border-left: 4px solid #007bff;
 }
 
 .reference-intro p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -3536,7 +4557,7 @@ body.config {
 
 .reference-section h5 {
   color: var(--text-secondary); transition: color var(--transition-speed) ease;
-  margin: 16px 0 8px 0;
+  margin: var(--space-lg) 0 8px 0;
   font-size: 1em;
   font-weight: 600;
 }
@@ -3550,7 +4571,7 @@ body.config {
 .reference-column {
   background: var(--bg-tertiary);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-secondary); transition: border-color var(--transition-speed) ease;
 }
 
@@ -3571,7 +4592,7 @@ body.config {
 
 .example-code {
   background: #2d3748;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-top: 16px;
 }
@@ -3619,21 +4640,21 @@ body.config {
   }
 
   .reference-column {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 
   .example-code {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 
   .example-code pre {
-    font-size: 12px;
+    font-size: var(--font-xs);
   }
 }
 
 @media (max-width: 480px) {
   .reference-modal-header {
-    padding: 12px 16px;
+    padding: var(--space-md) 16px;
   }
 
   .reference-modal-content {
@@ -3646,15 +4667,15 @@ body.config {
   }
 
   .reference-column {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 
   .example-code {
-    padding: 16px;
+    padding: var(--space-lg);
   }
 
   .example-code pre {
-    font-size: 12px;
+    font-size: var(--font-xs);
   }
 }
 
@@ -3667,7 +4688,7 @@ body.config {
   }
 
   .org-status-name {
-    font-size: 14px;
+    font-size: var(--font-sm);
   }
 
   .org-status-oid {
@@ -3683,13 +4704,13 @@ body.config {
 
 /* Standalone warning text styling (for Config page and other standalone warnings) */
 .warning-text:not(.warning-banner .warning-text) {
-  background: #fff3cd;
-  border-left: 4px solid #ffc107;
-  padding: 12px 15px;
-  margin-bottom: 20px;
-  border-radius: 0 4px 4px 0;
-  color: #856404;
-  font-size: 0.95em;
+  background: var(--warning-bg);
+  border-left: 4px solid var(--warning);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-xl);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--warning-text);
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 
@@ -3731,8 +4752,8 @@ body.config {
   background: #2d3748;
   color: #e2e8f0;
   border: 1px solid #4a5568;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) 12px;
   max-width: 300px;
   font-size: 13px;
   line-height: 1.4;
@@ -3753,10 +4774,10 @@ body.config {
 
 .prefix-selector {
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   border: 1px solid var(--input-border);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
   background: var(--input-bg);
 }
 
@@ -3770,7 +4791,7 @@ body.config {
   display: block;
   margin-top: 5px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-style: italic;
   transition: color var(--transition-speed) ease;
 }
@@ -3780,7 +4801,7 @@ body.config {
   padding: 20px;
   background: var(--input-bg);
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .schema-header {
@@ -3803,7 +4824,7 @@ body.config {
 
 .schema-stats {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-sm);
   font-weight: 500;
   transition: color var(--transition-speed) ease;
 }
@@ -3830,7 +4851,7 @@ body.config {
 .schema-col-path,
 .schema-col-actions {
   display: table-cell;
-  padding: 12px 15px;
+  padding: var(--space-md) 15px;
   text-align: left;
   border-bottom: 1px solid #dee2e6;
 }
@@ -3872,13 +4893,13 @@ body.config {
 .schema-row .schema-col-actions .btn {
   min-width: auto;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 .type-badge {
   display: inline-block;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -3903,7 +4924,7 @@ body.config {
 .schema-row code {
   background: var(--bg-tertiary);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   color: var(--text-secondary);
@@ -3913,10 +4934,10 @@ body.config {
 
 .org-selector {
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--space-sm) 12px;
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
@@ -3933,7 +4954,7 @@ body.config {
   display: block;
   margin-top: 5px;
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-style: italic;
   transition: color var(--transition-speed) ease;
 }
@@ -3965,7 +4986,7 @@ body.config {
 .import-features {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 15px;
   margin-bottom: 20px;
   transition: all var(--transition-speed) ease;
@@ -3980,7 +5001,7 @@ body.config {
 .import-features li {
   margin-bottom: 8px;
   color: var(--success);
-  font-size: 14px;
+  font-size: var(--font-sm);
   transition: color var(--transition-speed) ease;
 }
 
@@ -3988,9 +5009,9 @@ body.config {
   width: 100%;
   min-height: 300px;
   max-height: 400px;
-  padding: 12px;
+  padding: var(--space-md);
   border: 2px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
   font-size: 13px;
   line-height: 1.4;
@@ -4031,7 +5052,7 @@ body.config {
   padding: 20px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: all var(--transition-speed) ease;
 }
 
@@ -4060,10 +5081,10 @@ body.config {
 
 .import-summary p {
   margin: 0;
-  padding: 12px;
+  padding: var(--space-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-tertiary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   transition: all var(--transition-speed) ease;
 }
@@ -4075,7 +5096,7 @@ body.config {
 .imported-rules-list h5 {
   margin: 0 0 12px 0;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--font-md);
   transition: color var(--transition-speed) ease;
 }
 
@@ -4087,8 +5108,8 @@ body.config {
   margin-bottom: 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-tertiary);
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
 }
@@ -4104,7 +5125,7 @@ body.config {
 }
 
 .rule-status {
-  font-size: 16px;
+  font-size: var(--font-md);
   flex-shrink: 0;
 }
 
@@ -4117,7 +5138,7 @@ body.config {
 
 .rule-error {
   color: var(--error);
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-style: italic;
   transition: color var(--transition-speed) ease;
 }
@@ -4164,7 +5185,7 @@ body.config {
 .parallel-progress h5 {
   margin: 0 0 15px 0;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--font-md);
   transition: color var(--transition-speed) ease;
 }
 
@@ -4172,7 +5193,7 @@ body.config {
   max-height: 250px;
   overflow-y: auto;
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   width: 100%;
   background: var(--bg-secondary);
   transition: all var(--transition-speed) ease;
@@ -4182,7 +5203,7 @@ body.config {
   display: grid;
   grid-template-columns: 40px 1fr auto;
   align-items: center;
-  padding: 12px 16px;
+  padding: var(--space-md) 16px;
   border-bottom: 1px solid var(--border-tertiary);
   transition: background-color var(--transition-speed) ease;
   gap: 12px;
@@ -4250,7 +5271,7 @@ body.config {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   white-space: nowrap;
   min-width: 70px;
   text-align: center;
@@ -4311,7 +5332,7 @@ body.config {
   width: 44px;
   height: 24px;
   background: var(--border-primary); transition: background-color var(--transition-speed) ease;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   transition: background-color 0.3s ease;
   cursor: pointer;
   flex-shrink: 0;
@@ -4340,7 +5361,7 @@ body.config {
 
 .toggle-text {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 
 /* Hide the original checkbox input for toggle switches */
@@ -4357,9 +5378,9 @@ body.config {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--border-secondary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--text-primary);
   background: var(--input-bg);
   transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease, color var(--transition-speed) ease, background-color var(--transition-speed) ease;
@@ -4377,11 +5398,11 @@ body.config {
 
 /* Enhanced button consistency */
 .btn-large {
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: var(--space-md) 24px;
+  font-size: var(--font-md);
   font-weight: 600;
   min-width: 120px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .btn-small {
@@ -4389,5 +5410,5 @@ body.config {
   font-size: 13px;
   font-weight: 500;
   min-width: 80px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }

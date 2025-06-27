@@ -46,13 +46,20 @@ export const CHANGELOG: ChangelogEntry[] = [
         'Backtest Cancellation - Ability to cancel long-running backtests with partial result preservation',
         'Stateful/Dry-run Options - Control whether backtests are stateful or dry-run',
         'Chunked Results Support - Handle large backtest results with pagination',
+        'Copy Summary Feature - Export unit test and backtest results as markdown summaries for pull requests and change management systems',
       ],
       changed: [
         'Major Rules.vue Refactor - Reduced component size by ~1100 lines for better performance',
         'Enhanced Backtest API - Added timeout handling, better error recovery, and progress tracking',
         'Improved UI/UX - Professional dark mode implementation with proper contrast throughout',
+        'Minor UI component tweaks for improved user experience and interface consistency',
+        'Substantial style optimizations across the application for improved performance and consistency',
       ],
-      fixed: ['Backtest timeout handling for long-running operations'],
+      fixed: [
+        'Backtest timeout handling for long-running operations',
+        'Timezone handling in backtest datetime inputs - now correctly interprets times as UTC',
+        'Changelog date rendering showing incorrect dates due to timezone conversion',
+      ],
     },
   },
   {

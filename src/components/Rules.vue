@@ -305,7 +305,26 @@
 
             <!-- Overall Test Results -->
             <div v-if="overallTestResults" class="overall-results">
-              <h4>Overall Test Results</h4>
+              <div
+                class="results-header"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: flex-start;
+                  margin-bottom: 16px;
+                "
+              >
+                <div>
+                  <h4>Overall Test Results</h4>
+                </div>
+                <button
+                  class="btn btn-info btn-small"
+                  title="Copy unit test summary as Markdown table to clipboard"
+                  @click="exportUnitTestSummaryAsMarkdown"
+                >
+                  📋 Copy Summary
+                </button>
+              </div>
               <div class="results-summary">
                 <div class="summary-stats">
                   <span class="stat-item stat-total">Total: {{ overallTestResults.total }}</span>
@@ -438,6 +457,9 @@
                       class="datetime-input"
                     />
                   </div>
+                </div>
+                <div class="time-zone-note">
+                  <small>ℹ️ Enter times in UTC (LimaCharlie's storage timezone)</small>
                 </div>
                 <div class="quick-ranges">
                   <span class="quick-range-label">Quick Ranges:</span>
@@ -829,13 +851,31 @@
 
               <!-- Timeframe Information -->
               <div class="timeframe-info">
-                <div class="timeframe-item">
-                  <strong>Telemetry Start Time:</strong>
-                  {{ formatTimestamp(backtestResults.timeframe.startTime) }}
-                </div>
-                <div class="timeframe-item">
-                  <strong>Telemetry End Time:</strong>
-                  {{ formatTimestamp(backtestResults.timeframe.endTime) }}
+                <h5>Telemetry Search Timeline</h5>
+                <div class="timeline-container">
+                  <div class="timeline-endpoint timeline-start">
+                    <div class="timeline-label">Start Time</div>
+                    <div class="timeline-time">
+                      {{ formatTimestamp(backtestResults.timeframe.startTime) }}
+                    </div>
+                  </div>
+                  <div class="timeline-bar">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-duration">
+                      {{
+                        formatSearchDuration(
+                          backtestResults.timeframe.startTime,
+                          backtestResults.timeframe.endTime,
+                        )
+                      }}
+                    </div>
+                  </div>
+                  <div class="timeline-endpoint timeline-end">
+                    <div class="timeline-label">End Time</div>
+                    <div class="timeline-time">
+                      {{ formatTimestamp(backtestResults.timeframe.endTime) }}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -3406,6 +3446,9 @@ async function runAllTests() {
     return
   }
 
+  // Auto-collapse all tests before running
+  collapseAllTests()
+
   isRunningTests.value = true
 
   try {
@@ -3563,12 +3606,13 @@ async function runBacktest() {
     }
 
     // Convert datetime strings to Unix timestamps
-    const startTimestamp = Math.floor(new Date(backtestConfig.startDateTime).getTime() / 1000)
-    const endTimestamp = Math.floor(new Date(backtestConfig.endDateTime).getTime() / 1000)
+    // Treat datetime-local inputs as UTC time (since LimaCharlie stores events in UTC)
+    const startTimestamp = Math.floor(new Date(backtestConfig.startDateTime + 'Z').getTime() / 1000)
+    const endTimestamp = Math.floor(new Date(backtestConfig.endDateTime + 'Z').getTime() / 1000)
 
     // Calculate timeframe statistics
-    const startTime = new Date(backtestConfig.startDateTime)
-    const endTime = new Date(backtestConfig.endDateTime)
+    const startTime = new Date(backtestConfig.startDateTime + 'Z')
+    const endTime = new Date(backtestConfig.endDateTime + 'Z')
     const durationMs = endTime.getTime() - startTime.getTime()
     const durationDays = Math.round((durationMs / (1000 * 60 * 60 * 24)) * 100) / 100 // Round to 2 decimal places
 
@@ -4229,6 +4273,58 @@ ${results.orgResults
     })
 }
 
+function exportUnitTestSummaryAsMarkdown() {
+  if (!overallTestResults.value || unitTests.value.length === 0) return
+
+  const results = overallTestResults.value
+
+  // Format test results
+  const completedTime = new Date().toLocaleString()
+
+  const markdown = `# Unit Test Summary
+
+**Rule:** ${currentRule.name}
+
+## Test Results Overview
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | ${results.total} |
+| Passed | ${results.passed} |
+| Failed | ${results.failed} |
+| Success Rate | ${results.successRate}% |
+| Executed | ${completedTime} |
+
+## Test Case Details
+
+| Test Case | Status | Expected | Actual | Result |
+|-----------|--------|----------|---------|---------|
+${unitTests.value
+  .map((test, index) => {
+    const testName = test.name || `Test Case ${index + 1}`
+    const expectedMatch = test.expectedMatch ? 'Match' : 'No Match'
+    const actualMatch = test.result?.didMatch ? 'Match' : 'No Match'
+    const statusIcon = test.result?.passed ? '✅' : test.result?.passed === false ? '❌' : '⚪'
+    const status = test.result?.passed ? 'PASS' : test.result?.passed === false ? 'FAIL' : 'NOT RUN'
+    return `| ${testName} | ${statusIcon} ${status} | ${expectedMatch} | ${actualMatch} | ${test.result?.passed ? 'Correct' : test.result?.passed === false ? 'Incorrect' : 'Pending'} |`
+  })
+  .join('\n')}
+
+---
+*Generated by DetectionForge on ${new Date().toLocaleString()}*`
+
+  // Copy to clipboard
+  navigator.clipboard
+    .writeText(markdown)
+    .then(() => {
+      appStore.addNotification('success', 'Unit test summary copied to clipboard as Markdown')
+    })
+    .catch((err) => {
+      logger.error('Failed to copy to clipboard:', err)
+      appStore.addNotification('error', 'Failed to copy to clipboard')
+    })
+}
+
 function clearBacktestResults() {
   backtestResults.value = null
   expandedMatches.value.clear()
@@ -4305,6 +4401,49 @@ function formatDuration(durationMs: number): string {
     return `${minutes}m ${remainingSeconds}s`
   }
   return `${remainingSeconds}s`
+}
+
+function formatSearchDuration(startTime: string | number, endTime: string | number): string {
+  const start = typeof startTime === 'string' ? new Date(startTime) : new Date(startTime * 1000)
+  const end = typeof endTime === 'string' ? new Date(endTime) : new Date(endTime * 1000)
+
+  const durationMs = end.getTime() - start.getTime()
+  const totalHours = durationMs / (1000 * 60 * 60)
+  const totalDays = totalHours / 24
+
+  // Less than 1 hour
+  if (totalHours < 1) {
+    const minutes = Math.round(durationMs / (1000 * 60))
+    if (minutes === 1) {
+      return '1 minute searched'
+    } else if (minutes < 60) {
+      return `${minutes} minutes searched`
+    }
+  }
+
+  // Less than 1 day but >= 1 hour
+  if (totalDays < 1) {
+    const hours = Math.round(totalHours)
+    return hours === 1 ? '1 hour searched' : `${hours} hours searched`
+  }
+
+  // 1 day or more
+  const days = Math.floor(totalDays)
+  const remainingHours = Math.round((totalDays - days) * 24)
+
+  if (remainingHours === 0) {
+    // Exactly whole days
+    return days === 1 ? '1 day searched' : `${days} days searched`
+  } else {
+    // Days and hours
+    let result = days === 1 ? '1 day' : `${days} days`
+    if (remainingHours === 1) {
+      result += ' 1 hour'
+    } else {
+      result += ` ${remainingHours} hours`
+    }
+    return `${result} searched`
+  }
 }
 
 // Create a computed function for real-time updates

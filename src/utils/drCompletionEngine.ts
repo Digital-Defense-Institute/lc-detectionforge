@@ -6,6 +6,7 @@
  */
 
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete'
+import type { Line } from '@codemirror/state'
 import {
   OPERATORS,
   ACTIONS,
@@ -643,12 +644,12 @@ export class DRCompletionEngine {
     return match ? match[1].length : 0
   }
 
-  private static getYAMLPath(_context: CompletionContext, _currentLine: any): string[] {
+  private static getYAMLPath(_context: CompletionContext, _currentLine: Line): string[] {
     // Simplified YAML path detection - could be enhanced
     return []
   }
 
-  private static getActionContext(context: CompletionContext, currentLine: any): string | null {
+  private static getActionContext(context: CompletionContext, currentLine: Line): string | null {
     // Look backwards for the most recent action declaration
     const lineNumber = currentLine.number
     const doc = context.state.doc
@@ -667,7 +668,7 @@ export class DRCompletionEngine {
     return null
   }
 
-  private static getOperatorContext(context: CompletionContext, currentLine: any): string | null {
+  private static getOperatorContext(context: CompletionContext, currentLine: Line): string | null {
     // Look backwards for the most recent operator declaration
     const lineNumber = currentLine.number
     const doc = context.state.doc
