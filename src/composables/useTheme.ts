@@ -10,7 +10,7 @@ interface UseThemeReturn {
   setTheme: (newTheme: Theme) => void
 }
 
-const THEME_KEY = 'lc-detectionforge-theme'
+const THEME_KEY = 'detectionforge_theme'
 const theme = ref<Theme>('light')
 
 // Initialize theme from localStorage or system preference
