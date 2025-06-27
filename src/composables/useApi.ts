@@ -187,7 +187,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         headers: {
           accept: 'application/json, text/plain, */*',
           authorization: `Bearer ${jwt}`,
-          'content-type': 'application/x-www-form-urlencoded',
+          'content-type': 'application/json',
         },
         body: JSON.stringify(payload),
       })
@@ -283,7 +283,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         headers: {
           accept: 'application/json, text/plain, */*',
           authorization: `Bearer ${jwt}`,
-          'content-type': 'application/x-www-form-urlencoded',
+          'content-type': 'application/json',
         },
         body: JSON.stringify(payload),
         signal: abortController?.signal,
