@@ -187,7 +187,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         headers: {
           accept: 'application/json, text/plain, */*',
           authorization: `Bearer ${jwt}`,
-          'content-type': 'application/x-www-form-urlencoded',
+          'content-type': 'application/json',
         },
         body: JSON.stringify(payload),
       })
@@ -227,6 +227,11 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
     endTime: number,
     limitEvent: number = 0,
     limitEval: number = 0,
+    abortController?: AbortController,
+    timeoutMs: number = 30 * 60 * 1000, // Default 30 minutes
+    isStateful: boolean = false, // Default to non-stateful for better performance
+    isDryRun: boolean = false, // Default to actual execution
+    cursor: string = '', // For pagination/chunked results
   ) => {
     try {
       // Parse the detect and respond logic
@@ -236,10 +241,11 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
       // Build the request payload for backtesting
       const payload = {
         oid: organizationId,
-        limit_event: limitEvent, // 0 = no limit
-        limit_eval: limitEval, // 0 = no limit
-        is_dry_run: false,
+        limit_event: limitEvent, // Use limits as provided by caller
+        limit_eval: limitEval, // Use limits as provided by caller
+        is_dry_run: isDryRun,
         is_validation: false,
+        is_stateful: isStateful, // Controls parallelization for performance
         trace: false, // Set to false for performance on large datasets
         rule_source: {
           rule: {
@@ -252,7 +258,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
           sensor_events: {
             start_time: startTime,
             end_time: endTime,
-            cursor: '',
+            cursor: cursor,
           },
         },
       }
@@ -260,16 +266,31 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
       // Generate JWT for the specific organization
       const jwt = await auth.generateJWTForOrg(organizationId)
 
-      // Make the request to the replay URL
-      const response = await fetch(replayUrl, {
+      // Create timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              `Backtest timeout: Organization ${organizationId} exceeded ${timeoutMs / 1000}s limit`,
+            ),
+          )
+        }, timeoutMs)
+      })
+
+      // Make the request to the replay URL with timeout
+      const fetchPromise = fetch(replayUrl, {
         method: 'POST',
         headers: {
           accept: 'application/json, text/plain, */*',
           authorization: `Bearer ${jwt}`,
-          'content-type': 'application/x-www-form-urlencoded',
+          'content-type': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: abortController?.signal,
       })
+
+      // Race between fetch and timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise])
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -278,6 +299,10 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
 
       return await response.json()
     } catch (error) {
+      // Don't log AbortError as an error - it's intentional cancellation
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error // Re-throw without logging
+      }
       logger.error('Detection rule backtest failed:', error)
       throw error
     }

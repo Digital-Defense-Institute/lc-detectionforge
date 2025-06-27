@@ -17,7 +17,7 @@
 -->
 
 <template>
-  <div id="app">
+  <div id="app" class="detection-forge">
     <RouterView />
     <Notifications />
   </div>
@@ -25,12 +25,10 @@
 
 <script setup lang="ts">
 import Notifications from './components/Notifications.vue'
+import { useTheme } from './composables/useTheme'
+
+// Initialize theme system
+useTheme()
 
 // Main app component with router outlet and notifications
 </script>
-
-<style scoped>
-#app {
-  min-height: 100vh;
-}
-</style>

@@ -9,6 +9,7 @@
         <div class="nav-links">
           <RouterLink to="/" class="nav-link">← Home</RouterLink>
           <RouterLink to="/workbench" class="nav-link">Detection Workbench</RouterLink>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -219,27 +220,21 @@
         <h3>API Testing</h3>
         <div class="info-text">
           Test your API connectivity across all configured organizations. Each organization will be
-          tested individually with a fresh JWT token.
+          tested individually with a fresh JWT token. This will also fetch and validate
+          datacenter-specific URLs needed for backtesting and replay functionality.
         </div>
 
         <div class="button-group">
           <button
-            :disabled="organizations.length === 0 || isLoading || !hasCredentials"
-            class="btn btn-primary"
+            :disabled="organizations.length === 0 || isTestingApi || !hasCredentials"
+            :class="['btn', 'btn-primary', { 'btn-testing': isTestingApi }]"
             @click="testApiCall"
           >
             {{
-              isLoading
-                ? 'Testing...'
+              isTestingApi
+                ? `Testing APIs for ${organizations.length} Organization${organizations.length !== 1 ? 's' : ''}...`
                 : `Test API for ${organizations.length} Organization${organizations.length !== 1 ? 's' : ''}`
             }}
-          </button>
-          <button
-            :disabled="organizations.length === 0 || isTestingUrls || !hasCredentials"
-            class="btn btn-primary"
-            @click="testOrganizationUrls"
-          >
-            {{ isTestingUrls ? 'Testing URLs...' : 'Test Organization URLs' }}
           </button>
           <div v-if="apiResults.length > 0" class="inline-results-summary">
             <span class="success-count"
@@ -327,7 +322,7 @@
         <!-- Export Section -->
         <div class="config-actions-section">
           <h4>Export Configuration</h4>
-          <div class="button-group">
+          <div class="button-group export-button-group">
             <button
               class="btn btn-primary"
               :disabled="isExporting || configSummary.totalKeys === 0"
@@ -448,6 +443,7 @@ import { useConfigManager } from '../composables/useConfigManager'
 import { logger } from '../utils/logger'
 import { getCurrentVersion } from '../utils/version'
 import Logo from './Logo.vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 // Initialize composables
 const storage = useStorage()
@@ -464,8 +460,8 @@ const apiKeyInput = ref('')
 const orgUrls = ref<{ url?: string } | null>(null)
 const fetchingOrgUrls = ref(false)
 const isAddingOrg = ref(false)
-const isTestingUrls = ref(false)
 const isFetchingMissingUrls = ref(false)
+const isTestingApi = ref(false)
 
 // Bulk import state
 const showBulkImportDialog = ref(false)
@@ -516,7 +512,7 @@ const lastImportResult = ref<{
 // Destructure reactive properties from composables
 const { credentials, organizations, hasCredentials, settings: _settings } = storage
 const { isAuthenticated: _isAuthenticated, canAuthenticate: _canAuthenticate } = auth
-const { isLoading, lastError: _lastError } = api
+const { lastError: _lastError } = api
 const {
   isExporting,
   isImporting,
@@ -983,6 +979,8 @@ const clearCredentials = () => {
 
 // API testing
 const testApiCall = async () => {
+  isTestingApi.value = true
+
   try {
     // Verify we have organizations
     if (organizations.value.length === 0) {
@@ -1019,10 +1017,43 @@ const testApiCall = async () => {
 
         const data = await response.json()
 
+        // Also fetch organization URLs if not already cached
+        let urlData = null
+        try {
+          await fetchOrganizationUrls(org.oid)
+          const storedUrls = storage.getOrganizationUrls(org.oid)
+          const replayUrl = storage.getOrganizationReplayUrl(org.oid)
+
+          if (storedUrls || replayUrl) {
+            const urlObj =
+              storedUrls && typeof storedUrls === 'object' && storedUrls !== null
+                ? (storedUrls as { url?: { api?: string; [key: string]: unknown } })
+                : null
+            urlData = {
+              replayUrl: replayUrl || 'Not available',
+              apiUrl: urlObj?.url?.api || 'Not available',
+              datacenterUrls: urlObj?.url || 'Not available',
+            }
+          }
+        } catch (urlError) {
+          logger.error(`Failed to fetch URLs for ${org.oid}:`, urlError)
+          urlData = {
+            replayUrl: 'Failed to fetch',
+            apiUrl: 'Failed to fetch',
+            datacenterUrls: 'Failed to fetch',
+          }
+        }
+
+        // Merge organization data with URL data
+        const combinedData = {
+          ...data,
+          ...(urlData && { urls: urlData }),
+        }
+
         apiResults.value.push({
           name: `${org.name} (${org.oid})`,
           status: 'Success',
-          data: data,
+          data: combinedData,
           expanded: false,
           showRawData: false,
         })
@@ -1070,138 +1101,8 @@ const testApiCall = async () => {
       },
     ]
     appStore.addNotification('error', `API test failed: ${errorMessage}`)
-  }
-}
-
-// Test organization URLs to validate availability
-const testOrganizationUrls = async () => {
-  if (organizations.value.length === 0) {
-    appStore.addNotification('error', 'No organizations configured')
-    return
-  }
-
-  // Show starting notification
-  appStore.addNotification(
-    'info',
-    `Starting URL tests for ${organizations.value.length} organization(s)...`,
-  )
-
-  isTestingUrls.value = true
-  apiResults.value = []
-
-  try {
-    const urlResults: Array<{
-      oid: string
-      name: string
-      replayUrl?: string
-      apiUrl?: string
-      urls?: Record<string, unknown>
-      error?: string
-    }> = []
-
-    // Test each organization's URLs
-    for (const org of organizations.value) {
-      try {
-        // Get stored URLs for this organization
-        const storedUrls = storage.getOrganizationUrls(org.oid) as {
-          url?: { api?: string; replay?: string }
-        } | null
-        const replayUrl = storage.getOrganizationReplayUrl(org.oid)
-
-        if (!storedUrls || !replayUrl) {
-          // Try to fetch URLs if not stored
-          await fetchOrganizationUrls(org.oid)
-          const refetchedUrls = storage.getOrganizationUrls(org.oid) as {
-            url?: { api?: string; replay?: string }
-          } | null
-          const refetchedReplayUrl = storage.getOrganizationReplayUrl(org.oid)
-
-          urlResults.push({
-            oid: org.oid,
-            name: org.name,
-            replayUrl: refetchedReplayUrl || 'Not available',
-            apiUrl: refetchedUrls?.url?.api || 'Not available',
-            urls: refetchedUrls?.url || {},
-            error: refetchedReplayUrl ? undefined : 'Failed to fetch URLs',
-          })
-        } else {
-          urlResults.push({
-            oid: org.oid,
-            name: org.name,
-            replayUrl,
-            apiUrl: storedUrls?.url?.api || 'Not available',
-            urls: storedUrls?.url || {},
-          })
-        }
-      } catch (error) {
-        logger.error(`URL test failed for ${org.oid}:`, error)
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-        urlResults.push({
-          oid: org.oid,
-          name: org.name,
-          error: errorMessage,
-        })
-      }
-    }
-
-    // Analyze URL availability
-    const replayUrls = urlResults.filter(
-      (r) => r.replayUrl && r.replayUrl !== 'Not available' && !r.error,
-    )
-    const apiUrls = urlResults.filter((r) => r.apiUrl && r.apiUrl !== 'Not available' && !r.error)
-
-    // Format results for display
-    apiResults.value = urlResults.map((result) => ({
-      name: `${result.name} (${result.oid})`,
-      status: result.error ? 'Failed' : 'Success',
-      data: result.error
-        ? undefined
-        : {
-            replayUrl: result.replayUrl,
-            apiUrl: result.apiUrl,
-            fullUrls: result.urls,
-          },
-      error: result.error,
-      expanded: false,
-      showRawData: false,
-    }))
-
-    // Summary notification focusing on availability
-    const successCount = urlResults.filter((r) => !r.error).length
-    const failedCount = urlResults.filter((r) => r.error).length
-
-    let message = `URL test completed! ${successCount} successful, ${failedCount} failed. `
-    message += `Retrieved ${replayUrls.length} replay URL(s) and ${apiUrls.length} API URL(s) `
-    message += `across ${organizations.value.length} organization(s).`
-
-    // Note about datacenter sharing
-    if (successCount > 0) {
-      message += ` Organizations may share URLs based on their datacenter location.`
-    }
-
-    if (failedCount === 0) {
-      appStore.addNotification('success', message)
-    } else if (successCount === 0) {
-      appStore.addNotification('error', message)
-    } else {
-      appStore.addNotification('warning', message)
-    }
-  } catch (error) {
-    logger.error('URL testing failed:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    apiResults.value = [
-      {
-        name: 'URL Test',
-        status: 'Failed',
-        error: errorMessage,
-        expanded: false,
-        showRawData: false,
-      },
-    ]
-    appStore.addNotification('error', `URL testing failed: ${errorMessage}`)
   } finally {
-    isTestingUrls.value = false
+    isTestingApi.value = false
   }
 }
 
@@ -1430,612 +1331,3 @@ const toggleDataView = (index: number) => {
   }
 }
 </script>
-
-<style scoped>
-.credentials-form {
-  margin-top: 15px;
-}
-
-.org-urls-info {
-  margin-top: 15px;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-}
-
-.url-display {
-  margin-top: 10px;
-}
-
-.url-display div {
-  margin: 5px 0;
-  font-size: 0.9em;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
-
-.loading-urls {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.fetching-urls {
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 4px;
-  padding: 10px;
-  margin: 10px 0;
-  font-size: 0.9em;
-}
-
-.missing-urls-indicator {
-  margin-left: 8px;
-  font-size: 0.8em;
-  cursor: help;
-}
-
-.current-setting {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #e8f4fd;
-  border: 1px solid #bee5eb;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.api-results {
-  margin-top: 20px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.api-result pre {
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
-  font-size: 12px;
-  overflow-x: auto;
-}
-
-/* Multi-select organization styles */
-.org-item.primary {
-  border-left: 4px solid #007bff;
-}
-
-.primary-badge {
-  background-color: #007bff;
-  color: white;
-  font-size: 0.7em;
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin-left: 8px;
-  font-weight: bold;
-}
-
-.selected-orgs-list {
-  margin-top: 8px;
-}
-
-.selected-org-item {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin: 4px 0;
-  font-size: 0.9em;
-}
-
-.primary-indicator {
-  color: #007bff;
-  font-weight: bold;
-  margin-left: 8px;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  margin-right: 8px;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-}
-
-.btn-secondary:disabled {
-  background-color: #6c757d;
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* General disabled button styling */
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transition: opacity 0.2s ease;
-}
-
-.btn-primary:disabled {
-  background-color: #6c757d;
-}
-
-.btn-danger:disabled {
-  background-color: #6c757d;
-}
-
-/* Inline results summary next to button */
-.button-group {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-/* Ensure API testing buttons have consistent sizing */
-.button-group .btn-primary {
-  min-width: 180px;
-  text-align: center;
-}
-
-.inline-results-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.9em;
-}
-
-/* Collapsible API results */
-.result-header {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-  user-select: none;
-}
-
-.result-header:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-  margin: 0 -8px;
-  padding: 8px;
-}
-
-.expand-icon {
-  font-size: 0.8em;
-  color: #6c757d;
-  margin-left: auto;
-}
-
-.result-details {
-  margin-top: 8px;
-  padding-left: 16px;
-  border-left: 2px solid #dee2e6;
-}
-
-/* Formatted API data display */
-.data-controls {
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.toggle-view-btn {
-  font-size: 0.8em;
-  padding: 4px 8px;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.toggle-view-btn:hover {
-  background-color: #5a6268;
-}
-
-.formatted-data {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 15px;
-  margin: 10px 0;
-}
-
-.raw-data {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 10px 0;
-  font-size: 0.8em;
-  overflow-x: auto;
-  border: 1px solid #dee2e6;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.data-row {
-  display: flex;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.data-row:last-child {
-  border-bottom: none;
-}
-
-.data-key {
-  font-weight: 600;
-  color: #495057;
-  min-width: 160px;
-  margin-right: 12px;
-  font-size: 0.9em;
-}
-
-.data-value {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.85em;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background-color: #ffffff;
-  border: 1px solid #e9ecef;
-}
-
-.data-value.value-neutral {
-  color: #6c757d;
-  background-color: #f8f9fa;
-}
-
-.data-value.value-positive {
-  color: #155724;
-  background-color: #d4edda;
-  border-color: #c3e6cb;
-}
-
-.data-value.value-negative {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-}
-
-.data-value.value-default {
-  color: #333;
-  background-color: #ffffff;
-}
-
-/* API Results styling */
-.success-count {
-  color: #28a745;
-  font-weight: bold;
-  margin-right: 15px;
-}
-
-.failed-count {
-  color: #dc3545;
-  font-weight: bold;
-}
-
-.api-result.success {
-  border-left: 4px solid #28a745;
-}
-
-.api-result.error {
-  border-left: 4px solid #dc3545;
-}
-
-.status {
-  font-weight: bold;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 0.9em;
-}
-
-.status.success {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.status.failed {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-/* Configuration management styles */
-.config-section {
-  margin-top: 30px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-}
-
-.config-summary {
-  margin-top: 15px;
-  padding: 15px;
-  background-color: #ffffff;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-}
-
-.summary-stats {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.stat-item {
-  flex: 1 1 45%;
-  margin-bottom: 10px;
-}
-
-.stat-number {
-  font-size: 1.5em;
-  font-weight: bold;
-}
-
-.stat-label {
-  font-size: 0.9em;
-  color: #6c757d;
-}
-
-.config-actions-section {
-  margin-top: 20px;
-}
-
-.import-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.file-input-group {
-  position: relative;
-}
-
-input[type='file'] {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.selected-file {
-  margin-left: 10px;
-  font-size: 0.9em;
-  color: #333;
-}
-
-.import-options {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.checkbox-label {
-  font-size: 0.9em;
-  color: #333;
-}
-
-.import-results {
-  margin-top: 15px;
-  padding: 15px;
-  background-color: #e9f7ef;
-  border: 1px solid #c3e6cb;
-  border-radius: 6px;
-}
-
-.import-status {
-  font-weight: bold;
-  font-size: 1.1em;
-}
-
-.import-summary {
-  margin-top: 10px;
-  font-size: 0.9em;
-}
-
-.imported-items {
-  margin-top: 5px;
-}
-
-.import-warnings,
-.import-errors {
-  margin-top: 10px;
-  font-size: 0.9em;
-}
-
-.import-warnings h5,
-.import-errors h5 {
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.import-warnings ul,
-.import-errors ul {
-  padding-left: 20px;
-  margin: 0;
-  list-style-type: disc;
-}
-
-/* Bulk import dialog styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: white;
-  padding: 25px;
-  border-radius: 12px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.4em;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5em;
-  cursor: pointer;
-  color: #6c757d;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.close-btn:hover {
-  background-color: #f8f9fa;
-  color: #495057;
-}
-
-.modal-body {
-  color: #333;
-}
-
-.bulk-input {
-  width: 100%;
-  min-height: 120px;
-  padding: 12px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.9em;
-  resize: vertical;
-  margin-top: 10px;
-  margin-bottom: 15px;
-}
-
-.bulk-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.bulk-input:disabled {
-  background-color: #f8f9fa;
-  opacity: 0.7;
-}
-
-.button-group {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
-.import-results {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-}
-
-.import-results h4 {
-  margin: 0 0 10px 0;
-  font-size: 1.1em;
-  color: #333;
-}
-
-.import-summary {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 10px;
-}
-
-.success-count {
-  color: #28a745;
-  font-weight: bold;
-}
-
-.failed-count {
-  color: #dc3545;
-  font-weight: bold;
-}
-
-.import-errors {
-  margin-top: 10px;
-}
-
-.import-errors h5 {
-  margin: 0 0 5px 0;
-  font-size: 1em;
-  color: #dc3545;
-  font-weight: bold;
-}
-
-.import-errors ul {
-  margin: 0;
-  padding-left: 20px;
-  list-style-type: disc;
-}
-
-.import-errors li {
-  margin-bottom: 3px;
-  font-size: 0.9em;
-  color: #721c24;
-}
-
-/* Responsive modal */
-@media (max-width: 768px) {
-  .modal-content {
-    width: 95%;
-    padding: 20px;
-    margin: 10px;
-  }
-
-  .button-group {
-    justify-content: stretch;
-  }
-
-  .button-group .btn {
-    flex: 1;
-  }
-}
-</style>

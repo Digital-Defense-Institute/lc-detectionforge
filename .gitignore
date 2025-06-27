@@ -177,3 +177,7 @@ config.local.*
 *.orig
 # Log files from IDEs
 *.log.*
+
+# Claude AI files
+.claude
+CLAUDE.md
