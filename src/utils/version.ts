@@ -36,6 +36,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.3.0',
+    date: '2025-06-27',
+    changes: {
+      added: [
+        'Automatically Load IaC Imports - Checkbox in the IaC import screen that allows for automatic loading of first (top-most) rule',
+      ],
+      fixed: [
+        'In dark mode the "Current" label text was not visible',
+      ],
+    },
+  },
+  {
     version: '1.2.0',
     date: '2025-06-26',
     changes: {
