@@ -42,9 +42,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       added: [
         'Automatically Load IaC Imports - Checkbox in the IaC import screen that allows for automatic loading of first (top-most) rule',
       ],
-      fixed: [
-        'In dark mode the "Current" label text was not visible',
-      ],
+      fixed: ['In dark mode the "Current" label text was not visible'],
     },
   },
   {
