@@ -1423,6 +1423,13 @@ hives:
                   ></textarea>
                 </div>
 
+                <div class="import-options">
+                  <label class="checkbox-wrapper">
+                    <input v-model="autoOpenTopRule" type="checkbox" :disabled="isImportingIaC" />
+                    <span class="checkbox-label">Automatically open first imported rule</span>
+                  </label>
+                </div>
+
                 <div class="import-actions">
                   <button
                     type="submit"
@@ -1635,6 +1642,9 @@ const iacImportResult = ref<{
   message: string
   importedRules: Array<{ name: string; success: boolean; error?: string }>
 } | null>(null)
+
+// Auto-open top rule checkbox state (persistent)
+const autoOpenTopRule = ref(localStorage.getItem('detectionforge_auto_open_top_rule') === 'true')
 
 // Event Schemas functionality
 const selectedEventType = ref('')
@@ -4874,6 +4884,28 @@ async function importFromIaC() {
         'success',
         `Imported ${successCount} detection rule${successCount !== 1 ? 's' : ''} from IaC`,
       )
+
+      // Auto-open the first successfully imported rule if checkbox is checked
+      if (autoOpenTopRule.value) {
+        const firstSuccessfulImport = importedRules.find((rule) => rule.success)
+        if (firstSuccessfulImport) {
+          // Find the rule ID by name from the saved rules
+          const savedRulesList = JSON.parse(localStorage.getItem(DETECTION_RULES_KEY) || '[]')
+          const ruleToOpen = savedRulesList.find(
+            (r: DetectionRule) => r.name === firstSuccessfulImport.name,
+          )
+          if (ruleToOpen) {
+            // Use nextTick to ensure the DOM is updated before loading the rule
+            nextTick(() => {
+              loadRule(ruleToOpen.id)
+              // Add notification that rule was loaded to editor
+              appStore.addNotification('info', `Loaded "${firstSuccessfulImport.name}" to editor`)
+              // Close the import modal
+              showImportIaCModal.value = false
+            })
+          }
+        }
+      }
     } else {
       appStore.addNotification('error', 'Failed to import any rules from IaC content')
     }
@@ -4893,5 +4925,10 @@ async function importFromIaC() {
 // Watch for prefix changes to reset selection
 watch(selectedPrefix, () => {
   onPrefixChange()
+})
+
+// Watch for auto-open checkbox changes to persist state
+watch(autoOpenTopRule, (newValue) => {
+  localStorage.setItem('detectionforge_auto_open_top_rule', newValue.toString())
 })
 </script>

@@ -573,6 +573,11 @@ body.config {
   letter-spacing: 0.5px;
 }
 
+/* Dark mode specific styling for current badge */
+[data-theme='dark'] .changelog .current-badge {
+  color: var(--bg-primary);
+}
+
 .changelog .changes {
   display: flex;
   flex-direction: column;
