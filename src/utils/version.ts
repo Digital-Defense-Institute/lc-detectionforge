@@ -36,6 +36,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.0',
+    date: '2025-07-02',
+    changes: {
+      added: [
+        'Application Settings - Configuration section for preferences',
+        'IaC Header Text Preferences - "Include header text in IaC export" checkbox under Appication Settings',
+      ],
+      changed: [
+        'Moved "Automatically open first imported rule" preferences checkbox to Application Settings',
+      ],
+    },
+  },
+  {
     version: '1.3.0',
     date: '2025-06-27',
     changes: {
