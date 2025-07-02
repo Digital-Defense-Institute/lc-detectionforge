@@ -416,6 +416,30 @@
         </div>
       </div>
 
+      <!-- Application Settings Section -->
+      <div class="config-section">
+        <h3>Application Settings</h3>
+
+        <div class="info-text">
+          Configure application behavior and preferences. These settings are saved locally and
+          persist between sessions.
+        </div>
+
+        <div class="settings-group">
+          <h4>Export Settings</h4>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input v-model="includeIaCBoilerplate" type="checkbox" />
+              Include boilerplate text in IaC export
+            </label>
+            <div class="setting-description">
+              When enabled, IaC exports include header comments with generation timestamp and tool
+              information. When disabled, exports contain only the essential IaC structure.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="footer">
         <p>
           Made with <span class="heart">💙</span> by
@@ -462,6 +486,11 @@ const fetchingOrgUrls = ref(false)
 const isAddingOrg = ref(false)
 const isFetchingMissingUrls = ref(false)
 const isTestingApi = ref(false)
+
+// Application settings
+const includeIaCBoilerplate = ref(
+  localStorage.getItem('detectionforge_include_iac_boilerplate') !== 'false',
+)
 
 // Bulk import state
 const showBulkImportDialog = ref(false)
@@ -1301,6 +1330,11 @@ watch([hasCredentials, organizations], async () => {
       fetchMissingOrganizationUrls()
     }, 500)
   }
+})
+
+// Watch for IaC boilerplate checkbox changes to persist state
+watch(includeIaCBoilerplate, (newValue) => {
+  localStorage.setItem('detectionforge_include_iac_boilerplate', newValue.toString())
 })
 
 // Initialize on mount
