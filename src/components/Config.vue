@@ -425,17 +425,23 @@
           persist between sessions.
         </div>
 
+        <div class="settings-group" style="margin-bottom: var(--space-2xl)">
+          <h4>Import Settings</h4>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input v-model="autoOpenFirstImportedRule" type="checkbox" />
+              Automatically open first imported rule
+            </label>
+          </div>
+        </div>
+
         <div class="settings-group">
           <h4>Export Settings</h4>
           <div class="setting-item">
             <label class="checkbox-label">
               <input v-model="includeIaCBoilerplate" type="checkbox" />
-              Include boilerplate text in IaC export
+              Include header text in IaC export
             </label>
-            <div class="setting-description">
-              When enabled, IaC exports include header comments with generation timestamp and tool
-              information. When disabled, exports contain only the essential IaC structure.
-            </div>
           </div>
         </div>
       </div>
@@ -490,6 +496,9 @@ const isTestingApi = ref(false)
 // Application settings
 const includeIaCBoilerplate = ref(
   localStorage.getItem('detectionforge_include_iac_boilerplate') !== 'false',
+)
+const autoOpenFirstImportedRule = ref(
+  localStorage.getItem('detectionforge_auto_open_top_rule') === 'true',
 )
 
 // Bulk import state
@@ -1335,6 +1344,11 @@ watch([hasCredentials, organizations], async () => {
 // Watch for IaC boilerplate checkbox changes to persist state
 watch(includeIaCBoilerplate, (newValue) => {
   localStorage.setItem('detectionforge_include_iac_boilerplate', newValue.toString())
+})
+
+// Watch for auto-open first imported rule checkbox changes to persist state
+watch(autoOpenFirstImportedRule, (newValue) => {
+  localStorage.setItem('detectionforge_auto_open_top_rule', newValue.toString())
 })
 
 // Initialize on mount
