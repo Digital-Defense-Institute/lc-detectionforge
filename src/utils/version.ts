@@ -36,6 +36,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.0',
+    date: '2025-07-12',
+    changes: {
+      added: [
+        'Four New Unit Test Event Types - EXISTING_PROCESS, SERVICE_CHANGE, SENSITIVE_PROCESS_ACCESS, NEW_REMOTE_THREAD templates for comprehensive detection rule testing',
+        'Complete Unit Test Template Overhaul - All 11 event types now feature accurate field structures based on real LimaCharlie telemetry samples',
+        'Enhanced Event Type Coverage - Full support for all major LimaCharlie event types with proper nested objects and field relationships',
+      ],
+      changed: [
+        'Improved Template Data Accuracy - All sample events now use correct SHA256 hash lengths (64 chars) and proper atom identifiers (32 chars)',
+        'Enhanced Field Structure Compliance - Templates now match real LimaCharlie event schemas including PARENT objects, SIGNATURE data, and complex nested structures',
+        'Comprehensive Data Sanitization - All templates use generic, non-identifying test data while maintaining structural realism for effective testing',
+      ],
+      fixed: [
+        'Hash Length Validation - Corrected all SHA256 hashes from 66 to proper 64-character format',
+        'Atom Identifier Standards - Fixed all event atoms to use proper 32-character hexadecimal format for LimaCharlie compatibility',
+        'Missing PARENT Fields - Added missing PARENT_ATOM and COMMAND_LINE fields to process events for complete structural accuracy',
+        'Windows Event Log Fields - Added all missing EventData fields to WEL templates for comprehensive Windows security event testing',
+        'Platform Value Accuracy - Corrected WEL platform identifier to match Windows (268435456) as shown in real telemetry',
+      ],
+    },
+  },
+  {
     version: '1.3.0',
     date: '2025-06-27',
     changes: {
