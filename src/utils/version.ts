@@ -25,6 +25,7 @@ export const APP_VERSION = packageJson.version
 export interface ChangelogEntry {
   version: string
   date: string
+  description?: string
   changes: {
     added?: string[]
     changed?: string[]
@@ -38,10 +39,11 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '1.4.0',
     date: '2025-07-12',
+    description: 'All changes in this release pertain exclusively to Unit Test sample event templates',
     changes: {
       added: [
-        'Four New Unit Test Event Types - EXISTING_PROCESS, SERVICE_CHANGE, SENSITIVE_PROCESS_ACCESS, NEW_REMOTE_THREAD templates for comprehensive detection rule testing',
-        'Complete Unit Test Template Overhaul - All 11 event types now feature accurate field structures based on real LimaCharlie telemetry samples',
+        'Four New Event Types - EXISTING_PROCESS, SERVICE_CHANGE, SENSITIVE_PROCESS_ACCESS, NEW_REMOTE_THREAD templates for comprehensive detection rule testing',
+        'Complete Template Overhaul - All 11 event types now feature accurate field structures based on real LimaCharlie telemetry samples',
         'Enhanced Event Type Coverage - Full support for all major LimaCharlie event types with proper nested objects and field relationships',
       ],
       changed: [
@@ -50,11 +52,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         'Comprehensive Data Sanitization - All templates use generic, non-identifying test data while maintaining structural realism for effective testing',
       ],
       fixed: [
-        'Hash Length Validation - Corrected all SHA256 hashes from 66 to proper 64-character format',
-        'Atom Identifier Standards - Fixed all event atoms to use proper 32-character hexadecimal format for LimaCharlie compatibility',
-        'Missing PARENT Fields - Added missing PARENT_ATOM and COMMAND_LINE fields to process events for complete structural accuracy',
-        'Windows Event Log Fields - Added all missing EventData fields to WEL templates for comprehensive Windows security event testing',
-        'Platform Value Accuracy - Corrected WEL platform identifier to match Windows (268435456) as shown in real telemetry',
+        'Template Hash Length Validation - Corrected all SHA256 hashes in sample events from 66 to proper 64-character format',
+        'Template Atom Identifier Standards - Fixed all event atoms in templates to use proper 32-character hexadecimal format for LimaCharlie compatibility',
+        'Template Missing PARENT Fields - Added missing PARENT_ATOM and COMMAND_LINE fields to process event templates for complete structural accuracy',
+        'Template Windows Event Log Fields - Added all missing EventData fields to WEL sample events for comprehensive Windows security event testing',
+        'Template Platform Value Accuracy - Corrected WEL platform identifier in samples to match Windows (268435456) as shown in real telemetry',
       ],
     },
   },
