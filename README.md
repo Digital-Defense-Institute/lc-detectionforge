@@ -301,14 +301,35 @@ DetectionForge is an open-source project designed to evolve with the needs of de
 - **📝 Documentation**: Help improve our docs, add examples, or clarify existing content
 - **🔧 Code Contributions**: Submit pull requests for bug fixes, new features, or performance improvements
 
-### Pull Request Guidelines
+### Contributor Workflow (Simplified!)
+
+**For Contributors - Focus on Your Code:**
 
 1. **Fork the repository** and create a feature branch from `main`
-2. **Follow our code style** - we use TypeScript, ESLint, and Prettier
-3. **Add tests** for new functionality where applicable
-4. **Update documentation** if you're changing functionality
-5. **Test your changes** thoroughly before submitting
-6. **Write clear commit messages** describing your changes
+2. **Implement your feature or fix** - focus only on your changes
+3. **Follow our code style** - we use TypeScript, ESLint, and Prettier
+4. **Test your changes** thoroughly before submitting
+5. **Submit a pull request** with clear description
+
+**What You DON'T Need to Worry About:**
+
+- ❌ Version number updates
+- ❌ Changelog maintenance  
+- ❌ Release coordination
+- ❌ Compatibility with other pending PRs
+
+**Maintainers Handle:**
+
+- 🏷️ Version management and releases
+- 📝 Changelog aggregation from multiple PRs
+- 🔄 Release branch coordination and CI/CD validation
+- 🚀 Deployment and tagging
+
+This approach allows contributors to focus on their implementations while maintainers coordinate releases that may include multiple features and fixes together.
+
+### Detailed Guidelines
+
+For comprehensive contribution guidelines, development setup, and release processes, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Development Setup
 
