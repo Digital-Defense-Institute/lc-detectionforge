@@ -57,6 +57,10 @@
             </div>
           </div>
 
+          <div v-if="entry.description" class="version-description">
+            <p>{{ entry.description }}</p>
+          </div>
+
           <div class="changes">
             <div v-if="entry.changes.added" class="change-section">
               <h3 class="change-type added">✨ Added</h3>
