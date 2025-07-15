@@ -37,9 +37,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    date: '2025-07-15',
+    description: 'Critical bug fix for backtest replay inconsistencies',
+    changes: {
+      fixed: [
+        'Inverted stateful processing logic - Fixed boolean inversion that caused backtests to run with opposite stateful setting than selected, resulting in different results compared to LimaCharlie native replay',
+      ],
+    },
+  },
+  {
     version: '1.4.0',
     date: '2025-07-12',
-    description: 'All changes in this release pertain exclusively to Unit Test sample event templates',
+    description:
+      'All changes in this release pertain exclusively to Unit Test sample event templates',
     changes: {
       added: [
         'Four New Event Types - EXISTING_PROCESS, SERVICE_CHANGE, SENSITIVE_PROCESS_ACCESS, NEW_REMOTE_THREAD templates for comprehensive detection rule testing',

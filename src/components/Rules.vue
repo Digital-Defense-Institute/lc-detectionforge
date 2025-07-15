@@ -4138,7 +4138,7 @@ async function runBacktest() {
             backtestConfig.evalLimit,
             backtestAbortController || undefined,
             30 * 60 * 1000, // 30 minute timeout
-            !backtestConfig.isStateful,
+            backtestConfig.isStateful,
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
           )
@@ -4301,7 +4301,7 @@ async function runBacktest() {
             backtestConfig.evalLimit,
             backtestAbortController || undefined,
             30 * 60 * 1000, // 30 minute timeout
-            !backtestConfig.isStateful,
+            backtestConfig.isStateful,
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
           )
@@ -4559,7 +4559,7 @@ async function loadMoreResultsForOrg(orgIndex: number) {
       0,
       undefined, // No abort controller for additional fetches
       10 * 60 * 1000, // 10 minute timeout
-      !backtestConfig.isStateful,
+      backtestConfig.isStateful,
       false, // isDryRun
       orgCursors.value[orgIndex], // Use stored cursor
     )
