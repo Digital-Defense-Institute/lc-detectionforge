@@ -70,6 +70,7 @@ const dismissPrompt = () => {
 
 const showDebugInfo = async () => {
   console.log('[PWA Debug Info]')
+  console.log('- User Agent:', navigator.userAgent)
   console.log('- Browser supports beforeinstallprompt:', 'beforeinstallprompt' in window)
   console.log('- Service Worker registered:', 'serviceWorker' in navigator)
   
@@ -82,13 +83,32 @@ const showDebugInfo = async () => {
   const manifestLink = document.querySelector('link[rel="manifest"]')
   console.log('- Manifest link:', manifestLink?.getAttribute('href'))
   
+  // Check if app is installable
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  console.log('- Running in standalone mode:', isStandalone)
+  
   // Test if we can manually show prompt
   if (deferredPrompt) {
     console.log('- Deferred prompt available!')
     showInstallPrompt.value = true
   } else {
     console.log('- No deferred prompt available')
-    alert('PWA install prompt not available. Check console for debug info.')
+    
+    // Browser-specific instructions
+    const ua = navigator.userAgent.toLowerCase()
+    let installInstructions = ''
+    
+    if (ua.includes('firefox')) {
+      installInstructions = 'Firefox does not support PWA installation prompts. However, you can still use the app in your browser.'
+    } else if (ua.includes('safari') && !ua.includes('chrome')) {
+      installInstructions = 'On Safari: Share button → Add to Home Screen'
+    } else if (ua.includes('chrome') || ua.includes('edge')) {
+      installInstructions = 'Look for the install icon in the address bar, or use the browser menu → "Install DetectionForge"'
+    } else {
+      installInstructions = 'Your browser may not support PWA installation. Try using Chrome, Edge, or Safari.'
+    }
+    
+    alert(`PWA Installation:\n\n${installInstructions}\n\nCheck console for more debug info.`)
   }
 }
 

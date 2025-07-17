@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons from SVG</title>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>This page will generate PNG icons from the SVG logo.</p>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Icon sizes needed for PWA
+        const sizes = [48, 72, 96, 144, 192, 512];
+        
+        async function generateIcons() {
+            const output = document.getElementById('output');
+            
+            // Load the SVG
+            const response = await fetch('/detection_forge_blue.svg');
+            const svgText = await response.text();
+            
+            for (const size of sizes) {
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                
+                // Create image from SVG
+                const img = new Image();
+                const blob = new Blob([svgText], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.src = url;
+                });
+                
+                // Draw to canvas
+                ctx.drawImage(img, 0, 0, size, size);
+                
+                // Convert to PNG
+                canvas.toBlob((blob) => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `icon-${size}.png`;
+                    a.textContent = `Download icon-${size}.png`;
+                    output.appendChild(a);
+                    output.appendChild(document.createElement('br'));
+                }, 'image/png');
+                
+                URL.revokeObjectURL(url);
+            }
+            
+            // Also create maskable icon (with padding)
+            const maskableSize = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = maskableSize;
+            canvas.height = maskableSize;
+            const ctx = canvas.getContext('2d');
+            
+            // Load SVG again
+            const img = new Image();
+            const blob = new Blob([svgText], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.src = url;
+            });
+            
+            // Draw with 20% padding for maskable
+            const padding = maskableSize * 0.1;
+            const iconSize = maskableSize * 0.8;
+            ctx.drawImage(img, padding, padding, iconSize, iconSize);
+            
+            canvas.toBlob((blob) => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'icon-maskable.png';
+                a.textContent = 'Download icon-maskable.png';
+                output.appendChild(a);
+            }, 'image/png');
+            
+            URL.revokeObjectURL(url);
+        }
+        
+        // Run on load
+        generateIcons();
+    </script>
+</body>
+</html>
