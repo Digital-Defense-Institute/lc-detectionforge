@@ -34,8 +34,8 @@
           </p>
           <p>
             <strong>New: Install as a Standalone App!</strong> DetectionForge can now be installed
-            as a PWA for a native app experience with faster loading, persistent sessions,
-            and OS integration. Look for the install prompt or use your browser's install option.
+            as a PWA for a native app experience with faster loading, persistent sessions, and OS
+            integration. Look for the install prompt or use your browser's install option.
           </p>
         </div>
 

@@ -1,10 +1,10 @@
 <template>
-  <transition name="fade">
+  <Transition name="fade">
     <div v-if="updateReady" class="update-notifier">
       <span class="update-icon">⬆</span>
       <span class="update-text">Update available - will apply on next restart</span>
     </div>
-  </transition>
+  </Transition>
 </template>
 
 <script setup lang="ts">

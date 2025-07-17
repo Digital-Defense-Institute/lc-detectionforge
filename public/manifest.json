@@ -11,14 +11,22 @@
   "categories": ["developer", "security", "productivity"],
   "icons": [
     {
-      "src": "/favicon.png",
-      "sizes": "20x23",
-      "type": "image/png"
+      "src": "/detection_forge_blue.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
       "src": "/detection_forge_blue.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/detection_forge_blue.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
