@@ -1,20 +1,33 @@
 <template>
-  <div v-if="showInstallPrompt" class="pwa-install-prompt">
-    <div class="prompt-content">
-      <h3>Install DetectionForge</h3>
-      <p>Install the app for quick access and a better experience.</p>
-      <div class="prompt-buttons">
-        <button class="install-button" @click="installPWA">Install</button>
-        <button class="dismiss-button" @click="dismissPrompt">Not now</button>
+  <div>
+    <div v-if="showInstallPrompt" class="pwa-install-prompt">
+      <div class="prompt-content">
+        <h3>Install DetectionForge</h3>
+        <p>Install the app for quick access and a better experience.</p>
+        <div class="prompt-buttons">
+          <button class="install-button" @click="installPWA">Install</button>
+          <button class="dismiss-button" @click="dismissPrompt">Not now</button>
+        </div>
       </div>
     </div>
+    
+    <!-- Debug button for development -->
+    <button 
+      v-if="!showInstallPrompt && isDevelopment" 
+      class="pwa-debug-button"
+      @click="showDebugInfo"
+      title="PWA Debug Info"
+    >
+      PWA
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 
 const showInstallPrompt = ref(false)
+const isDevelopment = import.meta.env.DEV
 let deferredPrompt: BeforeInstallPromptEvent | null = null
 
 // Define the BeforeInstallPromptEvent interface
@@ -55,6 +68,30 @@ const dismissPrompt = () => {
   localStorage.setItem('pwa-prompt-dismissed', Date.now().toString())
 }
 
+const showDebugInfo = async () => {
+  console.log('[PWA Debug Info]')
+  console.log('- Browser supports beforeinstallprompt:', 'beforeinstallprompt' in window)
+  console.log('- Service Worker registered:', 'serviceWorker' in navigator)
+  
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    console.log('- Service Worker registrations:', registrations)
+  }
+  
+  // Check manifest
+  const manifestLink = document.querySelector('link[rel="manifest"]')
+  console.log('- Manifest link:', manifestLink?.getAttribute('href'))
+  
+  // Test if we can manually show prompt
+  if (deferredPrompt) {
+    console.log('- Deferred prompt available!')
+    showInstallPrompt.value = true
+  } else {
+    console.log('- No deferred prompt available')
+    alert('PWA install prompt not available. Check console for debug info.')
+  }
+}
+
 onMounted(() => {
   // Check if prompt was recently dismissed
   const dismissed = localStorage.getItem('pwa-prompt-dismissed')
@@ -63,11 +100,27 @@ onMounted(() => {
     const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24)
     // Don't show prompt for 7 days after dismissal
     if (daysSinceDismissed < 7) {
+      console.log('[PWA] Install prompt dismissed recently, not showing')
       return
     }
   }
 
+  // Debug: Check if browser supports PWA
+  if ('serviceWorker' in navigator) {
+    console.log('[PWA] Service Worker supported')
+  }
+  
+  // Debug: Log when component mounts
+  console.log('[PWA] Install prompt component mounted, listening for beforeinstallprompt')
+  
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  
+  // Debug: Check if app is already installed
+  if ('getInstalledRelatedApps' in navigator) {
+    (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
+      console.log('[PWA] Installed related apps:', apps)
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -141,5 +194,26 @@ onUnmounted(() => {
     bottom: 10px;
     width: calc(100% - 20px);
   }
+}
+
+.pwa-debug-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+}
+
+.pwa-debug-button:hover {
+  background: var(--color-primary-hover);
 }
 </style>
