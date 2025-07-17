@@ -181,3 +181,4 @@ config.local.*
 # Claude AI files
 .claude
 CLAUDE.md
+dev-dist/

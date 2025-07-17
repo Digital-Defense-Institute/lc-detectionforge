@@ -57,7 +57,6 @@ const dismissPrompt = () => {
   localStorage.setItem('pwa-prompt-dismissed', Date.now().toString())
 }
 
-
 onMounted(() => {
   // Check if prompt was recently dismissed
   const dismissed = localStorage.getItem('pwa-prompt-dismissed')
@@ -66,27 +65,11 @@ onMounted(() => {
     const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24)
     // Don't show prompt for 7 days after dismissal
     if (daysSinceDismissed < 7) {
-      console.log('[PWA] Install prompt dismissed recently, not showing')
       return
     }
   }
 
-  // Debug: Check if browser supports PWA
-  if ('serviceWorker' in navigator) {
-    console.log('[PWA] Service Worker supported')
-  }
-  
-  // Debug: Log when component mounts
-  console.log('[PWA] Install prompt component mounted, listening for beforeinstallprompt')
-  
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-  
-  // Debug: Check if app is already installed
-  if ('getInstalledRelatedApps' in navigator) {
-    (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
-      console.log('[PWA] Installed related apps:', apps)
-    })
-  }
 })
 
 onUnmounted(() => {
