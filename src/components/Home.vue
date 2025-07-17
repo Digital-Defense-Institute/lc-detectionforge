@@ -26,12 +26,16 @@
             data.
           </p>
           <p>
-            This app is a 100% client-side Single-Page Application (SPA), ensuring that all data
+            This app is a 100% client-side Progressive Web Application (PWA), ensuring that all data
             processing occurs within your browser. Your configuration data (organizations, rules,
             settings) is stored locally in your browser only, while sensitive credentials remain in
             memory and are never persisted. All API interactions communicate directly with
-            LimaCharlie API without any intermediary servers. You could even build the app locally
-            and host it on your own system.
+            LimaCharlie API without any intermediary servers.
+          </p>
+          <p>
+            <strong>New: Install as a Standalone App!</strong> DetectionForge can now be installed
+            as a PWA for a native app experience with faster loading, persistent sessions,
+            and OS integration. Look for the install prompt or use your browser's install option.
           </p>
         </div>
 
@@ -100,6 +104,14 @@
                 Comprehensive configuration export/import system for backing up and sharing your
                 entire workbench setup including organizations, settings, detection rules, and
                 drafts across different browsers or team members.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>✅ Progressive Web App (PWA)</h3>
+              <p>
+                Install DetectionForge as a standalone application for faster loading, persistent
+                sessions, and a native app experience. Static assets are cached for performance
+                while maintaining secure credential handling in memory-only storage.
               </p>
             </div>
           </div>
