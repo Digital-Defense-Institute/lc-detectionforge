@@ -196,9 +196,26 @@
 
             <!-- Bulk Import Results -->
             <div v-if="bulkImportResults" class="import-results">
-              <h4>Import Results</h4>
+              <h4>{{ isBulkImporting ? 'Import Progress' : 'Import Results' }}</h4>
+              
+              <!-- Progress indicator -->
+              <div v-if="isBulkImporting" class="import-progress">
+                <div class="progress-text">
+                  Processing: {{ bulkImportResults.processed }} / {{ bulkImportResults.total }} organizations
+                </div>
+                <div class="progress-bar">
+                  <div 
+                    class="progress-fill" 
+                    :style="{ width: `${(bulkImportResults.processed / bulkImportResults.total) * 100}%` }"
+                  ></div>
+                </div>
+              </div>
+              
               <div class="import-summary">
-                <div class="success-count">✅ Success: {{ bulkImportResults.success }}</div>
+                <div class="success-count">
+                  ✅ Success: {{ bulkImportResults.success }}
+                  <span v-if="isBulkImporting" class="count-detail">/ {{ bulkImportResults.total }}</span>
+                </div>
                 <div v-if="bulkImportResults.failed > 0" class="failed-count">
                   ❌ Failed: {{ bulkImportResults.failed }}
                 </div>
@@ -468,6 +485,8 @@ const showBulkImportDialog = ref(false)
 const bulkOidInput = ref('')
 const isBulkImporting = ref(false)
 const bulkImportResults = ref<{
+  total: number
+  processed: number
   success: number
   failed: number
   errors: string[]
@@ -864,7 +883,7 @@ const bulkImportOrganizations = async () => {
   }
 
   isBulkImporting.value = true
-  bulkImportResults.value = { success: 0, failed: 0, errors: [] }
+  bulkImportResults.value = { total: 0, processed: 0, success: 0, failed: 0, errors: [] }
 
   try {
     // Split by newlines and clean up the OIDs
@@ -878,6 +897,9 @@ const bulkImportOrganizations = async () => {
       appStore.addNotification('warning', 'No new organization IDs found')
       return
     }
+
+    // Set the total count
+    bulkImportResults.value.total = oids.length
 
     appStore.addNotification('info', `Importing ${oids.length} organization(s)...`)
 
@@ -922,6 +944,9 @@ const bulkImportOrganizations = async () => {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         bulkImportResults.value!.failed++
         bulkImportResults.value!.errors.push(`${oid}: ${errorMessage}`)
+      } finally {
+        // Always increment processed count
+        bulkImportResults.value!.processed++
       }
     }
 
