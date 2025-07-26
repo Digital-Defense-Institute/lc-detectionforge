@@ -638,14 +638,14 @@ const formatApiData = (data: Record<string, unknown>): Record<string, string> =>
       if (key.includes('quota') || key.includes('count') || key.startsWith('n_')) {
         return value.toLocaleString()
       }
-      // Handle timestamps
+      // Handle timestamps - display in UTC
       if (key.includes('time') || key.includes('date') || key.includes('timestamp')) {
         if (value > 1000000000 && value < 9999999999) {
           // Looks like a Unix timestamp
-          return new Date(value * 1000).toLocaleString()
+          return new Date(value * 1000).toISOString()
         } else if (value > 1000000000000 && value < 9999999999999) {
           // Looks like a millisecond timestamp
-          return new Date(value).toLocaleString()
+          return new Date(value).toISOString()
         }
       }
       return value.toString()
