@@ -496,7 +496,17 @@
                 <h4>Limits (Optional)</h4>
                 <div class="limits-inputs">
                   <div class="input-group">
-                    <label for="eventLimit">Event Limit</label>
+                    <label for="eventLimit">
+                      Event Limit
+                      <button
+                        class="help-icon"
+                        type="button"
+                        @click.stop="showEventLimitHelp = true"
+                        title="Click for detailed help"
+                      >
+                        ?
+                      </button>
+                    </label>
                     <input
                       id="eventLimit"
                       v-model="backtestConfig.eventLimit"
@@ -509,7 +519,17 @@
                     <small>Maximum number of events to process (0 = no limit)</small>
                   </div>
                   <div class="input-group">
-                    <label for="evalLimit">Evaluation Limit</label>
+                    <label for="evalLimit">
+                      Evaluation Limit
+                      <button
+                        class="help-icon"
+                        type="button"
+                        @click.stop="showEvalLimitHelp = true"
+                        title="Click for detailed help"
+                      >
+                        ?
+                      </button>
+                    </label>
                     <input
                       id="evalLimit"
                       v-model="backtestConfig.evalLimit"
@@ -545,25 +565,6 @@
                   <div class="input-group">
                     <label class="toggle-label">
                       <input
-                        v-model="backtestConfig.isStateful"
-                        type="checkbox"
-                        class="toggle-input"
-                      />
-                      <div
-                        class="toggle-switch"
-                        :class="{ active: backtestConfig.isStateful }"
-                      ></div>
-                      <span class="toggle-text">Enable stateful processing</span>
-                    </label>
-                    <small>
-                      Only enable if your detection rule uses stateful operations (like counters,
-                      time windows, or tracking). Not needed for simple stateless rules.
-                    </small>
-                  </div>
-
-                  <div class="input-group">
-                    <label class="toggle-label">
-                      <input
                         v-model="backtestConfig.useChunkedResults"
                         type="checkbox"
                         class="toggle-input"
@@ -579,6 +580,40 @@
                       Creates multiple API calls which can be slower for normal datasets.
                     </small>
                   </div>
+                </div>
+              </div>
+
+              <div class="advanced-section">
+                <h4>Advanced Options</h4>
+                <div class="advanced-inputs">
+                  <div class="input-row">
+                    <div class="input-group">
+                      <label for="sensorId">Sensor ID (Optional)</label>
+                      <input
+                        id="sensorId"
+                        v-model="backtestConfig.sid"
+                        type="text"
+                        placeholder="SID to scan telemetry for - leave blank for org-wide scan"
+                        class="text-input"
+                      />
+                      <small>Target a specific sensor</small>
+                    </div>
+
+                    <div class="input-group">
+                      <label for="dataStream">Data Stream</label>
+                      <select
+                        id="dataStream"
+                        v-model="backtestConfig.stream"
+                        class="stream-selector"
+                      >
+                        <option value="event">Event</option>
+                        <option value="audit">Audit</option>
+                        <option value="detect">Detect</option>
+                      </select>
+                      <small>Stream type to replay</small>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -673,21 +708,6 @@
                         <div class="org-status-name">{{ getOrgNameOnly(orgStatus.oid) }}</div>
                         <div class="org-status-oid">{{ orgStatus.oid }}</div>
                       </div>
-                      <div class="org-status-label" style="flex-shrink: 0">
-                        {{
-                          orgStatus.status === 'pending'
-                            ? 'Waiting'
-                            : orgStatus.status === 'running'
-                              ? 'Running'
-                              : orgStatus.status === 'completed'
-                                ? 'Complete'
-                                : orgStatus.status === 'cancelled'
-                                  ? 'Cancelled'
-                                  : orgStatus.status === 'timeout'
-                                    ? 'Timeout'
-                                    : 'Failed'
-                        }}
-                      </div>
                       <div
                         v-if="orgStatus.startTime"
                         class="org-timing"
@@ -696,6 +716,7 @@
                           align-items: center;
                           white-space: nowrap;
                           flex-shrink: 0;
+                          margin-right: 10px;
                         "
                       >
                         <span style="margin-right: 4px">⏱️</span>
@@ -706,6 +727,23 @@
                           {{ formatDuration(orgStatus.duration) }}
                         </span>
                       </div>
+                      <div class="org-status-label" style="flex-shrink: 0; min-width: 100px; text-align: center">
+                        <span v-if="orgStatus.status === 'pending'">Waiting</span>
+                        <span v-else-if="orgStatus.status === 'running'">Running</span>
+                        <span v-else-if="orgStatus.status === 'completed'">
+                          <span 
+                            v-if="orgStatus.matchCount !== undefined"
+                            :title="`${orgStatus.eventCount || 0} events processed, ${orgStatus.evalCount || 0} evaluations`"
+                            style="cursor: help; font-weight: 600; color: var(--accent)"
+                          >
+                            {{ orgStatus.matchCount }} {{ orgStatus.matchCount === 1 ? 'match' : 'matches' }}
+                          </span>
+                          <span v-else>Complete</span>
+                        </span>
+                        <span v-else-if="orgStatus.status === 'cancelled'">Cancelled</span>
+                        <span v-else-if="orgStatus.status === 'timeout'">Timeout</span>
+                        <span v-else>Failed</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -713,7 +751,7 @@
             </div>
 
             <!-- Backtest Results -->
-            <div v-if="backtestResults" class="backtest-results">
+            <div v-if="backtestResults || backtestLiveResults.length > 0" class="backtest-results">
               <div
                 class="results-header"
                 style="
@@ -724,14 +762,18 @@
                 "
               >
                 <div>
-                  <h4>Backtest Results</h4>
-                  <div class="results-timestamp">
+                  <h4>Backtest Results {{ isRunningBacktest ? '(In Progress)' : '' }}</h4>
+                  <div v-if="backtestResults" class="results-timestamp">
                     Started: {{ formatTimestamp(backtestResults.executionStats.startedAt) }} |
                     Completed: {{ formatTimestamp(backtestResults.completedAt) }} | Duration:
                     {{ backtestResults.executionStats.totalExecutionTime.toFixed(2) }}s
                   </div>
+                  <div v-else-if="isRunningBacktest" class="results-timestamp">
+                    Running... {{ backtestProgress.current }} of {{ backtestProgress.total }} organizations completed
+                  </div>
                 </div>
                 <button
+                  v-if="backtestResults"
                   class="btn btn-info btn-small"
                   title="Copy backtest summary as Markdown table to clipboard"
                   @click="exportBacktestSummaryAsMarkdown"
@@ -741,7 +783,7 @@
               </div>
 
               <!-- Overall Statistics Summary -->
-              <div class="stats-summary">
+              <div v-if="backtestResults" class="stats-summary">
                 <div
                   class="stat-card"
                   :title="
@@ -892,13 +934,19 @@
 
               <!-- Per-Organization Results -->
               <div class="org-results-section">
-                <h5>Results by Organization ({{ backtestResults.orgResults.length }})</h5>
+                <h5>Results by Organization ({{ 
+                  backtestResults ? backtestResults.orgResults.length : backtestLiveResults.length 
+                }})</h5>
 
                 <div
-                  v-for="(orgResult, orgIndex) in backtestResults.orgResults"
+                  v-for="(orgResult, orgIndex) in (backtestResults ? backtestResults.orgResults : backtestLiveResults)"
                   :key="orgResult.oid"
                   class="org-result-card"
-                  :class="{ error: orgResult.status === 'error' }"
+                  :class="{ 
+                    error: orgResult.status === 'error',
+                    timeout: orgResult.status === 'timeout',
+                    cancelled: orgResult.status === 'cancelled'
+                  }"
                 >
                   <div class="org-result-header" @click="toggleOrgResult(orgIndex)">
                     <div class="org-info">
@@ -1495,6 +1543,219 @@ hives:
         </div>
       </div>
 
+      <!-- Event Limit Help Modal -->
+      <div
+        v-if="showEventLimitHelp"
+        class="reference-modal-overlay"
+        @click="showEventLimitHelp = false"
+      >
+        <div class="reference-modal help-modal" @click.stop>
+          <div class="reference-modal-header">
+            <h3>Event Limit - Use Cases & Examples</h3>
+            <button class="close-btn" @click="showEventLimitHelp = false">×</button>
+          </div>
+          <div class="reference-modal-content help-content">
+            <div class="help-section">
+              <h4>What is an Event?</h4>
+              <p>An event is a single telemetry record from a sensor - such as a process execution, network connection, file modification, or registry change. The event limit controls how many events to scan through before stopping.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>1. Performance Testing</h4>
+              <div class="code-example">
+                <code>limit_event: 10000  # Process only first 10K events</code>
+              </div>
+              <p><strong>Use case:</strong> Quick sampling of large datasets to test rule performance without processing millions of events.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>2. Resource Protection</h4>
+              <div class="code-example">
+                <code>limit_event: 50000  # Prevent runaway queries</code>
+              </div>
+              <p><strong>Use case:</strong> Avoid overwhelming the replay service when testing against production data.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>3. Time-Bounded Sampling</h4>
+              <div class="code-example">
+                <code>limit_event: 5000</code>
+              </div>
+              <p><strong>Use case:</strong> "Sample the first 5K events from this timeframe" - useful for spot-checking rule behavior.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>4. Development/Testing</h4>
+              <div class="code-example">
+                <code>limit_event: 100</code>
+              </div>
+              <p><strong>Use case:</strong> Quick rule testing without processing massive datasets - ideal for iterative development.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>5. Capacity Planning</h4>
+              <div class="code-example">
+                <code>limit_event: 1000</code>
+              </div>
+              <div class="code-example">
+                <code>limit_eval: 10</code>
+              </div>
+              <p><strong>Use case:</strong> "In the first 1000 events, how many matches do we get?"</p>
+              <p>Helps estimate match rate: 10/1000 = 1% match rate</p>
+            </div>
+
+            <div class="help-section">
+              <h4>Practical Combinations</h4>
+              <div class="practical-examples">
+                <div class="example">
+                  <h5>Rule validation (fast)</h5>
+                  <code>limit_eval: 1</code>
+                  <code>limit_event: 100000</code>
+                  <p>Safety net to prevent runaway queries. Stop as soon as we get one match to validate the rule works.</p>
+                </div>
+
+                <div class="example">
+                  <h5>Performance testing (bounded)</h5>
+                  <code>limit_event: 10000</code>
+                  <code>limit_eval: 100</code>
+                  <p>"Max 100 matches from first 10K events" - controlled testing.</p>
+                </div>
+
+                <div class="example">
+                  <h5>Sampling</h5>
+                  <code>limit_event: 5000</code>
+                  <code>limit_eval: 0</code>
+                  <p>No limit on evaluations. Process exactly 5K events and see all matches within them.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evaluation Limit Help Modal -->
+      <div
+        v-if="showEvalLimitHelp"
+        class="reference-modal-overlay"
+        @click="showEvalLimitHelp = false"
+      >
+        <div class="reference-modal help-modal" @click.stop>
+          <div class="reference-modal-header">
+            <h3>Evaluation Limit - Use Cases & Examples</h3>
+            <button class="close-btn" @click="showEvalLimitHelp = false">×</button>
+          </div>
+          <div class="reference-modal-content help-content">
+            <div class="help-section">
+              <h4>⚠️ Important: Evaluations ≠ Matches</h4>
+              <p><strong>An evaluation occurs when the detection engine processes your rule against an event - NOT when it finds a match.</strong> This is a critical distinction that affects how you use this limit.</p>
+              <p>For example: If you process 7 events and get "6 rule evaluations, 3 matches" - the engine evaluated your rule 6 times, and 3 of those evaluations resulted in matches.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>Why This Matters</h4>
+              <div class="code-example">
+                <code>❌ WRONG: limit_eval: 1  # "Stop after first match"</code>
+              </div>
+              <p><strong>This will likely return 0 matches!</strong> The engine stops after evaluating just one event, which probably won't match your rule.</p>
+              
+              <div class="code-example">
+                <code>✅ RIGHT: limit_eval: 100  # "Evaluate up to 100 events"</code>
+              </div>
+              <p>This gives the engine enough evaluations to potentially find matches within those 100 evaluated events.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>No True "Match Limit"</h4>
+              <p>Unfortunately, there is no parameter to say "stop after finding X matches". You can only control:</p>
+              <ul>
+                <li><strong>limit_event</strong>: How many events to process from the data stream</li>
+                <li><strong>limit_eval</strong>: How many times to evaluate your rule (regardless of matches)</li>
+              </ul>
+              <p>Since you can't predict how many evaluations will occur before finding a match, you must set limit_eval high enough to allow matches to be found.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>Pro Tips</h4>
+              <ul>
+                <li><strong>Never use <code>limit_eval: 1</code></strong> - it won't find matches, just evaluate one event</li>
+                <li>Start with <code>limit_eval: 10000</code> minimum for meaningful results</li>
+                <li>The evaluation count includes ALL rule processing, not just matches</li>
+                <li>If you get 0 matches, try increasing limit_eval significantly</li>
+                <li>Watch the results: "X events processed, Y rule evaluations, Z matches" to understand the ratios</li>
+                <li>Remember: You're limiting evaluations, not matches - there's no way to say "stop after 10 matches"</li>
+              </ul>
+            </div>
+
+            <div class="help-section">
+              <h4>1. Rule Testing (Recommended Minimums)</h4>
+              <p><strong>Option 1: Quick testing</strong></p>
+              <div class="code-example">
+                <code>limit_eval: 1000</code>
+              </div>
+              <p><strong>Option 2: Thorough validation</strong></p>
+              <div class="code-example">
+                <code>limit_eval: 10000</code>
+              </div>
+              <p><strong>Use case:</strong> Give the engine enough evaluations to likely find some matches. Since you don't know the match rate, err on the side of more evaluations.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>2. Understanding Match Rates</h4>
+              <div class="code-example">
+                <code>limit_eval: 100000</code>
+              </div>
+              <p>After running, check results like: "Evaluated 100000 events, found 50 matches"</p>
+              <p>Match rate = 50/100000 = 0.05%</p>
+              <p><strong>Use case:</strong> Evaluate a large number of events to understand your rule's match rate. This helps you estimate how noisy the rule might be in production.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>3. Performance Protection</h4>
+              <div class="code-example">
+                <code>limit_eval: 50000  # Safety cap</code>
+              </div>
+              <p><strong>Use case:</strong> Prevent runaway evaluations when testing against large datasets. Even if you have millions of events, this caps the processing work.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>4. Controlled Sampling</h4>
+              <div class="code-example">
+                <code>limit_eval: 50</code>
+              </div>
+              <div class="code-example">
+                <code>limit_event: 50000</code>
+              </div>
+              <p><strong>Use case:</strong> "Find up to 50 matches within the first 50K events" - balanced approach for rule testing.</p>
+            </div>
+
+            <div class="help-section">
+              <h4>Common Patterns</h4>
+              <div class="practical-examples">
+                <div class="example">
+                  <h5>Finding rare events</h5>
+                  <code>limit_event: 1000000</code>
+                  <code>limit_eval: 1000000</code>
+                  <p>Process and evaluate 1M events. For high-fidelity rules with low match rates, you need to evaluate many events to find any matches.</p>
+                </div>
+
+                <div class="example">
+                  <h5>Quick spot check</h5>
+                  <code>limit_event: 10000</code>
+                  <code>limit_eval: 10000</code>
+                  <p>Process and evaluate 10K events to get a quick sense of matches without waiting too long.</p>
+                </div>
+
+                <div class="example">
+                  <h5>Threat hunting</h5>
+                  <code>limit_eval: 0</code>
+                  <p>No limit on evaluations. When hunting for threats, evaluate everything. Just be prepared for long processing times.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="footer">
         <p>
           Made with <span class="heart">💙</span> by
@@ -1643,6 +1904,8 @@ const validationResult = ref('')
 const showLoadRuleModal = ref(false)
 const showEventSchemasModal = ref(false)
 const showImportIaCModal = ref(false)
+const showEventLimitHelp = ref(false)
+const showEvalLimitHelp = ref(false)
 const _savedRulesUpdateTrigger = ref(0) // Reactive trigger for localStorage changes
 
 // Import from IaC functionality
@@ -1873,8 +2136,14 @@ const backtestProgress = ref({
     startTime?: number
     endTime?: number
     duration?: number
+    matchCount?: number
+    eventCount?: number
+    evalCount?: number
   }>,
 })
+
+// Live results that update as each org completes
+const backtestLiveResults = ref<BacktestOrgResult[]>([])
 const backtestResults = ref<BacktestResults | null>(null)
 const displayedResults = ref(10) // Start by showing 10 results
 const expandedMatches = ref(new Set<string>()) // Changed to string to support org-match format
@@ -1896,8 +2165,9 @@ const backtestConfig = reactive({
   eventLimit: 0,
   evalLimit: 0,
   runInParallel: true, // Default to parallel execution for better performance
-  isStateful: false, // Default to non-stateful for better performance
   useChunkedResults: false, // Opt-in for chunked results
+  sid: '', // Optional sensor ID for targeted testing
+  stream: 'event', // Data stream to replay (event, audit, detect)
 })
 
 // Computed property to check if backtest can run
@@ -4045,6 +4315,7 @@ async function runBacktest() {
 
     // Clear previous results before starting new backtest
     backtestResults.value = null
+    backtestLiveResults.value = []
     expandedMatches.value.clear()
     activeMatchTab.value = {}
     expandedOrgResults.value.clear()
@@ -4138,9 +4409,12 @@ async function runBacktest() {
             backtestConfig.evalLimit,
             backtestAbortController || undefined,
             30 * 60 * 1000, // 30 minute timeout
-            backtestConfig.isStateful,
+            undefined, // Let backend auto-detect stateful requirements
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
+            backtestConfig.sid, // Optional sensor ID
+            false, // isValidation (always false since we removed the toggle)
+            backtestConfig.stream, // Data stream
           )
 
           // Update progress for completed organization (atomic operation)
@@ -4153,6 +4427,10 @@ async function runBacktest() {
             if (orgStatus.startTime) {
               orgStatus.duration = orgStatus.endTime - orgStatus.startTime
             }
+            // Add result summary for parallel execution
+            orgStatus.matchCount = response.results?.length || 0
+            orgStatus.eventCount = response.stats?.n_event || 0
+            orgStatus.evalCount = response.stats?.n_evals || 0
           }
 
           // Store cursor information for pagination
@@ -4259,11 +4537,13 @@ async function runBacktest() {
             if (orgStatus) {
               orgStatus.status = 'cancelled'
             }
-            orgResults.push({
+            const cancelledResult = {
               oid: remainingOid,
               orgName: auth.getOrgName(remainingOid),
               status: 'cancelled' as const,
-            })
+            }
+            orgResults.push(cancelledResult)
+            backtestLiveResults.value.push(cancelledResult)
           }
           break
         }
@@ -4301,9 +4581,12 @@ async function runBacktest() {
             backtestConfig.evalLimit,
             backtestAbortController || undefined,
             30 * 60 * 1000, // 30 minute timeout
-            backtestConfig.isStateful,
+            undefined, // Let backend auto-detect stateful requirements
             false, // isDryRun
             '', // Initial cursor (empty string for new queries)
+            backtestConfig.sid, // Optional sensor ID
+            false, // isValidation (always false since we removed the toggle)
+            backtestConfig.stream, // Data stream
           )
 
           // Store cursor information for pagination
@@ -4314,15 +4597,17 @@ async function runBacktest() {
           }
 
           // Add successful result
-          orgResults.push({
+          const result = {
             oid,
             orgName: auth.getOrgName(oid),
-            status: 'success',
+            status: 'success' as const,
             stats: response.stats,
             results: response.results || [],
             did_match: response.did_match,
             is_dry_run: response.is_dry_run,
-          })
+          }
+          orgResults.push(result)
+          backtestLiveResults.value.push(result)
 
           // Update org status to completed and track timing
           const completedOrgStatus = backtestProgress.value.orgStatuses.find(
@@ -4335,6 +4620,10 @@ async function runBacktest() {
               completedOrgStatus.duration =
                 completedOrgStatus.endTime - completedOrgStatus.startTime
             }
+            // Add result summary
+            completedOrgStatus.matchCount = response.results?.length || 0
+            completedOrgStatus.eventCount = response.stats?.n_event || 0
+            completedOrgStatus.evalCount = response.stats?.n_evals || 0
           }
         } catch (error: unknown) {
           // Backtest failed for this organization - handle error
@@ -4345,7 +4634,7 @@ async function runBacktest() {
           const isTimeout = errorMessage.includes('Backtest timeout')
 
           // Add appropriate result
-          orgResults.push({
+          const errorResult = {
             oid,
             orgName: auth.getOrgName(oid),
             status: (isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error') as
@@ -4353,7 +4642,9 @@ async function runBacktest() {
               | 'timeout'
               | 'error',
             ...(isCancelled || isTimeout ? {} : { error: errorMessage }),
-          })
+          }
+          orgResults.push(errorResult)
+          backtestLiveResults.value.push(errorResult)
 
           // Update org status appropriately and track timing
           const errorOrgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
@@ -4559,9 +4850,12 @@ async function loadMoreResultsForOrg(orgIndex: number) {
       0,
       undefined, // No abort controller for additional fetches
       10 * 60 * 1000, // 10 minute timeout
-      backtestConfig.isStateful,
+      undefined, // Let backend auto-detect stateful requirements
       false, // isDryRun
       orgCursors.value[orgIndex], // Use stored cursor
+      backtestConfig.sid, // Optional sensor ID
+      backtestConfig.validateRule, // Validation mode
+      backtestConfig.stream, // Data stream
     )
 
     // Append new results to existing results
@@ -4782,6 +5076,7 @@ ${unitTests.value
 
 function clearBacktestResults() {
   backtestResults.value = null
+  backtestLiveResults.value = []
   expandedMatches.value.clear()
   activeMatchTab.value = {}
   expandedOrgResults.value.clear()
