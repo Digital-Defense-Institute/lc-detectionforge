@@ -37,6 +37,31 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2025-07-28',
+    description:
+      'Major feature release with PWA support, enhanced backtest UX, and improved user experience',
+    changes: {
+      added: [
+        'Progressive Web App (PWA) Support - Install DetectionForge as a standalone app with offline capabilities and automatic updates',
+        'Application Settings - New persistent settings section on the configuration page including "Include header text in IaC export" and "Automatically open first imported rule" options (contributed by @Nynir)',
+        'Advanced Backtest Options - Added Sensor ID (SID) field for targeted backtesting and Data Stream selector (event/audit/detect)',
+        'Live Backtest Results - View match counts and results in real-time during parallel execution without waiting for all organizations to finish',
+        'Enhanced Backtest Help Documentation - Comprehensive help modals explaining Event Limit vs Evaluation Limit with practical examples',
+        'Update Notifier - Subtle notification when PWA updates are available',
+      ],
+      changed: [
+        'Backtest Result Sorting - Organizations now sorted by match count (highest first), then by status, then alphabetically',
+        'Match Count Display - Color-coded badges for match counts (green: 0, yellow: 1-500, red: 501+) with transparent backgrounds',
+        "UTC Timestamp Standardization - All timestamps now clearly display in UTC with 'Z' suffix notation to prevent timezone confusion",
+      ],
+      fixed: [
+        'Stateful Processing Parameter - Removed broken isStateful parameter from backtest API calls per LimaCharlie team guidance (backend now auto-detects)',
+        'Bulk Import Modal - Fixed modal positioning to properly float over content with dark overlay, added real-time progress tracking showing X/Y organizations processed',
+      ],
+    },
+  },
+  {
     version: '1.4.1',
     date: '2025-07-15',
     description: 'Critical bug fix for backtest replay inconsistencies',

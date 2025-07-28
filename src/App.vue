@@ -20,11 +20,15 @@
   <div id="app" class="detection-forge">
     <RouterView />
     <Notifications />
+    <PwaInstallPrompt />
+    <UpdateNotifier />
   </div>
 </template>
 
 <script setup lang="ts">
 import Notifications from './components/Notifications.vue'
+import PwaInstallPrompt from './components/PwaInstallPrompt.vue'
+import UpdateNotifier from './components/UpdateNotifier.vue'
 import { useTheme } from './composables/useTheme'
 
 // Initialize theme system

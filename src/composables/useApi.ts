@@ -155,15 +155,12 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
       const detectRule = typeof detectLogic === 'string' ? yaml.load(detectLogic) : detectLogic
       const respondRule = typeof respondLogic === 'string' ? yaml.load(respondLogic) : respondLogic
 
-      // Build the request payload matching the CURL example
+      // Build the request payload matching Python SDK structure
       const payload = {
         oid: organizationId,
-        limit_event: 0,
-        limit_eval: 0,
-        is_dry_run: false,
-        is_validation: false,
-        trace: true,
         rule_source: {
+          rule_name: '', // Empty string as we're providing rule content
+          namespace: '', // Empty string as we're providing rule content
           rule: {
             detect: detectRule,
             respond: respondRule || [],
@@ -171,11 +168,18 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         },
         event_source: {
           stream: 'event',
-          events: [sampleEvent],
           sensor_events: {
+            sid: '', // Empty string for testing
+            start_time: 0,
+            end_time: 0,
             cursor: '',
           },
+          events: [sampleEvent], // Specific event for testing
         },
+        trace: true, // Enable trace for test debugging
+        limit_event: 0,
+        limit_eval: 0,
+        is_dry_run: false,
       }
 
       // Generate fresh JWT for authentication
@@ -229,39 +233,52 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
     limitEval: number = 0,
     abortController?: AbortController,
     timeoutMs: number = 30 * 60 * 1000, // Default 30 minutes
-    isStateful: boolean = false, // Default to non-stateful for better performance
+    isStateful?: boolean, // Deprecated - backend auto-detects stateful requirements
     isDryRun: boolean = false, // Default to actual execution
     cursor: string = '', // For pagination/chunked results
+    sid: string = '', // Optional sensor ID for targeted testing
+    isValidation: boolean = false, // Validate rule syntax only
+    stream: string = 'event', // Data stream to replay
   ) => {
     try {
       // Parse the detect and respond logic
       const detectRule = typeof detectLogic === 'string' ? yaml.load(detectLogic) : detectLogic
       const respondRule = typeof respondLogic === 'string' ? yaml.load(respondLogic) : respondLogic
 
-      // Build the request payload for backtesting
+      // Build the request payload matching Python SDK structure
       const payload = {
         oid: organizationId,
-        limit_event: limitEvent, // Use limits as provided by caller
-        limit_eval: limitEval, // Use limits as provided by caller
-        is_dry_run: isDryRun,
-        is_validation: false,
-        is_stateful: isStateful, // Controls parallelization for performance
-        trace: false, // Set to false for performance on large datasets
         rule_source: {
+          rule_name: '', // Empty string as we're providing rule content
+          namespace: '', // Empty string as we're providing rule content
           rule: {
             detect: detectRule,
             respond: respondRule || [],
           },
         },
         event_source: {
-          stream: 'event',
+          stream: stream, // Use provided stream (event, audit, detect)
           sensor_events: {
+            sid: sid, // Use provided sensor ID or empty for org-wide
             start_time: startTime,
             end_time: endTime,
             cursor: cursor,
           },
+          events: null, // No specific events, scanning historical data
         },
+        trace: false, // Set to false for performance on large datasets
+        limit_event: limitEvent, // Use limits as provided by caller
+        limit_eval: limitEval, // Use limits as provided by caller
+        is_dry_run: isDryRun,
       }
+
+      // Add is_validation if rule validation mode is enabled
+      if (isValidation) {
+        ;(payload as Record<string, unknown>).is_validation = true
+      }
+
+      // Don't send is_stateful - let backend auto-detect stateful requirements
+      // per LimaCharlie team recommendation
 
       // Generate JWT for the specific organization
       const jwt = await auth.generateJWTForOrg(organizationId)

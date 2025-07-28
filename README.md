@@ -38,10 +38,11 @@ DetectionForge is a specialized tool designed for security engineers and analyst
 
 ## Architecture
 
-DetectionForge is built as a modern Vue.js Single Page Application (SPA) with:
+DetectionForge is built as a modern Progressive Web Application (PWA) with:
 
 - **Vue 3 + TypeScript**: Modern reactive framework with type safety
 - **Vite**: Fast build tool and development server
+- **PWA Support**: Installable as a standalone app with enhanced performance
 - **Pinia**: State management for global application state
 - **Vue Router**: Client-side routing for seamless navigation
 - **CodeMirror 6**: Advanced code editor with YAML syntax highlighting, autocompletion, and smart editing
@@ -57,10 +58,11 @@ DetectionForge is a **production-ready** detection engineering platform with com
 
 #### Platform Foundation
 
+- **Progressive Web App (PWA)**: Install as a standalone application for enhanced performance and convenience
 - **Modern Architecture**: Vue.js SPA with TypeScript, Vite, and Pinia state management
 - **LimaCharlie Integration**: Full API client with authentication and multi-organization support
 - **Configuration Management**: Complete backup/restore system with bulk organization import
-- **Cross-Platform Compatibility**: Works across all modern browsers including Safari
+- **Cross-Platform Compatibility**: Works across all modern browsers and operating systems
 
 #### Rule Development & Management
 
@@ -126,9 +128,25 @@ DetectionForge is a **production-ready** detection engineering platform with com
 2. Configure your LimaCharlie credentials and organizations
 3. Start crafting and testing your detection rules
 
-### Option 2: Run Locally\*\*
+### Option 2: Run Locally
 
 See the [Installation & Setup](#installation--setup) section below for detailed local development instructions.
+
+### Option 3: Install as a Progressive Web App (PWA)
+
+DetectionForge can be installed as a standalone application on your device for an enhanced experience:
+
+**Benefits of PWA Installation:**
+- **Native App Experience**: Runs in its own window without browser UI
+- **Faster Loading**: Static assets cached for quicker startup
+- **Persistent Sessions**: Credentials stay in memory longer for convenience
+- **OS Integration**: Access from dock/taskbar, appears in app switchers
+- **Auto Updates**: Seamlessly updates when new versions are deployed
+
+**Installation Instructions:**
+- **Chrome/Edge**: Click the install icon in the address bar or menu → "Install DetectionForge"
+- **Safari (macOS/iOS)**: Share button → "Add to Home Screen"
+- **Firefox**: Not supported, but the web version works perfectly
 
 ## Getting Started
 

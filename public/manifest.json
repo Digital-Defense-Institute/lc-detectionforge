@@ -1,9 +1,32 @@
 {
-  "name": "DetectionForge",
+  "name": "DetectionForge - LimaCharlie Detection Engineering",
   "short_name": "DetectionForge",
   "description": "A comprehensive detection engineering environment for crafting, validating, and testing LimaCharlie detection rules",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f5f5f5",
-  "theme_color": "#2c3e50"
+  "orientation": "any",
+  "background_color": "#1a1a1a",
+  "theme_color": "#3b82f6",
+  "categories": ["developer", "security", "productivity"],
+  "icons": [
+    {
+      "src": "/detection_forge_blue.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/detection_forge_blue.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/detection_forge_blue.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

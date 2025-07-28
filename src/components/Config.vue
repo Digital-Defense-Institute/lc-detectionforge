@@ -196,9 +196,31 @@
 
             <!-- Bulk Import Results -->
             <div v-if="bulkImportResults" class="import-results">
-              <h4>Import Results</h4>
+              <h4>{{ isBulkImporting ? 'Import Progress' : 'Import Results' }}</h4>
+
+              <!-- Progress indicator -->
+              <div v-if="isBulkImporting" class="import-progress">
+                <div class="progress-text">
+                  Processing: {{ bulkImportResults.processed }} /
+                  {{ bulkImportResults.total }} organizations
+                </div>
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill"
+                    :style="{
+                      width: `${(bulkImportResults.processed / bulkImportResults.total) * 100}%`,
+                    }"
+                  ></div>
+                </div>
+              </div>
+
               <div class="import-summary">
-                <div class="success-count">✅ Success: {{ bulkImportResults.success }}</div>
+                <div class="success-count">
+                  ✅ Success: {{ bulkImportResults.success }}
+                  <span v-if="isBulkImporting" class="count-detail"
+                    >/ {{ bulkImportResults.total }}</span
+                  >
+                </div>
                 <div v-if="bulkImportResults.failed > 0" class="failed-count">
                   ❌ Failed: {{ bulkImportResults.failed }}
                 </div>
@@ -416,6 +438,36 @@
         </div>
       </div>
 
+      <!-- Application Settings Section -->
+      <div class="config-section">
+        <h3>Application Settings</h3>
+
+        <div class="info-text">
+          Configure application behavior and preferences. These settings are saved locally and
+          persist between sessions.
+        </div>
+
+        <div class="settings-group" style="margin-bottom: var(--space-2xl)">
+          <h4>Import Settings</h4>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input v-model="autoOpenFirstImportedRule" type="checkbox" />
+              Automatically open first imported rule
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h4>Export Settings</h4>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input v-model="includeIaCBoilerplate" type="checkbox" />
+              Include header text in IaC export
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="footer">
         <p>
           Made with <span class="heart">💙</span> by
@@ -463,11 +515,21 @@ const isAddingOrg = ref(false)
 const isFetchingMissingUrls = ref(false)
 const isTestingApi = ref(false)
 
+// Application settings
+const includeIaCBoilerplate = ref(
+  localStorage.getItem('detectionforge_include_iac_boilerplate') !== 'false',
+)
+const autoOpenFirstImportedRule = ref(
+  localStorage.getItem('detectionforge_auto_open_top_rule') === 'true',
+)
+
 // Bulk import state
 const showBulkImportDialog = ref(false)
 const bulkOidInput = ref('')
 const isBulkImporting = ref(false)
 const bulkImportResults = ref<{
+  total: number
+  processed: number
   success: number
   failed: number
   errors: string[]
@@ -638,14 +700,14 @@ const formatApiData = (data: Record<string, unknown>): Record<string, string> =>
       if (key.includes('quota') || key.includes('count') || key.startsWith('n_')) {
         return value.toLocaleString()
       }
-      // Handle timestamps
+      // Handle timestamps - display in UTC
       if (key.includes('time') || key.includes('date') || key.includes('timestamp')) {
         if (value > 1000000000 && value < 9999999999) {
           // Looks like a Unix timestamp
-          return new Date(value * 1000).toLocaleString()
+          return new Date(value * 1000).toISOString()
         } else if (value > 1000000000000 && value < 9999999999999) {
           // Looks like a millisecond timestamp
-          return new Date(value).toLocaleString()
+          return new Date(value).toISOString()
         }
       }
       return value.toString()
@@ -864,7 +926,7 @@ const bulkImportOrganizations = async () => {
   }
 
   isBulkImporting.value = true
-  bulkImportResults.value = { success: 0, failed: 0, errors: [] }
+  bulkImportResults.value = { total: 0, processed: 0, success: 0, failed: 0, errors: [] }
 
   try {
     // Split by newlines and clean up the OIDs
@@ -878,6 +940,9 @@ const bulkImportOrganizations = async () => {
       appStore.addNotification('warning', 'No new organization IDs found')
       return
     }
+
+    // Set the total count
+    bulkImportResults.value.total = oids.length
 
     appStore.addNotification('info', `Importing ${oids.length} organization(s)...`)
 
@@ -922,6 +987,9 @@ const bulkImportOrganizations = async () => {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         bulkImportResults.value!.failed++
         bulkImportResults.value!.errors.push(`${oid}: ${errorMessage}`)
+      } finally {
+        // Always increment processed count
+        bulkImportResults.value!.processed++
       }
     }
 
@@ -1301,6 +1369,16 @@ watch([hasCredentials, organizations], async () => {
       fetchMissingOrganizationUrls()
     }, 500)
   }
+})
+
+// Watch for IaC boilerplate checkbox changes to persist state
+watch(includeIaCBoilerplate, (newValue) => {
+  localStorage.setItem('detectionforge_include_iac_boilerplate', newValue.toString())
+})
+
+// Watch for auto-open first imported rule checkbox changes to persist state
+watch(autoOpenFirstImportedRule, (newValue) => {
+  localStorage.setItem('detectionforge_auto_open_top_rule', newValue.toString())
 })
 
 // Initialize on mount

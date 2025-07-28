@@ -1200,12 +1200,6 @@ body.config {
 }
 
 @media (max-width: 768px) {
-  .config .modal-content {
-    width: 95%;
-    padding: 20px;
-    margin: 10px;
-  }
-
   .config .button-group {
     justify-content: stretch;
   }
@@ -1390,6 +1384,32 @@ body.config {
   background: var(--input-bg);
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
+}
+
+/* Help icon styles */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  background: var(--bg-quaternary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  vertical-align: middle;
+}
+
+.help-icon:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: scale(1.1);
 }
 
 /* Horizontal input row layout for rule info */
@@ -3230,6 +3250,48 @@ body.config {
   font-weight: 600;
 }
 
+/* Match count badges */
+.match-count-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-xl);
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-block;
+  transition: all var(--transition-speed) ease;
+  box-sizing: border-box;
+}
+
+.match-count-green {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+.match-count-yellow {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ff9800;
+}
+
+.match-count-red {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+/* Dark mode match count badges */
+[data-theme="dark"] .match-count-green {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .match-count-yellow {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .match-count-red {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
 .status-pass {
   background: var(--success-bg);
   color: var(--success-text);
@@ -3875,6 +3937,14 @@ body.config {
   border-left: 4px solid #dc3545;
 }
 
+.org-result-card.timeout {
+  border-left: 4px solid #ff9800;
+}
+
+.org-result-card.cancelled {
+  border-left: 4px solid #6c757d;
+}
+
 .org-result-header {
   padding: 15px 20px;
   cursor: pointer;
@@ -4451,7 +4521,8 @@ body.config {
    ============================================================================= */
 
 /* Modal Overlay */
-.reference-modal-overlay {
+.reference-modal-overlay,
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -4467,7 +4538,8 @@ body.config {
 }
 
 /* Modal Container */
-.reference-modal {
+.reference-modal,
+.modal-content {
   background: var(--input-bg);
   border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -4492,7 +4564,8 @@ body.config {
 }
 
 /* Modal Header */
-.reference-modal-header {
+.reference-modal-header,
+.modal-header {
   background: var(--gradient-header);
   color: white;
   padding: 20px 24px;
@@ -4502,7 +4575,8 @@ body.config {
   border-bottom: 1px solid #e1e8ed;
 }
 
-.reference-modal-header h3 {
+.reference-modal-header h3,
+.modal-header h3 {
   margin: 0;
   font-size: 1.4em;
   font-weight: 600;
@@ -4529,10 +4603,76 @@ body.config {
 }
 
 /* Modal Content */
-.reference-modal-content {
+.reference-modal-content,
+.modal-body {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* Bulk Import Textarea */
+.bulk-input {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: var(--font-sm);
+  resize: vertical;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.bulk-input:focus {
+  outline: none;
+  border-color: var(--brand-purple);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.bulk-input:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Bulk Import Progress */
+.import-progress {
+  margin-bottom: var(--space-lg);
+}
+
+.progress-text {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-secondary);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-purple) 0%, var(--brand-blue) 100%);
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.count-detail {
+  opacity: 0.7;
+  font-size: var(--font-sm);
+  margin-left: var(--space-xs);
 }
 
 .reference-intro {
@@ -4545,9 +4685,100 @@ body.config {
 
 .reference-intro p {
   margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-  transition: color var(--transition-speed) ease;
+}
+
+/* Help Modal Specific Styles */
+.help-modal {
+  max-width: 800px;
+}
+
+.help-content {
+  padding: 0;
+}
+
+.help-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.help-section:last-child {
+  border-bottom: none;
+}
+
+.help-section h4 {
+  margin: 0 0 15px 0;
+  color: var(--text-primary);
+  font-size: 1.2em;
+}
+
+.help-section h5 {
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+  font-size: 1em;
+}
+
+.help-section p {
+  margin: 10px 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.help-section ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.help-section li {
+  margin: 5px 0;
+  color: var(--text-secondary);
+}
+
+.code-example {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin: 12px 0;
+  font-family: var(--font-mono);
+  overflow-x: auto;
+}
+
+.code-example code {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.9em;
+  white-space: pre;
+  word-break: normal;
+  line-height: 1.5;
+}
+
+.practical-examples {
+  margin-top: 15px;
+}
+
+.practical-examples .example {
+  background: var(--bg-quaternary);
+  border-radius: var(--radius-sm);
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.practical-examples .example:last-child {
+  margin-bottom: 0;
+}
+
+.practical-examples .example code {
+  display: block;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 8px 0;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  white-space: pre;
+  line-height: 1.4;
+  color: var(--text-primary);
 }
 
 .reference-section {
@@ -4621,25 +4852,30 @@ body.config {
 
 /* Responsive design for modal */
 @media (max-width: 768px) {
-  .reference-modal-overlay {
+  .reference-modal-overlay,
+  .modal-overlay {
     padding: 10px;
   }
 
-  .reference-modal {
+  .reference-modal,
+  .modal-content {
     max-height: 95vh;
   }
 
 
 
-  .reference-modal-header {
+  .reference-modal-header,
+  .modal-header {
     padding:   16px 20px;
   }
 
-  .reference-modal-header h3 {
+  .reference-modal-header h3,
+  .modal-header h3 {
     font-size: 1.2em;
   }
 
-  .reference-modal-content {
+  .reference-modal-content,
+  .modal-body {
     padding: 20px;
   }
 
@@ -4662,11 +4898,13 @@ body.config {
 }
 
 @media (max-width: 480px) {
-  .reference-modal-header {
+  .reference-modal-header,
+  .modal-header {
     padding: var(--space-md) 16px;
   }
 
-  .reference-modal-content {
+  .reference-modal-content,
+  .modal-body {
     padding: 20px;
   }
 
@@ -4956,6 +5194,74 @@ body.config {
   border-color: var(--input-focus-border);
   outline: none;
   box-shadow: 0 0 0 2px var(--input-focus-shadow);
+}
+
+.stream-selector {
+  width: 100%;
+  padding: var(--space-sm) 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+}
+
+.stream-selector:focus {
+  border-color: var(--input-focus-border);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--input-focus-shadow);
+}
+
+.text-input {
+  width: 100%;
+  padding: var(--space-sm) 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+}
+
+.text-input:focus {
+  border-color: var(--input-focus-border);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--input-focus-shadow);
+}
+
+.advanced-section {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-secondary);
+  transition: all var(--transition-speed) ease;
+}
+
+.advanced-section h4 {
+  margin: 0 0 15px 0;
+  color: var(--text-secondary);
+  transition: color var(--transition-speed) ease;
+  font-size: var(--font-md);
+}
+
+.advanced-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.advanced-inputs .input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .advanced-inputs .input-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .org-description,
