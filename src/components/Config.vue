@@ -197,24 +197,29 @@
             <!-- Bulk Import Results -->
             <div v-if="bulkImportResults" class="import-results">
               <h4>{{ isBulkImporting ? 'Import Progress' : 'Import Results' }}</h4>
-              
+
               <!-- Progress indicator -->
               <div v-if="isBulkImporting" class="import-progress">
                 <div class="progress-text">
-                  Processing: {{ bulkImportResults.processed }} / {{ bulkImportResults.total }} organizations
+                  Processing: {{ bulkImportResults.processed }} /
+                  {{ bulkImportResults.total }} organizations
                 </div>
                 <div class="progress-bar">
-                  <div 
-                    class="progress-fill" 
-                    :style="{ width: `${(bulkImportResults.processed / bulkImportResults.total) * 100}%` }"
+                  <div
+                    class="progress-fill"
+                    :style="{
+                      width: `${(bulkImportResults.processed / bulkImportResults.total) * 100}%`,
+                    }"
                   ></div>
                 </div>
               </div>
-              
+
               <div class="import-summary">
                 <div class="success-count">
                   ✅ Success: {{ bulkImportResults.success }}
-                  <span v-if="isBulkImporting" class="count-detail">/ {{ bulkImportResults.total }}</span>
+                  <span v-if="isBulkImporting" class="count-detail"
+                    >/ {{ bulkImportResults.total }}</span
+                  >
                 </div>
                 <div v-if="bulkImportResults.failed > 0" class="failed-count">
                   ❌ Failed: {{ bulkImportResults.failed }}

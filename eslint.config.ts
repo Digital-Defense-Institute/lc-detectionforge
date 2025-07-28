@@ -6,7 +6,13 @@ export default [
   // Global ignores
   {
     name: 'app/files-to-ignore',
-    ignores: ['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/node_modules/**'],
+    ignores: [
+      '**/dist/**',
+      '**/dist-ssr/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/dev-dist/**',
+    ],
   },
 
   // Vue files

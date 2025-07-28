@@ -504,8 +504,8 @@
                       <button
                         class="help-icon"
                         type="button"
-                        @click.stop="showEventLimitHelp = true"
                         title="Click for detailed help"
+                        @click.stop="showEventLimitHelp = true"
                       >
                         ?
                       </button>
@@ -527,8 +527,8 @@
                       <button
                         class="help-icon"
                         type="button"
-                        @click.stop="showEvalLimitHelp = true"
                         title="Click for detailed help"
+                        @click.stop="showEvalLimitHelp = true"
                       >
                         ?
                       </button>
@@ -616,7 +616,6 @@
                       <small>Stream type to replay</small>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -730,16 +729,20 @@
                           {{ formatDuration(orgStatus.duration) }}
                         </span>
                       </div>
-                      <div class="org-status-label" style="flex-shrink: 0; min-width: 100px; text-align: center">
+                      <div
+                        class="org-status-label"
+                        style="flex-shrink: 0; min-width: 100px; text-align: center"
+                      >
                         <span v-if="orgStatus.status === 'pending'">Waiting</span>
                         <span v-else-if="orgStatus.status === 'running'">Running</span>
                         <span v-else-if="orgStatus.status === 'completed'">
-                          <span 
+                          <span
                             v-if="orgStatus.matchCount !== undefined"
                             :title="`${orgStatus.eventCount || 0} events processed, ${orgStatus.evalCount || 0} evaluations`"
                             style="cursor: help; font-weight: 600; color: var(--accent)"
                           >
-                            {{ orgStatus.matchCount }} {{ orgStatus.matchCount === 1 ? 'match' : 'matches' }}
+                            {{ orgStatus.matchCount }}
+                            {{ orgStatus.matchCount === 1 ? 'match' : 'matches' }}
                           </span>
                           <span v-else>Complete</span>
                         </span>
@@ -772,7 +775,8 @@
                     {{ backtestResults.executionStats.totalExecutionTime.toFixed(2) }}s
                   </div>
                   <div v-else-if="isRunningBacktest" class="results-timestamp">
-                    Running... {{ backtestProgress.current }} of {{ backtestProgress.total }} organizations completed
+                    Running... {{ backtestProgress.current }} of
+                    {{ backtestProgress.total }} organizations completed
                   </div>
                 </div>
                 <button
@@ -906,7 +910,7 @@
               </div>
 
               <!-- Timeframe Information -->
-              <div class="timeframe-info">
+              <div v-if="backtestResults" class="timeframe-info">
                 <h5>Telemetry Search Timeline</h5>
                 <div class="timeline-container">
                   <div class="timeline-endpoint timeline-start">
@@ -937,18 +941,24 @@
 
               <!-- Per-Organization Results -->
               <div class="org-results-section">
-                <h5>Results by Organization ({{ 
-                  backtestResults ? backtestResults.orgResults.length : backtestLiveResults.length 
-                }})</h5>
+                <h5>
+                  Results by Organization ({{
+                    backtestResults
+                      ? backtestResults.orgResults.length
+                      : backtestLiveResults.length
+                  }})
+                </h5>
 
                 <div
-                  v-for="(orgResult, orgIndex) in (backtestResults ? backtestResults.orgResults : backtestLiveResults)"
+                  v-for="(orgResult, orgIndex) in backtestResults
+                    ? backtestResults.orgResults
+                    : backtestLiveResults"
                   :key="orgResult.oid"
                   class="org-result-card"
-                  :class="{ 
+                  :class="{
                     error: orgResult.status === 'error',
                     timeout: orgResult.status === 'timeout',
-                    cancelled: orgResult.status === 'cancelled'
+                    cancelled: orgResult.status === 'cancelled',
                   }"
                 >
                   <div class="org-result-header" @click="toggleOrgResult(orgIndex)">
@@ -1560,23 +1570,33 @@ hives:
           <div class="reference-modal-content help-content">
             <div class="help-section">
               <h4>What is an Event?</h4>
-              <p>An event is a single telemetry record from a sensor - such as a process execution, network connection, file modification, or registry change. The event limit controls how many events to scan through before stopping.</p>
+              <p>
+                An event is a single telemetry record from a sensor - such as a process execution,
+                network connection, file modification, or registry change. The event limit controls
+                how many events to scan through before stopping.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>1. Performance Testing</h4>
               <div class="code-example">
-                <code>limit_event: 10000  # Process only first 10K events</code>
+                <code>limit_event: 10000 # Process only first 10K events</code>
               </div>
-              <p><strong>Use case:</strong> Quick sampling of large datasets to test rule performance without processing millions of events.</p>
+              <p>
+                <strong>Use case:</strong> Quick sampling of large datasets to test rule performance
+                without processing millions of events.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>2. Resource Protection</h4>
               <div class="code-example">
-                <code>limit_event: 50000  # Prevent runaway queries</code>
+                <code>limit_event: 50000 # Prevent runaway queries</code>
               </div>
-              <p><strong>Use case:</strong> Avoid overwhelming the replay service when testing against production data.</p>
+              <p>
+                <strong>Use case:</strong> Avoid overwhelming the replay service when testing
+                against production data.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1584,7 +1604,10 @@ hives:
               <div class="code-example">
                 <code>limit_event: 5000</code>
               </div>
-              <p><strong>Use case:</strong> "Sample the first 5K events from this timeframe" - useful for spot-checking rule behavior.</p>
+              <p>
+                <strong>Use case:</strong> "Sample the first 5K events from this timeframe" - useful
+                for spot-checking rule behavior.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1592,7 +1615,10 @@ hives:
               <div class="code-example">
                 <code>limit_event: 100</code>
               </div>
-              <p><strong>Use case:</strong> Quick rule testing without processing massive datasets - ideal for iterative development.</p>
+              <p>
+                <strong>Use case:</strong> Quick rule testing without processing massive datasets -
+                ideal for iterative development.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1603,7 +1629,9 @@ hives:
               <div class="code-example">
                 <code>limit_eval: 10</code>
               </div>
-              <p><strong>Use case:</strong> "In the first 1000 events, how many matches do we get?"</p>
+              <p>
+                <strong>Use case:</strong> "In the first 1000 events, how many matches do we get?"
+              </p>
               <p>Helps estimate match rate: 10/1000 = 1% match rate</p>
             </div>
 
@@ -1614,7 +1642,10 @@ hives:
                   <h5>Rule validation (fast)</h5>
                   <code>limit_eval: 1</code>
                   <code>limit_event: 100000</code>
-                  <p>Safety net to prevent runaway queries. Stop as soon as we get one match to validate the rule works.</p>
+                  <p>
+                    Safety net to prevent runaway queries. Stop as soon as we get one match to
+                    validate the rule works.
+                  </p>
                 </div>
 
                 <div class="example">
@@ -1628,7 +1659,10 @@ hives:
                   <h5>Sampling</h5>
                   <code>limit_event: 5000</code>
                   <code>limit_eval: 0</code>
-                  <p>No limit on evaluations. Process exactly 5K events and see all matches within them.</p>
+                  <p>
+                    No limit on evaluations. Process exactly 5K events and see all matches within
+                    them.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1650,42 +1684,77 @@ hives:
           <div class="reference-modal-content help-content">
             <div class="help-section">
               <h4>⚠️ Important: Evaluations ≠ Matches</h4>
-              <p><strong>An evaluation occurs when the detection engine processes your rule against an event - NOT when it finds a match.</strong> This is a critical distinction that affects how you use this limit.</p>
-              <p>For example: If you process 7 events and get "6 rule evaluations, 3 matches" - the engine evaluated your rule 6 times, and 3 of those evaluations resulted in matches.</p>
+              <p>
+                <strong
+                  >An evaluation occurs when the detection engine processes your rule against an
+                  event - NOT when it finds a match.</strong
+                >
+                This is a critical distinction that affects how you use this limit.
+              </p>
+              <p>
+                For example: If you process 7 events and get "6 rule evaluations, 3 matches" - the
+                engine evaluated your rule 6 times, and 3 of those evaluations resulted in matches.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>Why This Matters</h4>
               <div class="code-example">
-                <code>❌ WRONG: limit_eval: 1  # "Stop after first match"</code>
+                <code>❌ WRONG: limit_eval: 1 # "Stop after first match"</code>
               </div>
-              <p><strong>This will likely return 0 matches!</strong> The engine stops after evaluating just one event, which probably won't match your rule.</p>
-              
+              <p>
+                <strong>This will likely return 0 matches!</strong> The engine stops after
+                evaluating just one event, which probably won't match your rule.
+              </p>
+
               <div class="code-example">
-                <code>✅ RIGHT: limit_eval: 100  # "Evaluate up to 100 events"</code>
+                <code>✅ RIGHT: limit_eval: 100 # "Evaluate up to 100 events"</code>
               </div>
-              <p>This gives the engine enough evaluations to potentially find matches within those 100 evaluated events.</p>
+              <p>
+                This gives the engine enough evaluations to potentially find matches within those
+                100 evaluated events.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>No True "Match Limit"</h4>
-              <p>Unfortunately, there is no parameter to say "stop after finding X matches". You can only control:</p>
+              <p>
+                Unfortunately, there is no parameter to say "stop after finding X matches". You can
+                only control:
+              </p>
               <ul>
-                <li><strong>limit_event</strong>: How many events to process from the data stream</li>
-                <li><strong>limit_eval</strong>: How many times to evaluate your rule (regardless of matches)</li>
+                <li>
+                  <strong>limit_event</strong>: How many events to process from the data stream
+                </li>
+                <li>
+                  <strong>limit_eval</strong>: How many times to evaluate your rule (regardless of
+                  matches)
+                </li>
               </ul>
-              <p>Since you can't predict how many evaluations will occur before finding a match, you must set limit_eval high enough to allow matches to be found.</p>
+              <p>
+                Since you can't predict how many evaluations will occur before finding a match, you
+                must set limit_eval high enough to allow matches to be found.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>Pro Tips</h4>
               <ul>
-                <li><strong>Never use <code>limit_eval: 1</code></strong> - it won't find matches, just evaluate one event</li>
+                <li>
+                  <strong>Never use <code>limit_eval: 1</code></strong> - it won't find matches,
+                  just evaluate one event
+                </li>
                 <li>Start with <code>limit_eval: 10000</code> minimum for meaningful results</li>
                 <li>The evaluation count includes ALL rule processing, not just matches</li>
                 <li>If you get 0 matches, try increasing limit_eval significantly</li>
-                <li>Watch the results: "X events processed, Y rule evaluations, Z matches" to understand the ratios</li>
-                <li>Remember: You're limiting evaluations, not matches - there's no way to say "stop after 10 matches"</li>
+                <li>
+                  Watch the results: "X events processed, Y rule evaluations, Z matches" to
+                  understand the ratios
+                </li>
+                <li>
+                  Remember: You're limiting evaluations, not matches - there's no way to say "stop
+                  after 10 matches"
+                </li>
               </ul>
             </div>
 
@@ -1699,7 +1768,10 @@ hives:
               <div class="code-example">
                 <code>limit_eval: 10000</code>
               </div>
-              <p><strong>Use case:</strong> Give the engine enough evaluations to likely find some matches. Since you don't know the match rate, err on the side of more evaluations.</p>
+              <p>
+                <strong>Use case:</strong> Give the engine enough evaluations to likely find some
+                matches. Since you don't know the match rate, err on the side of more evaluations.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1709,15 +1781,22 @@ hives:
               </div>
               <p>After running, check results like: "Evaluated 100000 events, found 50 matches"</p>
               <p>Match rate = 50/100000 = 0.05%</p>
-              <p><strong>Use case:</strong> Evaluate a large number of events to understand your rule's match rate. This helps you estimate how noisy the rule might be in production.</p>
+              <p>
+                <strong>Use case:</strong> Evaluate a large number of events to understand your
+                rule's match rate. This helps you estimate how noisy the rule might be in
+                production.
+              </p>
             </div>
 
             <div class="help-section">
               <h4>3. Performance Protection</h4>
               <div class="code-example">
-                <code>limit_eval: 50000  # Safety cap</code>
+                <code>limit_eval: 50000 # Safety cap</code>
               </div>
-              <p><strong>Use case:</strong> Prevent runaway evaluations when testing against large datasets. Even if you have millions of events, this caps the processing work.</p>
+              <p>
+                <strong>Use case:</strong> Prevent runaway evaluations when testing against large
+                datasets. Even if you have millions of events, this caps the processing work.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1728,7 +1807,10 @@ hives:
               <div class="code-example">
                 <code>limit_event: 50000</code>
               </div>
-              <p><strong>Use case:</strong> "Find up to 50 matches within the first 50K events" - balanced approach for rule testing.</p>
+              <p>
+                <strong>Use case:</strong> "Find up to 50 matches within the first 50K events" -
+                balanced approach for rule testing.
+              </p>
             </div>
 
             <div class="help-section">
@@ -1738,20 +1820,29 @@ hives:
                   <h5>Finding rare events</h5>
                   <code>limit_event: 1000000</code>
                   <code>limit_eval: 1000000</code>
-                  <p>Process and evaluate 1M events. For high-fidelity rules with low match rates, you need to evaluate many events to find any matches.</p>
+                  <p>
+                    Process and evaluate 1M events. For high-fidelity rules with low match rates,
+                    you need to evaluate many events to find any matches.
+                  </p>
                 </div>
 
                 <div class="example">
                   <h5>Quick spot check</h5>
                   <code>limit_event: 10000</code>
                   <code>limit_eval: 10000</code>
-                  <p>Process and evaluate 10K events to get a quick sense of matches without waiting too long.</p>
+                  <p>
+                    Process and evaluate 10K events to get a quick sense of matches without waiting
+                    too long.
+                  </p>
                 </div>
 
                 <div class="example">
                   <h5>Threat hunting</h5>
                   <code>limit_eval: 0</code>
-                  <p>No limit on evaluations. When hunting for threats, evaluate everything. Just be prepared for long processing times.</p>
+                  <p>
+                    No limit on evaluations. When hunting for threats, evaluate everything. Just be
+                    prepared for long processing times.
+                  </p>
                 </div>
               </div>
             </div>
@@ -3249,13 +3340,21 @@ function exportToIaC() {
       return testsSection
     }
 
+    // Check if we should include the boilerplate header
+    const includeBoilerplate =
+      localStorage.getItem('detectionforge_include_iac_boilerplate') !== 'false'
+
     // Create proper LimaCharlie IaC YAML format
-    const iacContent = `# LimaCharlie Detection Rule - Infrastructure as Code
+    const headerComments = includeBoilerplate
+      ? `# LimaCharlie Detection Rule - Infrastructure as Code
 # Generated by DetectionForge
 # Generated on: ${new Date().toISOString()}
 # Rule: ${currentRule.name}
 
-version: 3
+`
+      : ''
+
+    const iacContent = `${headerComments}version: 3
 hives:
     dr-general:
         "${currentRule.name}":
@@ -4857,7 +4956,7 @@ async function loadMoreResultsForOrg(orgIndex: number) {
       false, // isDryRun
       orgCursors.value[orgIndex], // Use stored cursor
       backtestConfig.sid, // Optional sensor ID
-      backtestConfig.validateRule, // Validation mode
+      false, // isValidation
       backtestConfig.stream, // Data stream
     )
 
