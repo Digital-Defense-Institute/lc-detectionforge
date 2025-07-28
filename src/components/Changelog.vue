@@ -65,60 +65,35 @@
             <div v-if="entry.changes.added" class="change-section">
               <h3 class="change-type added">✨ Added</h3>
               <ul>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <li
-                  v-for="change in entry.changes.added"
-                  :key="change"
-                  v-html="sanitizeHtml(change)"
-                ></li>
+                <li v-for="change in entry.changes.added" :key="change">{{ change }}</li>
               </ul>
             </div>
 
             <div v-if="entry.changes.changed" class="change-section">
               <h3 class="change-type changed">🔄 Changed</h3>
               <ul>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <li
-                  v-for="change in entry.changes.changed"
-                  :key="change"
-                  v-html="sanitizeHtml(change)"
-                ></li>
+                <li v-for="change in entry.changes.changed" :key="change">{{ change }}</li>
               </ul>
             </div>
 
             <div v-if="entry.changes.fixed" class="change-section">
               <h3 class="change-type fixed">🐛 Fixed</h3>
               <ul>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <li
-                  v-for="change in entry.changes.fixed"
-                  :key="change"
-                  v-html="sanitizeHtml(change)"
-                ></li>
+                <li v-for="change in entry.changes.fixed" :key="change">{{ change }}</li>
               </ul>
             </div>
 
             <div v-if="entry.changes.removed" class="change-section">
               <h3 class="change-type removed">🗑️ Removed</h3>
               <ul>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <li
-                  v-for="change in entry.changes.removed"
-                  :key="change"
-                  v-html="sanitizeHtml(change)"
-                ></li>
+                <li v-for="change in entry.changes.removed" :key="change">{{ change }}</li>
               </ul>
             </div>
 
             <div v-if="entry.changes.security" class="change-section">
               <h3 class="change-type security">🔒 Security</h3>
               <ul>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <li
-                  v-for="change in entry.changes.security"
-                  :key="change"
-                  v-html="sanitizeHtml(change)"
-                ></li>
+                <li v-for="change in entry.changes.security" :key="change">{{ change }}</li>
               </ul>
             </div>
           </div>
@@ -147,7 +122,6 @@ import { useRouter } from 'vue-router'
 import Logo from './Logo.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import { getAllChangelog, getCurrentVersion } from '../utils/version'
-import { sanitizeHtml } from '../utils/sanitizer'
 
 const router = useRouter()
 const changelog = getAllChangelog()

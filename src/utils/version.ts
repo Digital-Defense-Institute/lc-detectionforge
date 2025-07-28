@@ -44,7 +44,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: {
       added: [
         'Progressive Web App (PWA) Support - Install DetectionForge as a standalone app with offline capabilities and automatic updates',
-        'Application Settings - New persistent settings section on the configuration page including "Include header text in IaC export" and "Automatically open first imported rule" options (contributed by <a href="https://github.com/Nynir" target="_blank" rel="noopener noreferrer">@Nynir</a>)',
+        'Application Settings - New persistent settings section on the configuration page including "Include header text in IaC export" and "Automatically open first imported rule" options (contributed by @Nynir)',
         'Advanced Backtest Options - Added Sensor ID (SID) field for targeted backtesting and Data Stream selector (event/audit/detect)',
         'Live Backtest Results - View match counts and results in real-time during parallel execution without waiting for all organizations to finish',
         'Enhanced Backtest Help Documentation - Comprehensive help modals explaining Event Limit vs Evaluation Limit with practical examples',
