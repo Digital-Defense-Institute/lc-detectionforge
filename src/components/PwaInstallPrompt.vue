@@ -83,8 +83,8 @@ onUnmounted(() => {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
