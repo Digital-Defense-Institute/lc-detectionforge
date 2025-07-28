@@ -43,7 +43,7 @@ onMounted(() => {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  background: var(--color-background-soft);
+  background: var(--bg-primary);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px 20px;
