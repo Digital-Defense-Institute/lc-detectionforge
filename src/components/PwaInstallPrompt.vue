@@ -121,7 +121,7 @@ onUnmounted(() => {
 
 .install-button {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-text)
 }
 
 .install-button:hover {
