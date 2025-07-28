@@ -65,6 +65,7 @@
             <div v-if="entry.changes.added" class="change-section">
               <h3 class="change-type added">✨ Added</h3>
               <ul>
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <li
                   v-for="change in entry.changes.added"
                   :key="change"
@@ -76,6 +77,7 @@
             <div v-if="entry.changes.changed" class="change-section">
               <h3 class="change-type changed">🔄 Changed</h3>
               <ul>
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <li
                   v-for="change in entry.changes.changed"
                   :key="change"
@@ -87,6 +89,7 @@
             <div v-if="entry.changes.fixed" class="change-section">
               <h3 class="change-type fixed">🐛 Fixed</h3>
               <ul>
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <li
                   v-for="change in entry.changes.fixed"
                   :key="change"
@@ -98,6 +101,7 @@
             <div v-if="entry.changes.removed" class="change-section">
               <h3 class="change-type removed">🗑️ Removed</h3>
               <ul>
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <li
                   v-for="change in entry.changes.removed"
                   :key="change"
@@ -109,6 +113,7 @@
             <div v-if="entry.changes.security" class="change-section">
               <h3 class="change-type security">🔒 Security</h3>
               <ul>
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <li
                   v-for="change in entry.changes.security"
                   :key="change"
