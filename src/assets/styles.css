@@ -3250,6 +3250,48 @@ body.config {
   font-weight: 600;
 }
 
+/* Match count badges */
+.match-count-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-xl);
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-block;
+  transition: all var(--transition-speed) ease;
+  box-sizing: border-box;
+}
+
+.match-count-green {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+.match-count-yellow {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ff9800;
+}
+
+.match-count-red {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+/* Dark mode match count badges */
+[data-theme="dark"] .match-count-green {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .match-count-yellow {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .match-count-red {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
 .status-pass {
   background: var(--success-bg);
   color: var(--success-text);

@@ -950,9 +950,7 @@
                 </h5>
 
                 <div
-                  v-for="(orgResult, orgIndex) in backtestResults
-                    ? backtestResults.orgResults
-                    : backtestLiveResults"
+                  v-for="orgResult in sortedOrgResults"
                   :key="orgResult.oid"
                   class="org-result-card"
                   :class="{
@@ -961,7 +959,7 @@
                     cancelled: orgResult.status === 'cancelled',
                   }"
                 >
-                  <div class="org-result-header" @click="toggleOrgResult(orgIndex)">
+                  <div class="org-result-header" @click="toggleOrgResult(orgResult.oid)">
                     <div class="org-info">
                       <div class="org-name">{{ getOrgNameOnly(orgResult.oid) }}</div>
                       <div class="org-id">{{ orgResult.oid }}</div>
@@ -990,7 +988,18 @@
                     </div>
                     <div class="org-summary">
                       <span v-if="orgResult.status === 'success' && orgResult.results">
-                        {{ orgResult.results.length }} matches
+                        <span
+                          class="match-count-badge"
+                          :class="{
+                            'match-count-green': orgResult.results.length === 0,
+                            'match-count-yellow':
+                              orgResult.results.length > 0 && orgResult.results.length <= 500,
+                            'match-count-red': orgResult.results.length > 500,
+                          }"
+                        >
+                          {{ orgResult.results.length }}
+                          {{ orgResult.results.length === 1 ? 'match' : 'matches' }}
+                        </span>
                       </span>
                       <span v-if="orgResult.status === 'error'" class="error-text">
                         {{ orgResult.error }}
@@ -1002,12 +1011,12 @@
                         Exceeded 30 minute limit
                       </span>
                       <span class="toggle-icon">{{
-                        expandedOrgResults.has(orgIndex) ? '▼' : '▶'
+                        expandedOrgResults.has(orgResult.oid) ? '▼' : '▶'
                       }}</span>
                     </div>
                   </div>
 
-                  <div v-if="expandedOrgResults.has(orgIndex)" class="org-result-details">
+                  <div v-if="expandedOrgResults.has(orgResult.oid)" class="org-result-details">
                     <div v-if="orgResult.status === 'success'" class="org-success-details">
                       <!-- Organization Statistics -->
                       <div v-if="orgResult.stats" class="org-stats">
@@ -1058,14 +1067,14 @@
                           <div
                             v-for="(result, matchIndex) in orgResult.results.slice(
                               0,
-                              getDisplayedResultsForOrg(orgIndex),
+                              getDisplayedResultsForOrg(orgResult.oid),
                             )"
-                            :key="`${orgIndex}-${matchIndex}`"
+                            :key="`${orgResult.oid}-${matchIndex}`"
                             class="match-item"
                           >
                             <div
                               class="match-header"
-                              @click="toggleMatchDetails(orgIndex, matchIndex)"
+                              @click="toggleMatchDetails(orgResult.oid, matchIndex)"
                             >
                               <div class="match-info">
                                 <span class="match-timestamp">{{
@@ -1079,12 +1088,14 @@
                                 >
                               </div>
                               <div class="match-toggle">
-                                {{ expandedMatches.has(`${orgIndex}-${matchIndex}`) ? '▼' : '▶' }}
+                                {{
+                                  expandedMatches.has(`${orgResult.oid}-${matchIndex}`) ? '▼' : '▶'
+                                }}
                               </div>
                             </div>
 
                             <div
-                              v-if="expandedMatches.has(`${orgIndex}-${matchIndex}`)"
+                              v-if="expandedMatches.has(`${orgResult.oid}-${matchIndex}`)"
                               class="match-details"
                             >
                               <div class="match-tabs">
@@ -1093,10 +1104,11 @@
                                     'tab-btn',
                                     {
                                       active:
-                                        activeMatchTab[`${orgIndex}-${matchIndex}`] === 'event',
+                                        activeMatchTab[`${orgResult.oid}-${matchIndex}`] ===
+                                        'event',
                                     },
                                   ]"
-                                  @click="setMatchTab(`${orgIndex}-${matchIndex}`, 'event')"
+                                  @click="setMatchTab(`${orgResult.oid}-${matchIndex}`, 'event')"
                                 >
                                   Event Details
                                 </button>
@@ -1104,17 +1116,18 @@
                                   :class="[
                                     'tab-btn',
                                     {
-                                      active: activeMatchTab[`${orgIndex}-${matchIndex}`] === 'raw',
+                                      active:
+                                        activeMatchTab[`${orgResult.oid}-${matchIndex}`] === 'raw',
                                     },
                                   ]"
-                                  @click="setMatchTab(`${orgIndex}-${matchIndex}`, 'raw')"
+                                  @click="setMatchTab(`${orgResult.oid}-${matchIndex}`, 'raw')"
                                 >
                                   Raw JSON
                                 </button>
                               </div>
 
                               <div
-                                v-if="activeMatchTab[`${orgIndex}-${matchIndex}`] === 'event'"
+                                v-if="activeMatchTab[`${orgResult.oid}-${matchIndex}`] === 'event'"
                                 class="match-event-details"
                               >
                                 <div class="event-fields">
@@ -1150,7 +1163,7 @@
                               </div>
 
                               <div
-                                v-if="activeMatchTab[`${orgIndex}-${matchIndex}`] === 'raw'"
+                                v-if="activeMatchTab[`${orgResult.oid}-${matchIndex}`] === 'raw'"
                                 class="match-raw-json"
                               >
                                 <pre>{{ JSON.stringify(result, null, 2) }}</pre>
@@ -1163,23 +1176,25 @@
                         <div
                           v-if="
                             backtestConfig.useChunkedResults
-                              ? orgHasMore[orgIndex]
-                              : orgResult.results.length > getDisplayedResultsForOrg(orgIndex)
+                              ? orgHasMore[orgResult.oid]
+                              : orgResult.results.length > getDisplayedResultsForOrg(orgResult.oid)
                           "
                           class="load-more-section"
                         >
                           <button
                             class="btn btn-small btn-primary"
-                            :disabled="orgLoadingMore[orgIndex]"
-                            @click="loadMoreResultsForOrg(orgIndex)"
+                            :disabled="orgLoadingMore[orgResult.oid]"
+                            @click="loadMoreResultsForOrg(orgResult.oid)"
                           >
-                            <span v-if="orgLoadingMore[orgIndex]">🔄 Loading more results...</span>
+                            <span v-if="orgLoadingMore[orgResult.oid]"
+                              >🔄 Loading more results...</span
+                            >
                             <span v-else-if="backtestConfig.useChunkedResults">
                               📥 Fetch More Results
                             </span>
                             <span v-else>
                               Load More ({{
-                                orgResult.results.length - getDisplayedResultsForOrg(orgIndex)
+                                orgResult.results.length - getDisplayedResultsForOrg(orgResult.oid)
                               }}
                               remaining)
                             </span>
@@ -1493,13 +1508,6 @@ hives:
                       name: process_detected'
                     :disabled="isImportingIaC"
                   ></textarea>
-                </div>
-
-                <div class="import-options">
-                  <label class="checkbox-wrapper">
-                    <input v-model="autoOpenTopRule" type="checkbox" :disabled="isImportingIaC" />
-                    <span class="checkbox-label">Automatically open first imported rule</span>
-                  </label>
                 </div>
 
                 <div class="import-actions">
@@ -2011,9 +2019,6 @@ const iacImportResult = ref<{
   importedRules: Array<{ name: string; success: boolean; error?: string }>
 } | null>(null)
 
-// Auto-open top rule checkbox state (persistent)
-const autoOpenTopRule = ref(localStorage.getItem('detectionforge_auto_open_top_rule') === 'true')
-
 // Event Schemas functionality
 const selectedEventType = ref('')
 const selectedPrefix = ref('evt') // Default to 'evt' prefix
@@ -2242,13 +2247,13 @@ const backtestResults = ref<BacktestResults | null>(null)
 const displayedResults = ref(10) // Start by showing 10 results
 const expandedMatches = ref(new Set<string>()) // Changed to string to support org-match format
 const activeMatchTab = ref<Record<string, string>>({}) // Changed to string keys
-const expandedOrgResults = ref(new Set<number>()) // Track which org results are expanded
-const orgDisplayedResults = ref<Record<number, number>>({}) // Track displayed results per org
+const expandedOrgResults = ref(new Set<string>()) // Track which org results are expanded by OID
+const orgDisplayedResults = ref<Record<string, number>>({}) // Track displayed results per org by OID
 
 // Cursor-based pagination state
-const orgCursors = ref<Record<number, string>>({}) // Track cursors per org
-const orgHasMore = ref<Record<number, boolean>>({}) // Track if more results available per org
-const orgLoadingMore = ref<Record<number, boolean>>({}) // Track loading state per org
+const orgCursors = ref<Record<string, string>>({}) // Track cursors per org by OID
+const orgHasMore = ref<Record<string, boolean>>({}) // Track if more results available per org by OID
+const orgLoadingMore = ref<Record<string, boolean>>({}) // Track loading state per org by OID
 
 // Backtest-specific organization selection
 const backtestSelectedOids = ref<string[]>([])
@@ -2262,6 +2267,35 @@ const backtestConfig = reactive({
   useChunkedResults: false, // Opt-in for chunked results
   sid: '', // Optional sensor ID for targeted testing
   stream: 'event', // Data stream to replay (event, audit, detect)
+})
+
+// Computed property to get sorted org results for display
+const sortedOrgResults = computed(() => {
+  const results = backtestResults.value
+    ? backtestResults.value.orgResults
+    : backtestLiveResults.value
+  if (!results || results.length === 0) return []
+
+  // Create a copy to avoid mutating the original array
+  return [...results].sort((a, b) => {
+    // First priority: Sort by match count (descending) - highest matches first
+    const aMatches = a.status === 'success' && a.results ? a.results.length : 0
+    const bMatches = b.status === 'success' && b.results ? b.results.length : 0
+    if (aMatches !== bMatches) {
+      return bMatches - aMatches
+    }
+
+    // Second priority: Non-success statuses come after success statuses
+    if (a.status !== b.status) {
+      if (a.status === 'success' && b.status !== 'success') return -1
+      if (a.status !== 'success' && b.status === 'success') return 1
+    }
+
+    // Third priority: Alphabetical by org name
+    const aName = getOrgNameOnly(a.oid)
+    const bName = getOrgNameOnly(b.oid)
+    return aName.localeCompare(bName)
+  })
 })
 
 // Computed property to check if backtest can run
@@ -4536,10 +4570,9 @@ async function runBacktest() {
           }
 
           // Store cursor information for pagination
-          const orgIndex = backtestSelectedOids.value.indexOf(oid)
-          if (orgIndex >= 0 && backtestConfig.useChunkedResults) {
-            orgCursors.value[orgIndex] = response.cursor || ''
-            orgHasMore.value[orgIndex] = response.has_more || false
+          if (backtestConfig.useChunkedResults) {
+            orgCursors.value[oid] = response.cursor || ''
+            orgHasMore.value[oid] = response.has_more || false
           }
 
           // Return successful result
@@ -4692,10 +4725,9 @@ async function runBacktest() {
           )
 
           // Store cursor information for pagination
-          const orgIndex = orgResults.length // Current index before pushing
           if (backtestConfig.useChunkedResults) {
-            orgCursors.value[orgIndex] = response.cursor || ''
-            orgHasMore.value[orgIndex] = response.has_more || false
+            orgCursors.value[oid] = response.cursor || ''
+            orgHasMore.value[oid] = response.has_more || false
           }
 
           // Add successful result
@@ -4878,8 +4910,8 @@ async function runBacktest() {
   }
 }
 
-function toggleMatchDetails(orgIndex: number, matchIndex: number) {
-  const key = `${orgIndex}-${matchIndex}`
+function toggleMatchDetails(oid: string, matchIndex: number) {
+  const key = `${oid}-${matchIndex}`
   if (expandedMatches.value.has(key)) {
     expandedMatches.value.delete(key)
     delete activeMatchTab.value[key]
@@ -4893,36 +4925,36 @@ function setMatchTab(key: string, tab: string) {
   activeMatchTab.value[key] = tab
 }
 
-function toggleOrgResult(orgIndex: number) {
-  if (expandedOrgResults.value.has(orgIndex)) {
-    expandedOrgResults.value.delete(orgIndex)
+function toggleOrgResult(oid: string) {
+  if (expandedOrgResults.value.has(oid)) {
+    expandedOrgResults.value.delete(oid)
   } else {
-    expandedOrgResults.value.add(orgIndex)
+    expandedOrgResults.value.add(oid)
     // Initialize displayed results for this org if not set
-    if (!(orgIndex in orgDisplayedResults.value)) {
-      orgDisplayedResults.value[orgIndex] = 10
+    if (!(oid in orgDisplayedResults.value)) {
+      orgDisplayedResults.value[oid] = 10
     }
   }
 }
 
-function getDisplayedResultsForOrg(orgIndex: number): number {
-  return orgDisplayedResults.value[orgIndex] || 10
+function getDisplayedResultsForOrg(oid: string): number {
+  return orgDisplayedResults.value[oid] || 10
 }
 
-async function loadMoreResultsForOrg(orgIndex: number) {
+async function loadMoreResultsForOrg(oid: string) {
   // If not using chunked results, fall back to simple display increment
   if (!backtestConfig.useChunkedResults || !backtestResults.value) {
-    orgDisplayedResults.value[orgIndex] = (orgDisplayedResults.value[orgIndex] || 10) + 10
+    orgDisplayedResults.value[oid] = (orgDisplayedResults.value[oid] || 10) + 10
     return
   }
 
-  const orgResult = backtestResults.value.orgResults[orgIndex]
-  if (!orgResult || orgResult.status !== 'success' || !orgCursors.value[orgIndex]) {
+  const orgResult = backtestResults.value.orgResults.find((org) => org.oid === oid)
+  if (!orgResult || orgResult.status !== 'success' || !orgCursors.value[oid]) {
     return
   }
 
   // Set loading state
-  orgLoadingMore.value[orgIndex] = true
+  orgLoadingMore.value[oid] = true
 
   try {
     const storage = useStorage()
@@ -4954,7 +4986,7 @@ async function loadMoreResultsForOrg(orgIndex: number) {
       10 * 60 * 1000, // 10 minute timeout
       undefined, // Let backend auto-detect stateful requirements
       false, // isDryRun
-      orgCursors.value[orgIndex], // Use stored cursor
+      orgCursors.value[oid], // Use stored cursor
       backtestConfig.sid, // Optional sensor ID
       false, // isValidation
       backtestConfig.stream, // Data stream
@@ -4967,22 +4999,22 @@ async function loadMoreResultsForOrg(orgIndex: number) {
 
     // Update cursor for next fetch
     if (response.cursor) {
-      orgCursors.value[orgIndex] = response.cursor
-      orgHasMore.value[orgIndex] = response.has_more || false
+      orgCursors.value[oid] = response.cursor
+      orgHasMore.value[oid] = response.has_more || false
     } else {
       // No more results available
-      orgHasMore.value[orgIndex] = false
+      orgHasMore.value[oid] = false
     }
 
     // Update display count to show new results
-    orgDisplayedResults.value[orgIndex] = orgResult.results?.length || 0
+    orgDisplayedResults.value[oid] = orgResult.results?.length || 0
   } catch (error) {
     logger.error('Failed to fetch more results:', error)
     // Fall back to simple display increment on error
-    orgDisplayedResults.value[orgIndex] = (orgDisplayedResults.value[orgIndex] || 10) + 10
+    orgDisplayedResults.value[oid] = (orgDisplayedResults.value[oid] || 10) + 10
   } finally {
     // Clear loading state
-    orgLoadingMore.value[orgIndex] = false
+    orgLoadingMore.value[oid] = false
   }
 }
 
@@ -5731,7 +5763,7 @@ async function importFromIaC() {
       )
 
       // Auto-open the first successfully imported rule if checkbox is checked
-      if (autoOpenTopRule.value) {
+      if (localStorage.getItem('detectionforge_auto_open_first_imported_rule') === 'true') {
         const firstSuccessfulImport = importedRules.find((rule) => rule.success)
         if (firstSuccessfulImport) {
           // Find the rule ID by name from the saved rules
@@ -5770,10 +5802,5 @@ async function importFromIaC() {
 // Watch for prefix changes to reset selection
 watch(selectedPrefix, () => {
   onPrefixChange()
-})
-
-// Watch for auto-open checkbox changes to persist state
-watch(autoOpenTopRule, (newValue) => {
-  localStorage.setItem('detectionforge_auto_open_top_rule', newValue.toString())
 })
 </script>
