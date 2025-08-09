@@ -1450,6 +1450,58 @@ body.config {
   transition: color var(--transition-speed) ease;
 }
 
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.label-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  transition: all var(--transition-speed) ease;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+}
+
+.copy-icon-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.copy-icon-button:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  transform: scale(1.1);
+}
+
+.copy-icon-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.copy-icon-button:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 1px;
+}
+
 .code-editor {
   width: 100%;
   height: 400px;
