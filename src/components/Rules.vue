@@ -70,7 +70,30 @@
           <div class="rule-editor">
             <div class="editor-panel">
               <div class="editor-header">
-                <label for="detectEditor">Detect Logic</label>
+                <div class="label-with-copy">
+                  <label for="detectEditor">Detect Logic</label>
+                  <button
+                    class="copy-icon-button"
+                    title="Copy detect logic to clipboard"
+                    :disabled="!currentRule.detectLogic.trim()"
+                    @click="copyDetectLogicToClipboard"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <textarea
                 id="detectEditor"
@@ -81,7 +104,30 @@
             </div>
             <div class="editor-panel">
               <div class="editor-header">
-                <label for="respondEditor">Respond Logic</label>
+                <div class="label-with-copy">
+                  <label for="respondEditor">Respond Logic</label>
+                  <button
+                    class="copy-icon-button"
+                    title="Copy respond logic to clipboard"
+                    :disabled="!currentRule.respondLogic.trim()"
+                    @click="copyRespondLogicToClipboard"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                    </svg>
+                  </button>
+                </div>
                 <div v-if="hasUnsavedChanges" class="draft-indicator-inline">
                   <span class="draft-badge">📝 Unsaved Changes</span>
                 </div>
@@ -5554,6 +5600,59 @@ async function copyFieldPathToClipboard(fieldPath: string) {
   } catch (error) {
     appStore.addNotification('error', 'Failed to copy field path to clipboard')
     logger.error('Clipboard error:', error)
+  }
+}
+
+// Clipboard functions for rule logic
+async function copyDetectLogicToClipboard() {
+  if (!currentRule.detectLogic.trim()) {
+    appStore.addNotification('warning', 'No detect logic to copy')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentRule.detectLogic)
+    appStore.addNotification('success', 'Detect logic copied to clipboard')
+  } catch (error) {
+    // Fallback for browsers that don't support clipboard API
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = currentRule.detectLogic
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      appStore.addNotification('success', 'Detect logic copied to clipboard')
+    } catch (_fallbackError) {
+      appStore.addNotification('error', 'Failed to copy detect logic to clipboard')
+      logger.error('Clipboard error:', error)
+    }
+  }
+}
+
+async function copyRespondLogicToClipboard() {
+  if (!currentRule.respondLogic.trim()) {
+    appStore.addNotification('warning', 'No respond logic to copy')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentRule.respondLogic)
+    appStore.addNotification('success', 'Respond logic copied to clipboard')
+  } catch (error) {
+    // Fallback for browsers that don't support clipboard API
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = currentRule.respondLogic
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      appStore.addNotification('success', 'Respond logic copied to clipboard')
+    } catch (_fallbackError) {
+      appStore.addNotification('error', 'Failed to copy respond logic to clipboard')
+      logger.error('Clipboard error:', error)
+    }
   }
 }
 
