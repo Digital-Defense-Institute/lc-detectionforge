@@ -37,6 +37,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    date: '2025-08-14',
+    description:
+      'Comprehensive billing features for backtest/replay with cost estimation and enhanced warnings',
+    changes: {
+      added: [
+        'Cost Estimation - New "Estimate Cost" button runs dry runs to calculate estimated costs before backtesting with prominent warnings about 2-5x underestimation',
+        'Persistent Billing Warnings - Warnings now show every time (not just once) when backtests exceed the 30-day free period',
+        'Enhanced Billing Details - Display specific timeframe beyond free period with billed vs free period breakdown',
+        'Cost Tracking Display - Real-time display of n_billed and n_free events with actual cost calculations at $0.01 per 200,000 events',
+        'Persistent Cost Estimates - Valid estimates display beneath Run Backtest button and automatically invalidate when parameters change',
+        'Estimate vs Actual Comparison - Track and display cost estimates alongside actual costs in results and markdown exports',
+        '"Estimate Cost First" Option - New button in billing warning modal to run cost estimation before proceeding',
+      ],
+      changed: [
+        'Modified "Last 30 Days" preset to "Last 29 Days" to provide safety buffer against accidental billing',
+        'Enhanced markdown reports to prominently display Cost Estimate and Actual Cost at the top of the summary',
+      ],
+    },
+  },
+  {
     version: '1.5.0',
     date: '2025-07-28',
     description:
