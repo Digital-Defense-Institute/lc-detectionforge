@@ -660,9 +660,8 @@
             <div v-if="isEstimateValid && costEstimateResults" class="estimated-cost-display">
               <div class="estimate-label">💰 Estimated Cost Range:</div>
               <div class="estimate-value">
-                ${{ formatCost(costEstimateResults.totalCost) }} - ${{
-                  formatCost(costEstimateResults.totalCost * 5)
-                }}
+                {{ formatCost(costEstimateResults.totalCost) }} -
+                {{ formatCost(costEstimateResults.totalCost * 5) }}
               </div>
               <div class="estimate-details">
                 Based on {{ costEstimateResults.totalBilled.toLocaleString() }} billed events
@@ -988,7 +987,7 @@
                     class="stat-sublabel"
                     style="font-size: 0.8em; color: #666; margin-top: 4px"
                   >
-                    Est: ${{ formatCost(estimateUsedForBacktest.totalCost) }}-${{
+                    Est: {{ formatCost(estimateUsedForBacktest.totalCost) }}-{{
                       formatCost(estimateUsedForBacktest.totalCost * 5)
                     }}
                   </div>
@@ -5829,9 +5828,9 @@ function exportBacktestSummaryAsMarkdown() {
 
 **Rule:** ${currentRule.name}${
     estimateUsedForBacktest.value
-      ? `\n**Cost Estimate:** Performed (Est: $${formatCost(
+      ? `\n**Cost Estimate:** Performed (Est: ${formatCost(
           estimateUsedForBacktest.value.totalCost,
-        )}-$${formatCost(estimateUsedForBacktest.value.totalCost * 5)})`
+        )}-${formatCost(estimateUsedForBacktest.value.totalCost * 5)})`
       : '\n**Cost Estimate:** Not performed'
   }
 **Actual Cost:** ${formatCost(calculateCost(results.totalStats.n_billed))}
