@@ -489,8 +489,8 @@
                   <button class="btn btn-small btn-outline" @click="setQuickRange('7days')">
                     Last 7 Days
                   </button>
-                  <button class="btn btn-small btn-outline" @click="setQuickRange('30days')">
-                    Last 30 Days
+                  <button class="btn btn-small btn-outline" @click="setQuickRange('29days')">
+                    Last 29 Days
                   </button>
                 </div>
               </div>
@@ -623,7 +623,7 @@
             <div class="backtest-actions">
               <button
                 class="btn btn-primary btn-large"
-                :disabled="!canRunBacktest || isRunningBacktest"
+                :disabled="!canRunBacktest || isRunningBacktest || isEstimatingCost"
                 @click="runBacktest"
               >
                 {{
@@ -631,6 +631,13 @@
                     ? `🔄 Running Backtest for ${backtestSelectedOids.length} Org${backtestSelectedOids.length !== 1 ? 's' : ''}...`
                     : `🔍 Run Backtest${backtestSelectedOids.length > 1 ? ` (${backtestSelectedOids.length} Orgs)` : ''}`
                 }}
+              </button>
+              <button
+                class="btn btn-info"
+                :disabled="!canRunBacktest || isRunningBacktest || isEstimatingCost"
+                @click="estimateCost"
+              >
+                {{ isEstimatingCost ? `💰 Estimating Cost...` : `💰 Estimate Cost` }}
               </button>
               <button
                 v-if="isRunningBacktest"
@@ -647,6 +654,22 @@
               >
                 Clear Results
               </button>
+            </div>
+
+            <!-- Display estimated cost if available and valid -->
+            <div v-if="isEstimateValid && costEstimateResults" class="estimated-cost-display">
+              <div class="estimate-label">💰 Estimated Cost Range:</div>
+              <div class="estimate-value">
+                ${{ formatCost(costEstimateResults.totalCost) }} - ${{
+                  formatCost(costEstimateResults.totalCost * 5)
+                }}
+              </div>
+              <div class="estimate-details">
+                Based on {{ costEstimateResults.totalBilled.toLocaleString() }} billed events
+                <span v-if="costEstimateResults.totalFree > 0">
+                  (+ {{ costEstimateResults.totalFree.toLocaleString() }} free events)
+                </span>
+              </div>
             </div>
 
             <!-- Backtest Progress Indicator -->
@@ -751,6 +774,36 @@
                         <span v-else>Failed</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cost Estimation Progress -->
+            <div v-if="isEstimatingCost" class="backtest-progress">
+              <div class="progress-header">
+                <h4>💰 Estimating Cost</h4>
+                <div class="progress-stats">
+                  Organization {{ costEstimateProgress.current }} of
+                  {{ costEstimateProgress.total }}
+                </div>
+              </div>
+              <div class="progress-bar">
+                <div
+                  class="progress-fill"
+                  :style="{
+                    width: `${(costEstimateProgress.current / costEstimateProgress.total) * 100}%`,
+                  }"
+                ></div>
+              </div>
+              <div class="progress-current">
+                <div class="serial-progress">
+                  <span class="current-org-icon">🏢</span>
+                  <div class="current-org-info">
+                    <div class="current-org-name">
+                      {{ costEstimateProgress.currentOrgName }}
+                    </div>
+                    <div class="current-org-status">Running dry run to estimate cost...</div>
                   </div>
                 </div>
               </div>
@@ -907,6 +960,47 @@
                     Avg Matches per Org
                   </div>
                 </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.n_billed.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Billed Events
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.n_free.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Free Events
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ formatCost(calculateCost(backtestResults.totalStats.n_billed)) }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Actual Cost
+                  </div>
+                  <div
+                    v-if="estimateUsedForBacktest"
+                    class="stat-sublabel"
+                    style="font-size: 0.8em; color: #666; margin-top: 4px"
+                  >
+                    Est: ${{ formatCost(estimateUsedForBacktest.totalCost) }}-${{
+                      formatCost(estimateUsedForBacktest.totalCost * 5)
+                    }}
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ formatCost(calculateCost(backtestResults.totalStats.n_free)) }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Saved (30-day free)
+                  </div>
+                </div>
               </div>
 
               <!-- Timeframe Information -->
@@ -1043,6 +1137,24 @@
                             >{{ orgResult.stats.wall_time.toFixed(2) }}s</span
                           >
                           <span class="stat-label">Execution Time</span>
+                        </div>
+                        <div v-if="orgResult.stats.n_billed !== undefined" class="org-stat">
+                          <span class="stat-value">{{
+                            orgResult.stats.n_billed.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Billed</span>
+                        </div>
+                        <div v-if="orgResult.stats.n_free !== undefined" class="org-stat">
+                          <span class="stat-value">{{
+                            orgResult.stats.n_free.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Free</span>
+                        </div>
+                        <div v-if="orgResult.stats.n_billed !== undefined" class="org-stat">
+                          <span class="stat-value">{{
+                            formatCost(calculateCost(orgResult.stats.n_billed))
+                          }}</span>
+                          <span class="stat-label">Cost</span>
                         </div>
                       </div>
 
@@ -1872,6 +1984,284 @@ hives:
         </p>
       </div>
     </div>
+
+    <!-- Billing Warning Modal -->
+    <div
+      v-if="showBillingWarning"
+      class="reference-modal-overlay"
+      @click="showBillingWarning = false"
+    >
+      <div class="reference-modal" @click.stop>
+        <div class="reference-modal-header">
+          <h3>⚠️ Billing Notice</h3>
+          <button class="close-btn" @click="showBillingWarning = false">×</button>
+        </div>
+        <div class="reference-modal-content">
+          <div style="padding: 20px">
+            <p style="margin-bottom: 15px; font-size: 1.1em">
+              <strong
+                >Your backtest extends {{ billingPeriodInfo?.daysBeyond30 }} days beyond the 30-day
+                free period.</strong
+              >
+            </p>
+
+            <div
+              v-if="billingPeriodInfo"
+              style="background: #e3f2fd; padding: 12px; border-radius: 6px; margin-bottom: 15px"
+            >
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
+                <span>💵 <strong>Billed Period:</strong></span>
+                <span style="color: #ff6b35; font-weight: bold"
+                  >{{ billingPeriodInfo.billedDays }} days (older than 30 days)</span
+                >
+              </div>
+              <div style="display: flex; justify-content: space-between">
+                <span>✅ <strong>Free Period:</strong></span>
+                <span style="color: #4caf50; font-weight: bold"
+                  >{{ billingPeriodInfo.freeDays }} days (within last 30 days)</span
+                >
+              </div>
+            </div>
+
+            <p style="margin-bottom: 15px">Events older than 30 days will be billed at:</p>
+
+            <div
+              style="
+                background: #f5f5f5;
+                border-left: 4px solid #ff9800;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+              "
+            >
+              <strong style="font-size: 1.2em; color: #ff6b35"
+                >$0.01 per 200,000 events evaluated</strong
+              >
+            </div>
+
+            <div
+              style="
+                background: #fff3cd;
+                border: 1px solid #ffc107;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+              "
+            >
+              <div style="display: flex; gap: 10px; align-items: flex-start">
+                <span style="font-size: 1.2em">💡</span>
+                <div>
+                  <strong>Recommendation:</strong> Use the <strong>"Estimate Cost"</strong> button
+                  first to get an approximate cost range before running the actual backtest. Note
+                  that estimates are typically 2-5x lower than actual costs.
+                </div>
+              </div>
+            </div>
+
+            <p style="margin-bottom: 15px">
+              The billing applies to the number of events that are evaluated by your detection rule,
+              not just the events that match.
+            </p>
+
+            <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; margin: 15px 0">
+              <strong>Backtest Range:</strong><br />
+              <div style="margin-top: 8px">
+                <strong>From:</strong>
+                {{ new Date(backtestConfig.startDateTime + 'Z').toLocaleString() }} UTC<br />
+                <strong>To:</strong>
+                {{
+                  backtestConfig.endDateTime
+                    ? new Date(backtestConfig.endDateTime + 'Z').toLocaleString()
+                    : 'Now'
+                }}
+                UTC<br />
+                <strong>Total Duration:</strong> {{ billingPeriodInfo?.totalDays }} days
+              </div>
+            </div>
+
+            <p style="margin-bottom: 20px">Do you want to proceed with this backtest?</p>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end">
+              <button class="btn btn-secondary" @click="showBillingWarning = false">Cancel</button>
+              <button class="btn btn-info" @click="runCostEstimateFromWarning">
+                💰 Estimate Cost First
+              </button>
+              <button class="btn btn-primary" @click="confirmBillingAndRunBacktest">
+                Proceed with Backtest
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cost Estimate Modal -->
+    <div
+      v-if="showCostEstimateModal && costEstimateResults"
+      class="reference-modal-overlay"
+      @click="showCostEstimateModal = false"
+    >
+      <div class="reference-modal" style="max-width: 700px" @click.stop>
+        <div class="reference-modal-header">
+          <h3>💰 Cost Estimate (Approximate)</h3>
+          <button class="close-btn" @click="showCostEstimateModal = false">×</button>
+        </div>
+        <div class="reference-modal-content">
+          <div style="padding: 20px">
+            <!-- Warning about dry run limitations -->
+            <div
+              style="
+                background: #fff3cd;
+                color: #856404;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border: 1px solid #ffeaa7;
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+              "
+            >
+              <span style="font-size: 1.5em">⚠️</span>
+              <div>
+                <strong>Important: These are rough estimates only!</strong><br />
+                Dry runs analyze metadata without full event scanning. Actual costs typically range
+                from
+                <strong>2-5x higher</strong> than estimates. In our testing, dry runs underestimated
+                by ~77%. Use these numbers as a minimum baseline only.
+              </div>
+            </div>
+
+            <!-- Total Summary -->
+            <div
+              style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+              "
+            >
+              <h3 style="margin: 0 0 15px 0; color: white">Estimated Cost Range</h3>
+              <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 10px">
+                {{ formatCost(costEstimateResults.totalCost) }} -
+                {{ formatCost(costEstimateResults.totalCost * 5) }}
+              </div>
+              <div style="display: flex; gap: 30px; font-size: 0.95em; opacity: 0.95">
+                <div>
+                  <strong>Billed Events:</strong>
+                  {{ costEstimateResults.totalBilled.toLocaleString() }}
+                </div>
+                <div>
+                  <strong>Free Events:</strong> {{ costEstimateResults.totalFree.toLocaleString() }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Billing Info -->
+            <div
+              style="
+                background: #f0f4ff;
+                border-left: 4px solid #4a90e2;
+                padding: 12px;
+                margin-bottom: 20px;
+                border-radius: 4px;
+              "
+            >
+              <strong>Billing Rate:</strong> $0.01 per 200,000 events evaluated<br />
+              <strong>Free Period:</strong> Events within the last 30 days are always free
+            </div>
+
+            <!-- Per-Organization Breakdown -->
+            <h4 style="margin-bottom: 15px">Organization Breakdown</h4>
+            <div style="max-height: 300px; overflow-y: auto">
+              <table style="width: 100%; border-collapse: collapse">
+                <thead>
+                  <tr style="background: #f5f5f5; position: sticky; top: 0">
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd">
+                      Organization
+                    </th>
+                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
+                      Billed Events
+                    </th>
+                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
+                      Free Events
+                    </th>
+                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
+                      Estimated Cost
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="org in costEstimateResults.orgEstimates"
+                    :key="org.oid"
+                    :style="org.error ? 'background: #fff3cd' : ''"
+                  >
+                    <td style="padding: 10px; border-bottom: 1px solid #eee">
+                      <div>{{ org.orgName }}</div>
+                      <div
+                        v-if="org.error"
+                        style="font-size: 0.85em; color: #dc3545; margin-top: 4px"
+                      >
+                        ⚠️ {{ org.error }}
+                      </div>
+                    </td>
+                    <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee">
+                      {{ org.error ? '-' : org.billed.toLocaleString() }}
+                    </td>
+                    <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee">
+                      {{ org.error ? '-' : org.free.toLocaleString() }}
+                    </td>
+                    <td
+                      style="
+                        text-align: right;
+                        padding: 10px;
+                        border-bottom: 1px solid #eee;
+                        font-weight: 600;
+                      "
+                    >
+                      <span :style="org.cost > 0 ? 'color: #ff6b35' : 'color: #4caf50'">
+                        {{
+                          org.error ? '-' : `${formatCost(org.cost)} - ${formatCost(org.cost * 5)}`
+                        }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Note about estimates -->
+            <div
+              style="
+                margin-top: 20px;
+                padding: 12px;
+                background: #fff9e6;
+                border: 1px solid #ffd700;
+                border-radius: 4px;
+                font-size: 0.9em;
+              "
+            >
+              <strong>Note:</strong> These estimates are based on metadata analysis only (dry run).
+              Actual costs will likely be significantly higher as full event scanning typically
+              processes many more events than metadata analysis suggests. Budget for 2-5x the
+              estimated amount.
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px">
+              <button class="btn btn-secondary" @click="showCostEstimateModal = false">
+                Close
+              </button>
+              <button class="btn btn-primary" @click="proceedWithBacktestFromEstimate">
+                Proceed with Backtest
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </template>
 
@@ -2269,6 +2659,108 @@ const backtestConfig = reactive({
   stream: 'event', // Data stream to replay (event, audit, detect)
 })
 
+// Track billing warning state (shown every time for >30 day backtests)
+const showBillingWarning = ref(false)
+
+// Cost estimation state
+const isEstimatingCost = ref(false)
+const showCostEstimateModal = ref(false)
+const costEstimateResults = ref<{
+  totalCost: number
+  totalBilled: number
+  totalFree: number
+  orgEstimates: Array<{
+    oid: string
+    orgName: string
+    billed: number
+    free: number
+    cost: number
+    error?: string
+  }>
+  // Track the parameters used for this estimate
+  estimateParams?: {
+    startDateTime: string
+    endDateTime: string | null
+    oids: string[]
+  }
+} | null>(null)
+const costEstimateProgress = ref({
+  current: 0,
+  total: 0,
+  currentOrgName: '',
+})
+
+// Track if estimate was used for the current backtest
+const estimateUsedForBacktest = ref<typeof costEstimateResults.value | null>(null)
+
+// Check if current estimate is still valid for current parameters
+const isEstimateValid = computed(() => {
+  if (!costEstimateResults.value?.estimateParams) return false
+
+  const params = costEstimateResults.value.estimateParams
+  return (
+    params.startDateTime === backtestConfig.startDateTime &&
+    params.endDateTime === (backtestConfig.endDateTime || null) &&
+    JSON.stringify([...params.oids].sort()) ===
+      JSON.stringify([...backtestSelectedOids.value].sort())
+  )
+})
+
+// Check if start date is beyond 30-day free period
+const isBeyond30DayFreePeriod = computed(() => {
+  if (!backtestConfig.startDateTime) return false
+
+  // Parse the start date as UTC
+  const startDate = new Date(backtestConfig.startDateTime + 'Z')
+  const now = new Date()
+
+  // Calculate 30 days and 5 minutes ago (30 days + 5 minute buffer for processing time)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000)
+
+  // If start date is before 30 days and 5 minutes ago, it's beyond free period
+  return startDate < thirtyDaysAgo
+})
+
+// Calculate how far beyond the 30-day free period the backtest extends
+const billingPeriodInfo = computed(() => {
+  if (!backtestConfig.startDateTime) return null
+
+  const startDate = new Date(backtestConfig.startDateTime + 'Z')
+  const endDate = backtestConfig.endDateTime
+    ? new Date(backtestConfig.endDateTime + 'Z')
+    : new Date()
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  // Calculate days beyond 30-day period
+  const daysBeyond30 = Math.max(
+    0,
+    Math.ceil((thirtyDaysAgo.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)),
+  )
+
+  // Calculate what portion will be billed
+  const billedStart = startDate
+  const billedEnd = new Date(Math.min(thirtyDaysAgo.getTime(), endDate.getTime()))
+  const billedDays = Math.max(
+    0,
+    Math.ceil((billedEnd.getTime() - billedStart.getTime()) / (1000 * 60 * 60 * 24)),
+  )
+
+  // Calculate free portion (if any)
+  const freeStart = new Date(Math.max(thirtyDaysAgo.getTime(), startDate.getTime()))
+  const freeDays = Math.max(
+    0,
+    Math.ceil((endDate.getTime() - freeStart.getTime()) / (1000 * 60 * 60 * 24)),
+  )
+
+  return {
+    daysBeyond30,
+    billedDays,
+    freeDays,
+    totalDays: billedDays + freeDays,
+  }
+})
+
 // Computed property to get sorted org results for display
 const sortedOrgResults = computed(() => {
   const results = backtestResults.value
@@ -2326,6 +2818,8 @@ watch(
   { immediate: true },
 )
 
+// No longer needed - warning shows every time for >30 day backtests
+
 // Functions to manage backtest organization selection
 function toggleBacktestOrg(oid: string) {
   const index = backtestSelectedOids.value.indexOf(oid)
@@ -2342,6 +2836,22 @@ function selectAllBacktestOrgs() {
 
 function deselectAllBacktestOrgs() {
   backtestSelectedOids.value = []
+}
+
+// Calculate cost based on LimaCharlie billing model
+// $0.01 per 200,000 events evaluated
+function calculateCost(eventCount: number): number {
+  const COST_PER_BLOCK = 0.01 // $0.01
+  const EVENTS_PER_BLOCK = 200000 // 200,000 events per billing block
+  return (eventCount / EVENTS_PER_BLOCK) * COST_PER_BLOCK
+}
+
+// Format cost for display
+function formatCost(cost: number): string {
+  if (cost < 0.01) {
+    return '<$0.01'
+  }
+  return `$${cost.toFixed(2)}`
 }
 
 interface UnitTest {
@@ -2387,6 +2897,8 @@ interface BacktestResults {
     n_eval: number
     totalMatches: number
     wall_time: number
+    n_billed: number
+    n_free: number
   }
   timeframe: {
     startTime: string
@@ -2419,6 +2931,8 @@ interface BacktestResponse {
     wall_time: number
     n_scan?: number
     n_bytes_scan?: number
+    n_billed?: number
+    n_free?: number
   }
   trace?: string[]
   traces?: (string[] | string)[]
@@ -3531,6 +4045,16 @@ function formatTestResponse(response: BacktestResponse): string {
         html += `<div class="stat-item"><strong>Scans:</strong> ${response.stats.n_scan}</div>`
         html += `<div class="stat-item"><strong>Bytes Scanned:</strong> ${response.stats.n_bytes_scan}</div>`
       }
+      if (response.stats.n_billed !== undefined) {
+        html += `<div class="stat-item"><strong>Billed Events:</strong> ${response.stats.n_billed}</div>`
+      }
+      if (response.stats.n_free !== undefined) {
+        html += `<div class="stat-item"><strong>Free Events:</strong> ${response.stats.n_free}</div>`
+      }
+      if (response.stats.n_billed !== undefined) {
+        const cost = calculateCost(response.stats.n_billed)
+        html += `<div class="stat-item"><strong>Cost:</strong> ${formatCost(cost)}</div>`
+      }
       html += '</div><br>'
     }
 
@@ -4414,8 +4938,11 @@ function setQuickRange(range: string) {
     case '7days':
       startDateTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
       break
-    case '30days':
-      startDateTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+    case '29days':
+      startDateTime = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+      break
+    case '30days': // Keep for backwards compatibility if needed
+      startDateTime = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
       break
     default:
       startDateTime = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
@@ -4434,9 +4961,39 @@ async function runBacktest() {
     return
   }
 
+  // Always show billing warning for >30 day backtests
+  if (isBeyond30DayFreePeriod.value) {
+    showBillingWarning.value = true
+    return
+  }
+
+  // Proceed with backtest
+  await executeBacktest()
+}
+
+async function confirmBillingAndRunBacktest() {
+  // Close warning and proceed with backtest
+  showBillingWarning.value = false
+  await executeBacktest()
+}
+
+async function runCostEstimateFromWarning() {
+  // Close billing warning and run cost estimate
+  showBillingWarning.value = false
+  await estimateCost()
+}
+
+async function executeBacktest() {
   try {
     isRunningBacktest.value = true
     isCancellingBacktest.value = false
+
+    // Track if we have a valid estimate for this backtest
+    if (isEstimateValid.value && costEstimateResults.value) {
+      estimateUsedForBacktest.value = { ...costEstimateResults.value }
+    } else {
+      estimateUsedForBacktest.value = null
+    }
 
     // Create AbortController for this backtest session
     backtestAbortController = new AbortController()
@@ -4488,6 +5045,8 @@ async function runBacktest() {
       n_eval: 0,
       totalMatches: 0,
       wall_time: 0,
+      n_billed: 0,
+      n_free: 0,
     }
 
     // Initialize progress tracking
@@ -4800,6 +5359,8 @@ async function runBacktest() {
         totalStats.n_eval += result.stats.n_eval || 0
         totalStats.totalMatches += result.results?.length || 0
         totalStats.wall_time += result.stats.wall_time || 0
+        totalStats.n_billed += result.stats.n_billed || 0
+        totalStats.n_free += result.stats.n_free || 0
       }
     })
 
@@ -4908,6 +5469,151 @@ async function runBacktest() {
       orgStatuses: [],
     }
   }
+}
+
+async function estimateCost() {
+  if (!canRunBacktest.value) {
+    appStore.addNotification(
+      'error',
+      'Please configure backtest parameters and ensure detection logic is entered',
+    )
+    return
+  }
+
+  try {
+    isEstimatingCost.value = true
+    costEstimateResults.value = null
+
+    // Initialize progress
+    costEstimateProgress.value = {
+      current: 0,
+      total: backtestSelectedOids.value.length,
+      currentOrgName: '',
+    }
+
+    // Convert datetime strings to Unix timestamps
+    const startTimestamp = Math.floor(new Date(backtestConfig.startDateTime + 'Z').getTime() / 1000)
+    const endTimestamp = Math.floor(new Date(backtestConfig.endDateTime + 'Z').getTime() / 1000)
+
+    const orgEstimates: Array<{
+      oid: string
+      orgName: string
+      billed: number
+      free: number
+      cost: number
+      error?: string
+    }> = []
+
+    let totalBilled = 0
+    let totalFree = 0
+
+    // Run dry run for each selected organization
+    for (const oid of backtestSelectedOids.value) {
+      const orgName = auth.getOrgName(oid)
+      costEstimateProgress.value.currentOrgName = orgName
+      costEstimateProgress.value.current++
+
+      try {
+        const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+        if (!orgReplayUrl) {
+          throw new Error(`Replay URL not available for organization ${oid}`)
+        }
+
+        // Run dry run with is_dry_run: true
+        const response = await api.backtestDetectionRule(
+          orgReplayUrl,
+          oid,
+          currentRule.detectLogic,
+          currentRule.respondLogic,
+          startTimestamp,
+          endTimestamp,
+          0, // limit_event
+          0, // limit_eval
+          undefined, // no abort controller
+          10 * 60 * 1000, // 10 minute timeout for dry run
+          undefined, // Let backend auto-detect stateful requirements
+          true, // isDryRun = true for cost estimation
+          '', // no cursor
+          backtestConfig.sid, // Optional sensor ID
+          false, // isValidation
+          backtestConfig.stream, // Data stream
+        )
+
+        const billed = response.stats?.n_billed || 0
+        const free = response.stats?.n_free || 0
+        const cost = calculateCost(billed)
+
+        orgEstimates.push({
+          oid,
+          orgName,
+          billed,
+          free,
+          cost,
+        })
+
+        totalBilled += billed
+        totalFree += free
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        orgEstimates.push({
+          oid,
+          orgName,
+          billed: 0,
+          free: 0,
+          cost: 0,
+          error: errorMessage,
+        })
+      }
+    }
+
+    // Calculate total cost
+    const totalCost = calculateCost(totalBilled)
+
+    // Set results with parameters used
+    costEstimateResults.value = {
+      totalCost,
+      totalBilled,
+      totalFree,
+      orgEstimates,
+      estimateParams: {
+        startDateTime: backtestConfig.startDateTime,
+        endDateTime: backtestConfig.endDateTime || null,
+        oids: [...backtestSelectedOids.value],
+      },
+    }
+
+    // Show modal with results
+    showCostEstimateModal.value = true
+
+    // Log summary
+    appStore.addNotification(
+      'info',
+      `Cost estimate complete: ${formatCost(totalCost)} for ${totalBilled.toLocaleString()} billed events`,
+    )
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    appStore.addNotification('error', `Cost estimation failed: ${errorMessage}`)
+  } finally {
+    isEstimatingCost.value = false
+    costEstimateProgress.value = {
+      current: 0,
+      total: 0,
+      currentOrgName: '',
+    }
+  }
+}
+
+function proceedWithBacktestFromEstimate() {
+  showCostEstimateModal.value = false
+
+  // Check if billing warning is needed
+  if (isBeyond30DayFreePeriod.value) {
+    showBillingWarning.value = true
+    return
+  }
+
+  // Run the backtest
+  runBacktest()
 }
 
 function toggleMatchDetails(oid: string, matchIndex: number) {
@@ -5033,6 +5739,18 @@ function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
       completed_at: backtestResults.value?.completedAt,
       timeframe: backtestResults.value?.timeframe,
       stats: orgResult.stats,
+      billing: {
+        n_billed: orgResult.stats?.n_billed || 0,
+        n_free: orgResult.stats?.n_free || 0,
+        actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
+        saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
+        cost_formatted: orgResult.stats?.n_billed
+          ? formatCost(calculateCost(orgResult.stats.n_billed))
+          : '$0.00',
+        saved_formatted: orgResult.stats?.n_free
+          ? formatCost(calculateCost(orgResult.stats.n_free))
+          : '$0.00',
+      },
     },
     matches: orgResult.results,
   }
@@ -5060,6 +5778,16 @@ function _exportBacktestResults() {
       execution_stats: backtestResults.value.executionStats,
       completion_stats: backtestResults.value.completionStats,
       organizations: backtestResults.value.orgResults.length,
+      billing_summary: {
+        total_billed: backtestResults.value.totalStats.n_billed,
+        total_free: backtestResults.value.totalStats.n_free,
+        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
+        cost_per_block: 0.01,
+        events_per_block: 200000,
+      },
     },
     org_results: backtestResults.value.orgResults,
   }
@@ -5099,7 +5827,14 @@ function exportBacktestSummaryAsMarkdown() {
 
   const markdown = `# Backtest Summary
 
-**Rule:** ${currentRule.name}
+**Rule:** ${currentRule.name}${
+    estimateUsedForBacktest.value
+      ? `\n**Cost Estimate:** Performed (Est: $${formatCost(
+          estimateUsedForBacktest.value.totalCost,
+        )}-$${formatCost(estimateUsedForBacktest.value.totalCost * 5)})`
+      : '\n**Cost Estimate:** Not performed'
+  }
+**Actual Cost:** ${formatCost(calculateCost(results.totalStats.n_billed))}
 
 ## Execution Timeline
 **Started:** ${startedTime} | **Completed:** ${completedTime} | **Duration:** ${duration}
@@ -5114,6 +5849,10 @@ function exportBacktestSummaryAsMarkdown() {
 | Total Events Processed | ${results.totalStats.n_proc.toLocaleString()} |
 | Total Rule Evaluations | ${results.totalStats.n_eval.toLocaleString()} |
 | Total Matches Found | ${results.totalStats.totalMatches.toLocaleString()} |
+| Billed Events | ${results.totalStats.n_billed.toLocaleString()} |
+| Free Events | ${results.totalStats.n_free.toLocaleString()} |
+| Actual Cost | ${formatCost(calculateCost(results.totalStats.n_billed))} |
+| Saved (30-day free) | ${formatCost(calculateCost(results.totalStats.n_free))} |
 | API Processing Time | ${results.totalStats.wall_time.toFixed(2)}s |
 | Total Backtest Time | ${results.executionStats.totalExecutionTime.toFixed(2)}s |
 | Organizations Completed | ${results.completionStats.completedOrgs} / ${results.completionStats.totalOrgs} |
@@ -5123,11 +5862,15 @@ function exportBacktestSummaryAsMarkdown() {
 
 ## Organization Breakdown
 
-| Organization | Status | Matches | Duration |
-|-------------|--------|---------|----------|
+| Organization | Status | Matches | Billed | Free | Cost | Duration |
+|-------------|--------|---------|--------|------|------|----------|
 ${results.orgResults
   .map((org) => {
     const matchCount = org.results?.length || 0
+    const billed = org.stats?.n_billed !== undefined ? org.stats.n_billed.toLocaleString() : 'N/A'
+    const free = org.stats?.n_free !== undefined ? org.stats.n_free.toLocaleString() : 'N/A'
+    const cost =
+      org.stats?.n_billed !== undefined ? formatCost(calculateCost(org.stats.n_billed)) : 'N/A'
     const duration = org.stats?.wall_time ? `${org.stats.wall_time.toFixed(2)}s` : 'N/A'
     const statusIcon =
       org.status === 'success'
@@ -5137,7 +5880,7 @@ ${results.orgResults
           : org.status === 'cancelled'
             ? '⏹️'
             : '❌'
-    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${duration} |`
+    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${cost} | ${duration} |`
   })
   .join('\n')}
 
