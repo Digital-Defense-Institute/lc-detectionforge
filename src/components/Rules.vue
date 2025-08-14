@@ -907,6 +907,22 @@
                     Avg Matches per Org
                   </div>
                 </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.n_billed.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Billed Events
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.n_free.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Free Events
+                  </div>
+                </div>
               </div>
 
               <!-- Timeframe Information -->
@@ -1043,6 +1059,18 @@
                             >{{ orgResult.stats.wall_time.toFixed(2) }}s</span
                           >
                           <span class="stat-label">Execution Time</span>
+                        </div>
+                        <div v-if="orgResult.stats.n_billed !== undefined" class="org-stat">
+                          <span class="stat-value">{{
+                            orgResult.stats.n_billed.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Billed</span>
+                        </div>
+                        <div v-if="orgResult.stats.n_free !== undefined" class="org-stat">
+                          <span class="stat-value">{{
+                            orgResult.stats.n_free.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Free</span>
                         </div>
                       </div>
 
@@ -2387,6 +2415,8 @@ interface BacktestResults {
     n_eval: number
     totalMatches: number
     wall_time: number
+    n_billed: number
+    n_free: number
   }
   timeframe: {
     startTime: string
@@ -2419,6 +2449,8 @@ interface BacktestResponse {
     wall_time: number
     n_scan?: number
     n_bytes_scan?: number
+    n_billed?: number
+    n_free?: number
   }
   trace?: string[]
   traces?: (string[] | string)[]
@@ -3531,6 +3563,12 @@ function formatTestResponse(response: BacktestResponse): string {
         html += `<div class="stat-item"><strong>Scans:</strong> ${response.stats.n_scan}</div>`
         html += `<div class="stat-item"><strong>Bytes Scanned:</strong> ${response.stats.n_bytes_scan}</div>`
       }
+      if (response.stats.n_billed !== undefined) {
+        html += `<div class="stat-item"><strong>Billed Events:</strong> ${response.stats.n_billed}</div>`
+      }
+      if (response.stats.n_free !== undefined) {
+        html += `<div class="stat-item"><strong>Free Events:</strong> ${response.stats.n_free}</div>`
+      }
       html += '</div><br>'
     }
 
@@ -4488,6 +4526,8 @@ async function runBacktest() {
       n_eval: 0,
       totalMatches: 0,
       wall_time: 0,
+      n_billed: 0,
+      n_free: 0,
     }
 
     // Initialize progress tracking
@@ -4800,6 +4840,8 @@ async function runBacktest() {
         totalStats.n_eval += result.stats.n_eval || 0
         totalStats.totalMatches += result.results?.length || 0
         totalStats.wall_time += result.stats.wall_time || 0
+        totalStats.n_billed += result.stats.n_billed || 0
+        totalStats.n_free += result.stats.n_free || 0
       }
     })
 
@@ -5114,6 +5156,8 @@ function exportBacktestSummaryAsMarkdown() {
 | Total Events Processed | ${results.totalStats.n_proc.toLocaleString()} |
 | Total Rule Evaluations | ${results.totalStats.n_eval.toLocaleString()} |
 | Total Matches Found | ${results.totalStats.totalMatches.toLocaleString()} |
+| Billed Events | ${results.totalStats.n_billed.toLocaleString()} |
+| Free Events | ${results.totalStats.n_free.toLocaleString()} |
 | API Processing Time | ${results.totalStats.wall_time.toFixed(2)}s |
 | Total Backtest Time | ${results.executionStats.totalExecutionTime.toFixed(2)}s |
 | Organizations Completed | ${results.completionStats.completedOrgs} / ${results.completionStats.totalOrgs} |
@@ -5123,11 +5167,13 @@ function exportBacktestSummaryAsMarkdown() {
 
 ## Organization Breakdown
 
-| Organization | Status | Matches | Duration |
-|-------------|--------|---------|----------|
+| Organization | Status | Matches | Billed | Free | Duration |
+|-------------|--------|---------|--------|------|----------|
 ${results.orgResults
   .map((org) => {
     const matchCount = org.results?.length || 0
+    const billed = org.stats?.n_billed !== undefined ? org.stats.n_billed.toLocaleString() : 'N/A'
+    const free = org.stats?.n_free !== undefined ? org.stats.n_free.toLocaleString() : 'N/A'
     const duration = org.stats?.wall_time ? `${org.stats.wall_time.toFixed(2)}s` : 'N/A'
     const statusIcon =
       org.status === 'success'
@@ -5137,7 +5183,7 @@ ${results.orgResults
           : org.status === 'cancelled'
             ? '⏹️'
             : '❌'
-    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${duration} |`
+    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${duration} |`
   })
   .join('\n')}
 
