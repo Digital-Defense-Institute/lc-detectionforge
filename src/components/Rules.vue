@@ -5163,18 +5163,8 @@ async function confirmBillingAndRunBacktest() {
     }
   }
 
-  // CRITICAL: Re-check 30-day period before execution (safety check for edge cases)
-  // This ensures users cannot bypass the warning even if time has passed since the modal opened
-  if (isBeyond30DayFreePeriod.value) {
-    appStore.addNotification(
-      'warning',
-      'Backtest parameters still extend beyond 30-day free period. Please review the billing warning.',
-    )
-    // Keep the warning open so user can see updated information
-    return
-  }
-
   // Close warning and proceed with backtest
+  // User has acknowledged the billing implications, so proceed regardless of 30-day period
   showBillingWarning.value = false
   await executeBacktest()
 }
