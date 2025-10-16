@@ -452,7 +452,7 @@
           <div class="setting-item">
             <label class="checkbox-label">
               <input v-model="autoOpenFirstImportedRule" type="checkbox" />
-              Automatically open first imported rule
+              Always automatically open first rule in IaC imports
             </label>
           </div>
         </div>

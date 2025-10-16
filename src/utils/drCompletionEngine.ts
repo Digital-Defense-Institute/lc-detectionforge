@@ -3,6 +3,11 @@
  *
  * This module provides intelligent, context-aware autocompletion for D&R rules
  * with proper YAML structure understanding and field validation.
+ *
+ * NOTE: This module uses detailed operator/action metadata from drAutocompletion.ts
+ * for autocomplete suggestions. The canonical list of valid operators/actions is
+ * defined in drConstants.ts and used by drValidation.ts. All three modules should
+ * be kept in sync to ensure validation and autocomplete are consistent.
  */
 
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete'
@@ -16,12 +21,14 @@ import {
   STATEFUL_KEYWORDS,
   TASK_COMMANDS,
 } from './drAutocompletion'
+import { logger } from './logger'
 
 export interface CompletionContext_DR {
   editor: 'detect' | 'respond'
   fieldContext: string | null
   lineContent: string
   beforeCursor: string
+  fullDocumentBeforeCursor: string
   afterCursor: string
   indentLevel: number
   isInArray: boolean
@@ -41,9 +48,31 @@ export class DRCompletionEngine {
   public static getCompletions(context: CompletionContext): CompletionResult | null {
     const drContext = DRCompletionEngine.analyzeDRContext(context)
 
+    // DEBUG: Log context in development mode only
+    logger.debug('🔍 DRCompletionEngine.getCompletions called', {
+      beforeCursor: drContext.beforeCursor,
+      lineContent: drContext.lineContent,
+      isAfterColon: drContext.isAfterColon,
+      fieldContext: drContext.fieldContext,
+      isInArray: drContext.isInArray,
+      operatorContext: drContext.operatorContext,
+      editor: drContext.editor,
+    })
+
     // Determine completion context and positioning
     const completionInfo = DRCompletionEngine.getCompletionInfo(context, drContext)
+
+    logger.debug('📍 getCompletionInfo result', {
+      from: completionInfo.from,
+      typedText: completionInfo.typedText,
+    })
+
     const completions = DRCompletionEngine.generateCompletions(drContext, completionInfo.typedText)
+
+    logger.debug('✅ generateCompletions result', {
+      count: completions.length,
+      labels: completions.map((c) => c.label).slice(0, 10),
+    })
 
     if (completions.length === 0) return null
 
@@ -70,6 +99,7 @@ export class DRCompletionEngine {
     const beforeCursor = line.text.slice(0, context.pos - line.from)
 
     // Case 1: Field value completion (after "field: " or "field:")
+    // This must come BEFORE array item completion to handle cases like "- op: value"
     if (drContext.isAfterColon && drContext.fieldContext) {
       // Match patterns like "field: value" or "field:value" or "field: " (including multi-word fields)
       const fieldValueMatch = beforeCursor.match(/([\w\s-_]+?)\s*:\s*([\w-_]*)$/)
@@ -91,7 +121,8 @@ export class DRCompletionEngine {
     }
 
     // Case 2: Array item completion (after "- " or "-")
-    if (drContext.isInArray) {
+    // Only match if we're NOT after a colon (to avoid matching "- op: ")
+    if (drContext.isInArray && !drContext.isAfterColon) {
       const arrayItemMatch = beforeCursor.match(/-\s*([\w-_]*)$/)
       if (arrayItemMatch) {
         const currentValue = arrayItemMatch[1]
@@ -137,6 +168,7 @@ export class DRCompletionEngine {
    */
   private static analyzeDRContext(context: CompletionContext): CompletionContext_DR {
     const line = context.state.doc.lineAt(context.pos)
+    const fullDocumentBeforeCursor = context.state.doc.sliceString(0, context.pos)
     const beforeCursor = line.text.slice(0, context.pos - line.from)
     const afterCursor = line.text.slice(context.pos - line.from)
     const lineContent = line.text
@@ -147,11 +179,13 @@ export class DRCompletionEngine {
     // Basic line analysis
     const indentLevel = DRCompletionEngine.getIndentLevel(lineContent)
     // Detect if cursor is positioned after a field name and colon (with optional space)
-    const fieldColonRegex = /(?:^|\s|-\s*)([\w-_\s]+):\s*$/
+    // Match field names after colons, excluding the dash from array items (e.g., "- op: " captures "op")
+    const fieldColonRegex = /(?:^|\s|-\s*)([\w-_\s]+?):\s*$/
     const isAfterColon = fieldColonRegex.test(beforeCursor)
     const fieldContextMatch = beforeCursor.match(fieldColonRegex)
-    const fieldContext = fieldContextMatch ? fieldContextMatch[1].trim() : null
-    const isInArray = /^\s*-\s/.test(lineContent)
+    // Extract just the field name, trimming any leading dash that might be captured
+    const fieldContext = fieldContextMatch ? fieldContextMatch[1].trim().replace(/^-\s*/, '') : null
+    const isInArray = /^\s*-\s*/.test(lineContent)
 
     // YAML path analysis
     const yamlPath = DRCompletionEngine.getYAMLPath(context, line)
@@ -173,6 +207,7 @@ export class DRCompletionEngine {
       fieldContext,
       lineContent,
       beforeCursor,
+      fullDocumentBeforeCursor,
       afterCursor,
       indentLevel,
       isInArray,
@@ -202,6 +237,17 @@ export class DRCompletionEngine {
     // Field-specific completions
     else if (drContext.isAfterColon && drContext.fieldContext) {
       completions = DRCompletionEngine.getFieldValueCompletions(drContext, typedText)
+    }
+    // Array item completions for events array
+    else if (drContext.isInArray && DRCompletionEngine.isInEventsArray(drContext)) {
+      // Suggest EVENT_TYPES for array items under "events:"
+      EVENT_TYPES.forEach((eventType) => {
+        completions.push({
+          label: eventType,
+          type: 'constant',
+          info: `Event type: ${eventType}`,
+        })
+      })
     }
     // Action parameter completions
     else if (drContext.actionContext && drContext.editor === 'respond') {
@@ -537,6 +583,16 @@ export class DRCompletionEngine {
 
     if (!operatorDef) return completions
 
+    // Always suggest 'op' for nested rules (even if we have an operator context)
+    if (!DRCompletionEngine.isParameterAlreadyPresent(drContext, 'op')) {
+      completions.push({
+        label: 'op',
+        type: 'property',
+        info: 'Detection operator (for nested rules)',
+        apply: 'op: ',
+      })
+    }
+
     // Add required fields
     operatorDef.requiredFields.forEach((field) => {
       if (!DRCompletionEngine.isParameterAlreadyPresent(drContext, field)) {
@@ -575,11 +631,35 @@ export class DRCompletionEngine {
     const completions: Completion[] = []
 
     if (drContext.editor === 'detect') {
-      // Detection logic keywords
+      // Detection logic keywords (core fields)
       completions.push(
         { label: 'op', type: 'keyword', info: 'Detection operator', apply: 'op: ' },
         { label: 'path', type: 'keyword', info: 'Event field path', apply: 'path: ' },
         { label: 'value', type: 'keyword', info: 'Value to match', apply: 'value: ' },
+      )
+
+      // Modifier fields
+      completions.push(
+        {
+          label: 'case sensitive',
+          type: 'keyword',
+          info: 'Case-sensitive matching',
+          apply: 'case sensitive: ',
+        },
+        { label: 're', type: 'keyword', info: 'Regular expression pattern', apply: 're: ' },
+        { label: 'max', type: 'keyword', info: 'Maximum string distance', apply: 'max: ' },
+        { label: 'seconds', type: 'keyword', info: 'Time window in seconds', apply: 'seconds: ' },
+        { label: 'tag', type: 'keyword', info: 'Tag name for is tagged operator', apply: 'tag: ' },
+        {
+          label: 'resource',
+          type: 'keyword',
+          info: 'Resource identifier for lookup',
+          apply: 'resource: ',
+        },
+      )
+
+      // Structure fields
+      completions.push(
         { label: 'rules', type: 'keyword', info: 'Nested rules array', apply: 'rules:\n  - ' },
         { label: 'rule', type: 'keyword', info: 'Single nested rule', apply: 'rule:\n  ' },
         {
@@ -588,14 +668,41 @@ export class DRCompletionEngine {
           info: 'Event type for stateful rules',
           apply: 'event: ',
         },
-        { label: 'not', type: 'keyword', info: 'Invert result', apply: 'not: ' },
-        { label: 'times', type: 'keyword', info: 'Number of occurrences', apply: 'times: ' },
-        { label: 'seconds', type: 'keyword', info: 'Time window in seconds', apply: 'seconds: ' },
         {
-          label: 'case sensitive',
+          label: 'events',
           type: 'keyword',
-          info: 'Case-sensitive matching',
-          apply: 'case sensitive: ',
+          info: 'Multiple event types',
+          apply: 'events:\n  - ',
+        },
+        {
+          label: 'target',
+          type: 'keyword',
+          info: 'Target source (e.g., edr, artifact)',
+          apply: 'target: ',
+        },
+      )
+
+      // Special fields
+      completions.push(
+        { label: 'not', type: 'keyword', info: 'Invert result (must be true)', apply: 'not: ' },
+        {
+          label: 'count',
+          type: 'keyword',
+          info: 'Count occurrences for stateful rules',
+          apply: 'count: ',
+        },
+        {
+          label: 'length of',
+          type: 'keyword',
+          info: 'Check array/string length',
+          apply: 'length of: ',
+        },
+        { label: 'times', type: 'keyword', info: 'Number of occurrences', apply: 'times: ' },
+        {
+          label: 'with child',
+          type: 'keyword',
+          info: 'Stateful child event matching',
+          apply: 'with child:\n  ',
         },
       )
 
@@ -644,6 +751,30 @@ export class DRCompletionEngine {
     return match ? match[1].length : 0
   }
 
+  /**
+   * Get the base indentation of a line (before any - array marker)
+   * For "  - op: is", returns 2 (the spaces before -)
+   * For "    path: foo", returns 4
+   */
+  private static getBaseIndent(lineContent: string): number {
+    const match = lineContent.match(/^(\s*)/)
+    return match ? match[1].length : 0
+  }
+
+  /**
+   * Get the content indentation level (where actual content starts)
+   * For "  - op: is", the content starts after "  - " so indent is 4
+   * For "    path: foo", content starts at 4
+   */
+  private static getContentIndent(lineContent: string): number {
+    // If line starts with array marker "- ", add 2 to account for it
+    if (/^\s*-\s/.test(lineContent)) {
+      const baseIndent = this.getBaseIndent(lineContent)
+      return baseIndent + 2 // "- " takes 2 characters
+    }
+    return this.getBaseIndent(lineContent)
+  }
+
   private static getYAMLPath(_context: CompletionContext, _currentLine: Line): string[] {
     // Simplified YAML path detection - could be enhanced
     return []
@@ -654,18 +785,50 @@ export class DRCompletionEngine {
     const lineNumber = currentLine.number
     const doc = context.state.doc
 
+    // Track the closest action we find and validate it's in scope
+    let closestAction: string | null = null
+    let closestActionIndent = -1
+    let closestActionLine = -1
+
     for (let i = lineNumber; i >= 1; i--) {
       const line = doc.line(i)
-      const actionMatch = line.text.match(/^\s*-?\s*action:\s*(.+)/)
-      if (actionMatch) {
-        return actionMatch[1].trim()
+      const lineText = line.text
+      const lineBaseIndent = DRCompletionEngine.getBaseIndent(lineText)
+
+      // Check if this line has an action declaration
+      const actionMatch = lineText.match(/^\s*-?\s*action:\s*(.+)/)
+      if (actionMatch && closestAction === null) {
+        // Found the closest action declaration
+        closestAction = actionMatch[1].trim()
+        closestActionIndent = lineBaseIndent
+        closestActionLine = i
+
+        // If we're on the same line, definitely use this context
+        if (i === lineNumber) {
+          return closestAction
+        }
+        // Don't check this line as a sibling - continue to next iteration
+        continue
       }
-      // Stop if we hit a line with less indentation (end of action block)
-      if (i < lineNumber && line.text.trim() && !line.text.startsWith(' ')) {
-        break
+
+      // If we found an action, now check if we've exited its scope
+      if (closestAction !== null && i < lineNumber && i !== closestActionLine) {
+        // Check for lines that would indicate we've left the action's scope
+        const trimmedLine = lineText.trim()
+
+        // Empty lines don't break scope
+        if (!trimmedLine) continue
+
+        // If we hit another line with "- " at the same or lower indentation as the action,
+        // we've hit a sibling item and should stop
+        if (lineBaseIndent <= closestActionIndent && /^\s*-\s/.test(lineText)) {
+          // This is a sibling array item to our action - we've exited scope
+          break
+        }
       }
     }
-    return null
+
+    return closestAction
   }
 
   private static getOperatorContext(context: CompletionContext, currentLine: Line): string | null {
@@ -673,18 +836,50 @@ export class DRCompletionEngine {
     const lineNumber = currentLine.number
     const doc = context.state.doc
 
+    // Track the closest operator we find and validate it's in scope
+    let closestOperator: string | null = null
+    let closestOperatorIndent = -1
+    let closestOperatorLine = -1
+
     for (let i = lineNumber; i >= 1; i--) {
       const line = doc.line(i)
-      const opMatch = line.text.match(/^\s*-?\s*op:\s*(.+)/)
-      if (opMatch) {
-        return opMatch[1].trim()
+      const lineText = line.text
+      const lineBaseIndent = DRCompletionEngine.getBaseIndent(lineText)
+
+      // Check if this line has an operator declaration
+      const opMatch = lineText.match(/^\s*-?\s*op:\s*(.+)/)
+      if (opMatch && closestOperator === null) {
+        // Found the closest operator declaration
+        closestOperator = opMatch[1].trim()
+        closestOperatorIndent = lineBaseIndent
+        closestOperatorLine = i
+
+        // If we're on the same line, definitely use this context
+        if (i === lineNumber) {
+          return closestOperator
+        }
+        // Don't check this line as a sibling - continue to next iteration
+        continue
       }
-      // Stop if we hit a line with less indentation
-      if (i < lineNumber && line.text.trim() && !line.text.startsWith(' ')) {
-        break
+
+      // If we found an operator, now check if we've exited its scope
+      if (closestOperator !== null && i < lineNumber && i !== closestOperatorLine) {
+        // Check for lines that would indicate we've left the operator's scope
+        const trimmedLine = lineText.trim()
+
+        // Empty lines don't break scope
+        if (!trimmedLine) continue
+
+        // If we hit another line with "- " at the same or lower indentation as the operator,
+        // we've hit a sibling item and should stop
+        if (lineBaseIndent <= closestOperatorIndent && /^\s*-\s/.test(lineText)) {
+          // This is a sibling array item to our operator - we've exited scope
+          break
+        }
       }
     }
-    return null
+
+    return closestOperator
   }
 
   private static isStatefulRule(context: CompletionContext): boolean {
@@ -696,12 +891,70 @@ export class DRCompletionEngine {
     drContext: CompletionContext_DR,
     paramName: string,
   ): boolean {
+    // Get the current block text (from array item start or document start to cursor)
+    const lines = drContext.fullDocumentBeforeCursor.split('\n')
+    const currentLineIndex = lines.length - 1
+    const currentLine = lines[currentLineIndex]
+    const currentIndent = drContext.indentLevel
+
+    // If the current line starts an array item, the block is just from this line onwards
+    // This prevents including previous sibling array items
+    let blockStartIndex = currentLineIndex
+    if (!/^\s*-\s/.test(currentLine)) {
+      // Current line is NOT an array item start, so look backwards for where this block started
+      for (let i = currentLineIndex - 1; i >= 0; i--) {
+        const line = lines[i]
+        const lineIndent = DRCompletionEngine.getIndentLevel(line)
+
+        // If we find a line starting with "- " at current or lower indent, that's the block start
+        if (lineIndent <= currentIndent && /^\s*-\s/.test(line)) {
+          blockStartIndex = i
+          break
+        }
+
+        // If we find any non-empty line at lower indent that isn't an array marker, stop
+        if (lineIndent < currentIndent && line.trim() && !line.trim().startsWith('-')) {
+          break
+        }
+      }
+    }
+
+    // Extract the current block text
+    const currentBlock = lines.slice(blockStartIndex, currentLineIndex + 1).join('\n')
+
     // Check for parameter in current block with proper word boundaries
-    const currentBlock = drContext.beforeCursor
     const paramRegex = new RegExp(
       `(?:^|\\s|-)\\s*${paramName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:\\s*`,
       'm',
     )
     return paramRegex.test(currentBlock)
+  }
+
+  /**
+   * Check if the current array context is within an "events:" field
+   */
+  private static isInEventsArray(drContext: CompletionContext_DR): boolean {
+    // Look backwards for "events:" at a less-indented level
+    const lines = drContext.fullDocumentBeforeCursor.split('\n')
+    const currentIndent = drContext.indentLevel
+
+    // Search backwards through previous lines
+    for (let i = lines.length - 2; i >= 0; i--) {
+      const line = lines[i]
+      const lineIndent = DRCompletionEngine.getIndentLevel(line)
+
+      // If we find a line at lower indentation, check if it's "events:"
+      if (lineIndent < currentIndent) {
+        if (/^\s*events:\s*$/.test(line)) {
+          return true
+        }
+        // If it's a different field at lower indentation, we've exited the events array
+        if (line.trim().length > 0 && !line.trim().startsWith('-')) {
+          return false
+        }
+      }
+    }
+
+    return false
   }
 }
