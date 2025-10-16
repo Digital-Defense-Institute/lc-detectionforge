@@ -52,7 +52,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         'Automatic retry logic for failed backtests/replays: Up to 2 retries (3 total attempts) for transient errors like network timeouts and I/O errors, with real-time status updates showing "Retrying (N failed)"',
         'Retry count tracking: Display retry attempts in backtest results UI and include retry statistics in markdown export',
         'Fuzzy matching for validation errors: Intelligent "Did you mean...?" suggestions for typos in operators and actions',
-        'Copy buttons for Detect Logic and Respond Logic editors with clipboard support and browser fallback',
+        'Copy buttons for Detect Logic and Respond Logic editors with clipboard support and browser fallback (contributed by @bromiley)',
       ],
       changed: [
         'Performance tip styling: Upgraded sensor selector performance note to prominent callout box with gradient background and success-colored accents for better visibility',
