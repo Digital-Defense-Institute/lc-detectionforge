@@ -203,7 +203,14 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         )
       }
 
-      return await response.json()
+      const result = await response.json()
+
+      // Check if the response contains an error field (API can return 200 OK with errors)
+      if (result.error) {
+        throw new Error(`Detection test failed: ${result.error}`)
+      }
+
+      return result
     } catch (error) {
       void error // Detection rule test failed
       throw error
@@ -239,6 +246,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
     sid: string = '', // Optional sensor ID for targeted testing
     isValidation: boolean = false, // Validate rule syntax only
     stream: string = 'event', // Data stream to replay
+    selector: string = '', // Optional sensor selector expression for filtering
   ) => {
     try {
       // Parse the detect and respond logic
@@ -263,6 +271,7 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
             start_time: startTime,
             end_time: endTime,
             cursor: cursor,
+            selector: selector, // Use provided sensor selector expression or empty
           },
           events: null, // No specific events, scanning historical data
         },
@@ -314,7 +323,14 @@ export function useApi(baseUrl = 'https://api.limacharlie.io/v1') {
         throw new Error(`Backtest failed: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
-      return await response.json()
+      const result = await response.json()
+
+      // Check if the response contains an error field (API can return 200 OK with errors)
+      if (result.error) {
+        throw new Error(`Backtest failed: ${result.error}`)
+      }
+
+      return result
     } catch (error) {
       // Don't log AbortError as an error - it's intentional cancellation
       if (error instanceof DOMException && error.name === 'AbortError') {

@@ -1450,6 +1450,58 @@ body.config {
   transition: color var(--transition-speed) ease;
 }
 
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.label-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  transition: all var(--transition-speed) ease;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+}
+
+.copy-icon-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.copy-icon-button:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  transform: scale(1.1);
+}
+
+.copy-icon-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.copy-icon-button:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 1px;
+}
+
 .code-editor {
   width: 100%;
   height: 400px;
@@ -1723,6 +1775,17 @@ body.config {
   color: white;
 }
 
+/* Dark theme tooltip styling for disabled buttons */
+[data-theme="dark"] .btn:disabled[title]:hover::after {
+  background: rgba(255, 255, 255, 0.95);
+  color: #222;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .btn:disabled[title]:hover::before {
+  border-top-color: rgba(255, 255, 255, 0.95);
+}
+
 /* Responsive layout for smaller screens */
 @media (max-width: 768px) {
   .actions {
@@ -1784,6 +1847,40 @@ body.config {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  position: relative;
+}
+
+/* Immediate tooltip display for disabled buttons with title attribute */
+.btn:disabled[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 13px;
+  font-weight: 400;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  pointer-events: none;
 }
 
 /* Button variants */
@@ -3562,11 +3659,40 @@ body.config {
   transition: all var(--transition-speed) ease;
 }
 
+.performance-tip {
+  margin-top: 12px;
+  padding: var(--space-md) 16px;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.08) 0%, rgba(33, 150, 243, 0.08) 100%);
+  border: 1px solid var(--success);
+  border-left: 4px solid var(--success);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+  transition: all var(--transition-speed) ease;
+}
+
+.performance-tip strong {
+  color: var(--success);
+}
+
+.performance-tip .tip-link {
+  color: var(--info);
+  text-decoration: underline;
+  margin-left: 4px;
+  transition: color var(--transition-speed) ease;
+}
+
+.performance-tip .tip-link:hover {
+  color: var(--accent);
+}
+
 .backtest-configuration {
   margin-bottom: 25px;
 }
 
 .time-range-section,
+.sensor-filtering-section,
 .limits-section {
   margin-bottom: 25px;
   padding: 20px;
@@ -3577,6 +3703,7 @@ body.config {
 }
 
 .time-range-section h4,
+.sensor-filtering-section h4,
 .limits-section h4 {
   margin: 0 0 15px 0;
   color: var(--text-secondary); transition: color var(--transition-speed) ease;
@@ -3588,6 +3715,10 @@ body.config {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  margin-bottom: 15px;
+}
+
+.sensor-filtering-inputs {
   margin-bottom: 15px;
 }
 
@@ -4153,16 +4284,16 @@ body.config {
 .org-error-details {
   padding: 15px;
   background: var(--error-bg);
-  border: 1px solid #f5c6cb;
+  border: 1px solid var(--error-border);
   border-radius: var(--radius-md);
 }
 
 .error-message {
-  color: #721c24;
+  color: var(--error-text);
 }
 
 .error-message strong {
-  color: #721c24;
+  color: var(--error-text);
 }
 
 /* =============================================================================
@@ -4647,6 +4778,163 @@ body.config {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* Billing & Cost Estimate Modal Specific Styles */
+.billing-period-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.billing-period-box .billed-text {
+  color: var(--warning);
+  font-weight: bold;
+}
+
+.billing-period-box .free-text {
+  color: var(--success);
+  font-weight: bold;
+}
+
+.billing-rate-box {
+  background: var(--bg-tertiary);
+  border-left: 4px solid var(--warning);
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 4px;
+}
+
+.billing-rate-box strong {
+  font-size: 1.2em;
+  color: var(--warning);
+}
+
+.recommendation-box {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--text-primary);
+  padding: 15px;
+  border-radius: 6px;
+  margin: 20px 0;
+}
+
+.backtest-range-box {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: 4px;
+  margin: 15px 0;
+}
+
+.cost-estimate-warning {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--text-primary);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.cost-estimate-total {
+  background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.cost-estimate-total h2 {
+  margin: 0 0 10px 0;
+  font-size: 2.5em;
+  font-weight: bold;
+}
+
+.cost-estimate-total .cost-details {
+  font-size: 1.1em;
+  opacity: 0.95;
+}
+
+.billing-info-box {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.cost-estimate-note {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--text-primary);
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+
+/* Cost Estimate Table Styling */
+.cost-estimate-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cost-estimate-table thead tr {
+  background: var(--bg-tertiary);
+  position: sticky;
+  top: 0;
+}
+
+.cost-estimate-table th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 2px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.cost-estimate-table th.text-right {
+  text-align: right;
+}
+
+.cost-estimate-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.cost-estimate-table td.text-right {
+  text-align: right;
+}
+
+.cost-estimate-table tbody tr.error-row {
+  background: var(--warning-bg);
+}
+
+.cost-estimate-table .org-name {
+  color: var(--text-primary);
+}
+
+.cost-estimate-table .org-error {
+  font-size: 0.85em;
+  color: var(--error);
+  margin-top: 4px;
+}
+
+.cost-estimate-table .cost-positive {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.cost-estimate-table .cost-zero {
+  color: var(--success);
+  font-weight: 600;
 }
 
 /* Bulk Import Textarea */

@@ -70,7 +70,30 @@
           <div class="rule-editor">
             <div class="editor-panel">
               <div class="editor-header">
-                <label for="detectEditor">Detect Logic</label>
+                <div class="label-with-copy">
+                  <label for="detectEditor">Detect Logic</label>
+                  <button
+                    class="copy-icon-button"
+                    title="Copy detect logic to clipboard"
+                    :disabled="!currentRule.detectLogic.trim()"
+                    @click="copyDetectLogicToClipboard"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <textarea
                 id="detectEditor"
@@ -81,7 +104,30 @@
             </div>
             <div class="editor-panel">
               <div class="editor-header">
-                <label for="respondEditor">Respond Logic</label>
+                <div class="label-with-copy">
+                  <label for="respondEditor">Respond Logic</label>
+                  <button
+                    class="copy-icon-button"
+                    title="Copy respond logic to clipboard"
+                    :disabled="!currentRule.respondLogic.trim()"
+                    @click="copyRespondLogicToClipboard"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                    </svg>
+                  </button>
+                </div>
                 <div v-if="hasUnsavedChanges" class="draft-indicator-inline">
                   <span class="draft-badge">📝 Unsaved Changes</span>
                 </div>
@@ -174,7 +220,10 @@
                 <button class="btn btn-success" @click="addUnitTest">➕ Add Test Case</button>
                 <button
                   class="btn btn-primary"
-                  :disabled="unitTests.length === 0 || isRunningTests"
+                  :disabled="!hasCredentials || unitTests.length === 0 || isRunningTests"
+                  :title="
+                    !hasCredentials ? 'Please configure credentials on the Configuration page' : ''
+                  "
                   @click="runAllTests"
                 >
                   {{ isRunningTests ? '🔄 Running Tests...' : '🧪 Run All Tests' }}
@@ -495,6 +544,48 @@
                 </div>
               </div>
 
+              <div class="sensor-filtering-section">
+                <h4>Sensor Filtering (Optional - Highly Recommended)</h4>
+                <div class="sensor-filtering-inputs">
+                  <div class="input-group">
+                    <label for="sensorSelector">Sensor Selector Expression</label>
+                    <div style="display: flex; gap: 8px; align-items: flex-start">
+                      <input
+                        id="sensorSelector"
+                        v-model="backtestConfig.selector"
+                        type="text"
+                        placeholder="e.g., plat == windows or domaincontroller in tags"
+                        class="text-input"
+                        style="flex: 1"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-small"
+                        title="Open Expression Builder"
+                        style="white-space: nowrap"
+                        @click="showSelectorBuilder = true"
+                      >
+                        🔧 Build Expression
+                      </button>
+                    </div>
+                    <div class="performance-tip">
+                      <strong>⚡ MASSIVE PERFORMANCE GAINS:</strong> Filtering by platform, tags, or
+                      sensor attributes can reduce backtest duration by 10-100x, reduce costs, and
+                      prevent timeouts.<br />
+                      <strong>Highly recommended for all backtests.</strong> Use the "Build
+                      Expression" button above to easily craft selector expressions, or
+                      <a
+                        href="https://docs.limacharlie.io/docs/reference-sensor-selector-expressions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="tip-link"
+                        >learn selector syntax →</a
+                      >.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="limits-section">
                 <h4>Limits (Optional)</h4>
                 <div class="limits-inputs">
@@ -624,6 +715,7 @@
               <button
                 class="btn btn-primary btn-large"
                 :disabled="!canRunBacktest || isRunningBacktest || isEstimatingCost"
+                :title="backtestDisabledTooltip"
                 @click="runBacktest"
               >
                 {{
@@ -635,6 +727,7 @@
               <button
                 class="btn btn-info"
                 :disabled="!canRunBacktest || isRunningBacktest || isEstimatingCost"
+                :title="backtestDisabledTooltip"
                 @click="estimateCost"
               >
                 {{ isEstimatingCost ? `💰 Estimating Cost...` : `💰 Estimate Cost` }}
@@ -755,7 +848,9 @@
                         class="org-status-label"
                         style="flex-shrink: 0; min-width: 100px; text-align: center"
                       >
-                        <span v-if="orgStatus.status === 'pending'">Waiting</span>
+                        <!-- Custom status message takes priority (for retrying, etc.) -->
+                        <span v-if="orgStatus.statusMessage">{{ orgStatus.statusMessage }}</span>
+                        <span v-else-if="orgStatus.status === 'pending'">Waiting</span>
                         <span v-else-if="orgStatus.status === 'running'">Running</span>
                         <span v-else-if="orgStatus.status === 'completed'">
                           <span
@@ -912,9 +1007,14 @@
                     Orgs Completed
                   </div>
                 </div>
+                <div v-if="backtestResults.completionStats.failedOrgs > 0" class="stat-card">
+                  <div class="stat-number">{{ backtestResults.completionStats.failedOrgs }}</div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Failed Orgs
+                  </div>
+                </div>
                 <div
                   v-if="
-                    backtestResults.completionStats.failedOrgs > 0 ||
                     backtestResults.completionStats.cancelledOrgs > 0 ||
                     backtestResults.completionStats.timeoutOrgs > 0
                   "
@@ -922,7 +1022,6 @@
                 >
                   <div class="stat-number">
                     {{
-                      backtestResults.completionStats.failedOrgs +
                       backtestResults.completionStats.cancelledOrgs +
                       backtestResults.completionStats.timeoutOrgs
                     }}
@@ -938,8 +1037,8 @@
                   >
                     {{
                       backtestResults.completionStats.wasCancelled
-                        ? 'Failed / Cancelled / Timeout'
-                        : 'Failed / Timeout Orgs'
+                        ? 'Cancelled / Timeout'
+                        : 'Timeout Orgs'
                     }}
                   </div>
                 </div>
@@ -1093,9 +1192,6 @@
                           {{ orgResult.results.length }}
                           {{ orgResult.results.length === 1 ? 'match' : 'matches' }}
                         </span>
-                      </span>
-                      <span v-if="orgResult.status === 'error'" class="error-text">
-                        {{ orgResult.error }}
                       </span>
                       <span v-if="orgResult.status === 'cancelled'" class="cancelled-text">
                         Cancelled during execution
@@ -1567,15 +1663,11 @@
       </div>
 
       <!-- Import from IaC Modal -->
-      <div
-        v-if="showImportIaCModal"
-        class="reference-modal-overlay"
-        @click="showImportIaCModal = false"
-      >
+      <div v-if="showImportIaCModal" class="reference-modal-overlay" @click="closeImportIaCModal">
         <div class="reference-modal import-iac-modal" @click.stop>
           <div class="reference-modal-header">
             <h3>Import Detection Rules from IaC</h3>
-            <button class="close-btn" @click="showImportIaCModal = false">×</button>
+            <button class="close-btn" @click="closeImportIaCModal">×</button>
           </div>
           <div class="reference-modal-content">
             <div class="import-iac-content">
@@ -1619,6 +1711,13 @@ hives:
                       name: process_detected'
                     :disabled="isImportingIaC"
                   ></textarea>
+                </div>
+
+                <div class="import-options">
+                  <label class="checkbox-label">
+                    <input v-model="iacImportAutoOpenFirstRule" type="checkbox" />
+                    Automatically open first imported rule in editor
+                  </label>
                 </div>
 
                 <div class="import-actions">
@@ -1670,6 +1769,391 @@ hives:
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selector Expression Builder Modal -->
+      <div
+        v-if="showSelectorBuilder"
+        class="reference-modal-overlay"
+        @click="showSelectorBuilder = false"
+      >
+        <div class="selector-builder-modal reference-modal" style="max-width: 900px" @click.stop>
+          <div class="reference-modal-header">
+            <h3>🔧 Sensor Selector Expression Builder</h3>
+            <button class="close-btn" @click="showSelectorBuilder = false">×</button>
+          </div>
+          <div class="reference-modal-content">
+            <!-- Documentation Links -->
+            <div
+              class="modal-docs-links"
+              style="
+                margin-bottom: 20px;
+                padding: 12px;
+                background: var(--bg-tertiary);
+                border-radius: var(--radius-md);
+                border: 1px solid var(--border-secondary);
+              "
+            >
+              <strong>📚 Documentation:</strong>
+              <a
+                href="https://docs.limacharlie.io/docs/reference-sensor-selector-expressions"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                  color: var(--info);
+                  text-decoration: underline;
+                  margin-left: 8px;
+                  margin-right: 16px;
+                "
+                >Selector Expressions</a
+              >
+              <a
+                href="https://docs.limacharlie.io/v2/docs/reference-id-schema"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: var(--info); text-decoration: underline"
+                >ID Schemas</a
+              >
+            </div>
+
+            <!-- Expression Builder Form -->
+            <div class="selector-builder-form">
+              <div
+                class="form-row"
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 2fr auto;
+                  gap: 12px;
+                  align-items: end;
+                "
+              >
+                <!-- Field Selector -->
+                <div class="input-group">
+                  <label for="selectorField">Field</label>
+                  <select
+                    id="selectorField"
+                    v-model="selectorBuilder.currentField"
+                    class="select-input"
+                  >
+                    <option value="">Select field...</option>
+                    <optgroup label="Sensor Identifiers">
+                      <option value="sid">sid - Sensor ID</option>
+                      <option value="oid">oid - Organization ID</option>
+                      <option value="iid">iid - Installation Key ID</option>
+                      <option value="did">did - Device ID</option>
+                    </optgroup>
+                    <optgroup label="Platform & Architecture">
+                      <option value="plat">plat - Platform</option>
+                      <option value="ext_plat">ext_plat - Extended Platform</option>
+                      <option value="arch">arch - Architecture</option>
+                    </optgroup>
+                    <optgroup label="Network & Host">
+                      <option value="hostname">hostname - Hostname</option>
+                      <option value="mac_addr">mac_addr - MAC Address</option>
+                      <option value="ext_ip">ext_ip - External IP</option>
+                      <option value="int_ip">int_ip - Internal IP</option>
+                    </optgroup>
+                    <optgroup label="State & Tags">
+                      <option value="tags">tags - Sensor Tags</option>
+                      <option value="isolated">isolated - Network Isolated (boolean)</option>
+                      <option value="should_isolate">
+                        should_isolate - Should Isolate (boolean)
+                      </option>
+                      <option value="kernel">kernel - Kernel Visibility (boolean)</option>
+                    </optgroup>
+                    <optgroup label="Timestamps">
+                      <option value="enroll">enroll - Enrollment Time (epoch)</option>
+                      <option value="alive">alive - Last Connected (epoch)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <!-- Operator Selector -->
+                <div class="input-group">
+                  <label for="selectorOperator">Operator</label>
+                  <select
+                    id="selectorOperator"
+                    v-model="selectorBuilder.currentOperator"
+                    class="select-input"
+                  >
+                    <option value="">Select...</option>
+                    <option value="==">== (equals)</option>
+                    <option value="!=">!= (not equal)</option>
+                    <option value="in">in (element in list, or substring in string)</option>
+                    <option value="not in">
+                      not in (element not in list, or substring not in string)
+                    </option>
+                    <option value="matches">matches (element matches regular expression)</option>
+                    <option value="not matches">
+                      not matches (element does not match regular expression)
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Value Input (changes based on field) -->
+                <div class="input-group">
+                  <label for="selectorValue">Value</label>
+                  <!-- Platform dropdown -->
+                  <select
+                    v-if="selectorBuilder.currentField === 'plat'"
+                    id="selectorValue"
+                    v-model="selectorBuilder.currentValue"
+                    class="select-input"
+                  >
+                    <option value="">Select platform...</option>
+                    <optgroup label="EDR/XDR Platforms">
+                      <option value="crowdstrike">crowdstrike</option>
+                      <option value="msdefender">msdefender</option>
+                      <option value="sentinel_one">sentinel_one</option>
+                      <option value="carbon_black">carbon_black</option>
+                      <option value="sophos">sophos</option>
+                      <option value="cylance">cylance</option>
+                    </optgroup>
+                    <optgroup label="Operating Systems">
+                      <option value="windows">windows</option>
+                      <option value="linux">linux</option>
+                      <option value="macos">macos</option>
+                      <option value="ios">ios</option>
+                      <option value="android">android</option>
+                      <option value="chrome">chrome (ChromeOS)</option>
+                    </optgroup>
+                    <optgroup label="Cloud & SaaS">
+                      <option value="office365">office365</option>
+                      <option value="1password">1password</option>
+                      <option value="aws">aws</option>
+                      <option value="gcp">gcp</option>
+                      <option value="azure_ad">azure_ad</option>
+                      <option value="github">github</option>
+                      <option value="slack">slack</option>
+                      <option value="okta">okta</option>
+                      <option value="duo">duo</option>
+                      <option value="box">box</option>
+                    </optgroup>
+                    <optgroup label="Security Tools">
+                      <option value="falconcloud">falconcloud</option>
+                      <option value="guard_duty">guard_duty</option>
+                      <option value="canary_token">canary_token</option>
+                      <option value="wiz">wiz</option>
+                      <option value="proofpoint">proofpoint</option>
+                      <option value="mimecast">mimecast</option>
+                    </optgroup>
+                    <optgroup label="Telemetry Sources">
+                      <option value="wel">wel (Windows Event Logs)</option>
+                      <option value="xml">xml</option>
+                      <option value="cef">cef (Common Event Format)</option>
+                      <option value="json">json</option>
+                      <option value="text">text</option>
+                      <option value="zeek">zeek</option>
+                      <option value="lc_event">lc_event</option>
+                    </optgroup>
+                    <optgroup label="Azure Services">
+                      <option value="azure_monitor">azure_monitor</option>
+                      <option value="azure_event_hub_namespace">azure_event_hub_namespace</option>
+                      <option value="azure_key_vault">azure_key_vault</option>
+                      <option value="azure_kubernetes_service">azure_kubernetes_service</option>
+                      <option value="azure_network_security_group">
+                        azure_network_security_group
+                      </option>
+                      <option value="azure_sql_audit">azure_sql_audit</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option value="k8s_pods">k8s_pods</option>
+                      <option value="mac_unified_logging">mac_unified_logging</option>
+                      <option value="vpn">vpn</option>
+                      <option value="email">email</option>
+                      <option value="hubspot">hubspot</option>
+                      <option value="zendesk">zendesk</option>
+                      <option value="pandadoc">pandadoc</option>
+                      <option value="sublime">sublime</option>
+                      <option value="entraid">entraid</option>
+                      <option value="itglue">itglue</option>
+                    </optgroup>
+                  </select>
+
+                  <!-- Architecture dropdown -->
+                  <select
+                    v-else-if="selectorBuilder.currentField === 'arch'"
+                    id="selectorValue"
+                    v-model="selectorBuilder.currentValue"
+                    class="select-input"
+                  >
+                    <option value="">Select architecture...</option>
+                    <option value="1">1 - 32 bit (x86)</option>
+                    <option value="2">2 - 64 bit (x64)</option>
+                    <option value="3">3 - ARM (arm)</option>
+                    <option value="4">4 - ARM64 (arm64)</option>
+                    <option value="5">5 - Alpine 64 (alpine64)</option>
+                    <option value="6">6 - Chrome (chromium)</option>
+                    <option value="7">7 - Wireguard (wireguard)</option>
+                    <option value="8">8 - ARML (arml)</option>
+                    <option value="9">9 - lc-adapter (usp_adapter)</option>
+                  </select>
+
+                  <!-- Boolean dropdown for boolean fields -->
+                  <select
+                    v-else-if="
+                      ['isolated', 'should_isolate', 'kernel'].includes(
+                        selectorBuilder.currentField,
+                      )
+                    "
+                    id="selectorValue"
+                    v-model="selectorBuilder.currentValue"
+                    class="select-input"
+                  >
+                    <option value="">Select value...</option>
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </select>
+
+                  <!-- Text input for all other fields -->
+                  <input
+                    v-else
+                    id="selectorValue"
+                    v-model="selectorBuilder.currentValue"
+                    type="text"
+                    class="text-input"
+                    placeholder="Enter value..."
+                    @keyup.enter="addSelectorCondition"
+                  />
+                </div>
+
+                <!-- Add Condition Button -->
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  style="margin-bottom: 0"
+                  :disabled="
+                    !selectorBuilder.currentField ||
+                    !selectorBuilder.currentOperator ||
+                    !selectorBuilder.currentValue
+                  "
+                  @click="addSelectorCondition"
+                >
+                  ➕ Add
+                </button>
+              </div>
+
+              <!-- Logic Toggle -->
+              <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px">
+                <label style="margin: 0; font-weight: 500">Combine conditions with:</label>
+                <div class="logic-toggle" style="display: flex; gap: 8px">
+                  <button
+                    type="button"
+                    class="btn btn-small"
+                    :class="{
+                      'btn-primary': selectorBuilder.defaultLogic === 'AND',
+                      'btn-secondary': selectorBuilder.defaultLogic !== 'AND',
+                    }"
+                    @click="selectorBuilder.defaultLogic = 'AND'"
+                  >
+                    AND
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-small"
+                    :class="{
+                      'btn-primary': selectorBuilder.defaultLogic === 'OR',
+                      'btn-secondary': selectorBuilder.defaultLogic !== 'OR',
+                    }"
+                    @click="selectorBuilder.defaultLogic = 'OR'"
+                  >
+                    OR
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Conditions List -->
+            <div
+              v-if="selectorBuilder.conditions.length > 0"
+              class="conditions-list"
+              style="margin-top: 24px"
+            >
+              <h4 style="margin-bottom: 12px">
+                Current Conditions ({{ selectorBuilder.conditions.length }})
+              </h4>
+              <div class="conditions-container" style="max-height: 300px; overflow-y: auto">
+                <div
+                  v-for="(condition, index) in selectorBuilder.conditions"
+                  :key="index"
+                  class="condition-item"
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-secondary);
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <div style="flex: 1; font-family: monospace; font-size: 14px">
+                    <span
+                      v-if="index > 0"
+                      style="color: var(--accent); font-weight: 600; margin-right: 8px"
+                    >
+                      {{ condition.logic }}
+                    </span>
+                    <span style="color: var(--text-primary)">{{ condition.field }}</span>
+                    <span style="color: var(--accent); margin: 0 6px">{{
+                      condition.operator
+                    }}</span>
+                    <span style="color: var(--success)">{{
+                      formatConditionValue(condition.field, condition.value)
+                    }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-small btn-danger"
+                    title="Remove condition"
+                    @click="removeSelectorCondition(index)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expression Preview -->
+            <div v-if="builtSelectorExpression" class="expression-preview" style="margin-top: 24px">
+              <h4 style="margin-bottom: 8px">Expression Preview</h4>
+              <div
+                style="
+                  padding: 16px;
+                  background: var(--bg-secondary);
+                  border: 1px solid var(--border-primary);
+                  border-radius: 8px;
+                  font-family: monospace;
+                  font-size: 14px;
+                  line-height: 1.6;
+                  color: var(--text-primary);
+                  word-wrap: break-word;
+                "
+              >
+                {{ builtSelectorExpression }}
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div
+              class="modal-actions"
+              style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end"
+            >
+              <button type="button" class="btn btn-secondary" @click="clearSelectorBuilder">
+                Clear All
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="!builtSelectorExpression"
+                @click="insertSelectorExpression"
+              >
+                ✓ Insert Expression
+              </button>
             </div>
           </div>
         </div>
@@ -2004,19 +2488,16 @@ hives:
               >
             </p>
 
-            <div
-              v-if="billingPeriodInfo"
-              style="background: #e3f2fd; padding: 12px; border-radius: 6px; margin-bottom: 15px"
-            >
+            <div v-if="billingPeriodInfo" class="billing-period-box">
               <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
                 <span>💵 <strong>Billed Period:</strong></span>
-                <span style="color: #ff6b35; font-weight: bold"
+                <span class="billed-text"
                   >{{ billingPeriodInfo.billedDays }} days (older than 30 days)</span
                 >
               </div>
               <div style="display: flex; justify-content: space-between">
                 <span>✅ <strong>Free Period:</strong></span>
-                <span style="color: #4caf50; font-weight: bold"
+                <span class="free-text"
                   >{{ billingPeriodInfo.freeDays }} days (within last 30 days)</span
                 >
               </div>
@@ -2024,29 +2505,11 @@ hives:
 
             <p style="margin-bottom: 15px">Events older than 30 days will be billed at:</p>
 
-            <div
-              style="
-                background: #f5f5f5;
-                border-left: 4px solid #ff9800;
-                padding: 15px;
-                margin: 20px 0;
-                border-radius: 4px;
-              "
-            >
-              <strong style="font-size: 1.2em; color: #ff6b35"
-                >$0.01 per 200,000 events evaluated</strong
-              >
+            <div class="billing-rate-box">
+              <strong>$0.01 per 200,000 events evaluated</strong>
             </div>
 
-            <div
-              style="
-                background: #fff3cd;
-                border: 1px solid #ffc107;
-                padding: 15px;
-                border-radius: 6px;
-                margin: 20px 0;
-              "
-            >
+            <div class="recommendation-box">
               <div style="display: flex; gap: 10px; align-items: flex-start">
                 <span style="font-size: 1.2em">💡</span>
                 <div>
@@ -2062,7 +2525,7 @@ hives:
               not just the events that match.
             </p>
 
-            <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; margin: 15px 0">
+            <div class="backtest-range-box">
               <strong>Backtest Range:</strong><br />
               <div style="margin-top: 8px">
                 <strong>From:</strong>
@@ -2108,19 +2571,7 @@ hives:
         <div class="reference-modal-content">
           <div style="padding: 20px">
             <!-- Warning about dry run limitations -->
-            <div
-              style="
-                background: #fff3cd;
-                color: #856404;
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                border: 1px solid #ffeaa7;
-                display: flex;
-                gap: 10px;
-                align-items: flex-start;
-              "
-            >
+            <div class="cost-estimate-warning">
               <span style="font-size: 1.5em">⚠️</span>
               <div>
                 <strong>Important: These are rough estimates only!</strong><br />
@@ -2132,21 +2583,13 @@ hives:
             </div>
 
             <!-- Total Summary -->
-            <div
-              style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-              "
-            >
+            <div class="cost-estimate-total">
               <h3 style="margin: 0 0 15px 0; color: white">Estimated Cost Range</h3>
-              <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 10px">
+              <h2>
                 {{ formatCost(costEstimateResults.totalCost) }} -
                 {{ formatCost(costEstimateResults.totalCost * 5) }}
-              </div>
-              <div style="display: flex; gap: 30px; font-size: 0.95em; opacity: 0.95">
+              </h2>
+              <div class="cost-details" style="display: flex; gap: 30px; justify-content: center">
                 <div>
                   <strong>Billed Events:</strong>
                   {{ costEstimateResults.totalBilled.toLocaleString() }}
@@ -2158,15 +2601,7 @@ hives:
             </div>
 
             <!-- Billing Info -->
-            <div
-              style="
-                background: #f0f4ff;
-                border-left: 4px solid #4a90e2;
-                padding: 12px;
-                margin-bottom: 20px;
-                border-radius: 4px;
-              "
-            >
+            <div class="billing-info-box">
               <strong>Billing Rate:</strong> $0.01 per 200,000 events evaluated<br />
               <strong>Free Period:</strong> Events within the last 30 days are always free
             </div>
@@ -2174,53 +2609,33 @@ hives:
             <!-- Per-Organization Breakdown -->
             <h4 style="margin-bottom: 15px">Organization Breakdown</h4>
             <div style="max-height: 300px; overflow-y: auto">
-              <table style="width: 100%; border-collapse: collapse">
+              <table class="cost-estimate-table">
                 <thead>
-                  <tr style="background: #f5f5f5; position: sticky; top: 0">
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd">
-                      Organization
-                    </th>
-                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
-                      Billed Events
-                    </th>
-                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
-                      Free Events
-                    </th>
-                    <th style="text-align: right; padding: 10px; border-bottom: 2px solid #ddd">
-                      Estimated Cost
-                    </th>
+                  <tr>
+                    <th>Organization</th>
+                    <th class="text-right">Billed Events</th>
+                    <th class="text-right">Free Events</th>
+                    <th class="text-right">Estimated Cost</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr
                     v-for="org in costEstimateResults.orgEstimates"
                     :key="org.oid"
-                    :style="org.error ? 'background: #fff3cd' : ''"
+                    :class="{ 'error-row': org.error }"
                   >
-                    <td style="padding: 10px; border-bottom: 1px solid #eee">
-                      <div>{{ org.orgName }}</div>
-                      <div
-                        v-if="org.error"
-                        style="font-size: 0.85em; color: #dc3545; margin-top: 4px"
-                      >
-                        ⚠️ {{ org.error }}
-                      </div>
+                    <td>
+                      <div class="org-name">{{ org.orgName }}</div>
+                      <div v-if="org.error" class="org-error">⚠️ {{ org.error }}</div>
                     </td>
-                    <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee">
+                    <td class="text-right">
                       {{ org.error ? '-' : org.billed.toLocaleString() }}
                     </td>
-                    <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee">
+                    <td class="text-right">
                       {{ org.error ? '-' : org.free.toLocaleString() }}
                     </td>
-                    <td
-                      style="
-                        text-align: right;
-                        padding: 10px;
-                        border-bottom: 1px solid #eee;
-                        font-weight: 600;
-                      "
-                    >
-                      <span :style="org.cost > 0 ? 'color: #ff6b35' : 'color: #4caf50'">
+                    <td class="text-right">
+                      <span :class="org.cost > 0 ? 'cost-positive' : 'cost-zero'">
                         {{
                           org.error ? '-' : `${formatCost(org.cost)} - ${formatCost(org.cost * 5)}`
                         }}
@@ -2232,16 +2647,7 @@ hives:
             </div>
 
             <!-- Note about estimates -->
-            <div
-              style="
-                margin-top: 20px;
-                padding: 12px;
-                background: #fff9e6;
-                border: 1px solid #ffd700;
-                border-radius: 4px;
-                font-size: 0.9em;
-              "
-            >
+            <div class="cost-estimate-note" style="font-size: 0.9em">
               <strong>Note:</strong> These estimates are based on metadata analysis only (dry run).
               Actual costs will likely be significantly higher as full event scanning typically
               processes many more events than metadata analysis suggests. Budget for 2-5x the
@@ -2273,6 +2679,7 @@ import { useAuth } from '../composables/useAuth'
 import { sanitizeHtml } from '../utils/sanitizer'
 import { logger } from '../utils/logger'
 import { getCurrentVersion } from '../utils/version'
+import { validateDetectLogic, validateRespondLogic } from '../utils/drValidation'
 import Logo from './Logo.vue'
 import ThemeToggle from './ThemeToggle.vue'
 // CodeMirror v6 imports
@@ -2397,11 +2804,24 @@ const showEventSchemasModal = ref(false)
 const showImportIaCModal = ref(false)
 const showEventLimitHelp = ref(false)
 const showEvalLimitHelp = ref(false)
+const showSelectorBuilder = ref(false)
 const _savedRulesUpdateTrigger = ref(0) // Reactive trigger for localStorage changes
+
+// Selector Expression Builder
+const selectorBuilder = reactive({
+  currentField: '',
+  currentOperator: '',
+  currentValue: '',
+  conditions: [] as Array<{ field: string; operator: string; value: string; logic: 'AND' | 'OR' }>,
+  defaultLogic: 'AND' as 'AND' | 'OR',
+})
 
 // Import from IaC functionality
 const iacImportContent = ref('')
 const isImportingIaC = ref(false)
+const iacImportAutoOpenFirstRule = ref(
+  localStorage.getItem('detectionforge_auto_open_top_rule') === 'true',
+)
 const iacImportResult = ref<{
   success: boolean
   message: string
@@ -2621,6 +3041,8 @@ const backtestProgress = ref({
     oid: string
     orgName: string
     status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled' | 'timeout'
+    statusMessage?: string
+    retryCount?: number
     startTime?: number
     endTime?: number
     duration?: number
@@ -2656,10 +3078,16 @@ const backtestConfig = reactive({
   useChunkedResults: false, // Opt-in for chunked results
   sid: '', // Optional sensor ID for targeted testing
   stream: 'event', // Data stream to replay (event, audit, detect)
+  selector: '', // Optional sensor selector expression for filtering events
 })
 
 // Track billing warning state (shown every time for >30 day backtests)
 const showBillingWarning = ref(false)
+
+// Reactive current time for accurate 30-day billing calculations
+// Updates every minute to ensure billing warnings are always current
+const billingCurrentTime = ref(Date.now())
+let billingTimeUpdateInterval: number | null = null
 
 // Cost estimation state
 const isEstimatingCost = ref(false)
@@ -2681,6 +3109,11 @@ const costEstimateResults = ref<{
     startDateTime: string
     endDateTime: string | null
     oids: string[]
+    selector: string
+    sid: string
+    stream: string
+    eventLimit: number
+    evalLimit: number
   }
 } | null>(null)
 const costEstimateProgress = ref({
@@ -2700,9 +3133,21 @@ const isEstimateValid = computed(() => {
   return (
     params.startDateTime === backtestConfig.startDateTime &&
     params.endDateTime === (backtestConfig.endDateTime || null) &&
+    params.selector === backtestConfig.selector &&
+    params.sid === backtestConfig.sid &&
+    params.stream === backtestConfig.stream &&
+    params.eventLimit === backtestConfig.eventLimit &&
+    params.evalLimit === backtestConfig.evalLimit &&
     JSON.stringify([...params.oids].sort()) ===
       JSON.stringify([...backtestSelectedOids.value].sort())
   )
+})
+
+// Clear cost estimate when it becomes invalid due to parameter changes
+watch(isEstimateValid, (valid) => {
+  if (!valid && costEstimateResults.value) {
+    costEstimateResults.value = null
+  }
 })
 
 // Check if start date is beyond 30-day free period
@@ -2711,13 +3156,15 @@ const isBeyond30DayFreePeriod = computed(() => {
 
   // Parse the start date as UTC
   const startDate = new Date(backtestConfig.startDateTime + 'Z')
-  const now = new Date()
+
+  // Use reactive billingCurrentTime to ensure this re-evaluates when time changes
+  const now = billingCurrentTime.value
 
   // Calculate 30 days and 5 minutes ago (30 days + 5 minute buffer for processing time)
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000)
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000
 
   // If start date is before 30 days and 5 minutes ago, it's beyond free period
-  return startDate < thirtyDaysAgo
+  return startDate.getTime() < thirtyDaysAgo
 })
 
 // Calculate how far beyond the 30-day free period the backtest extends
@@ -2728,29 +3175,25 @@ const billingPeriodInfo = computed(() => {
   const endDate = backtestConfig.endDateTime
     ? new Date(backtestConfig.endDateTime + 'Z')
     : new Date()
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  // Use reactive billingCurrentTime to ensure this re-evaluates when time changes
+  const now = billingCurrentTime.value
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
 
   // Calculate days beyond 30-day period
   const daysBeyond30 = Math.max(
     0,
-    Math.ceil((thirtyDaysAgo.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)),
+    Math.ceil((thirtyDaysAgo - startDate.getTime()) / (1000 * 60 * 60 * 24)),
   )
 
   // Calculate what portion will be billed
-  const billedStart = startDate
-  const billedEnd = new Date(Math.min(thirtyDaysAgo.getTime(), endDate.getTime()))
-  const billedDays = Math.max(
-    0,
-    Math.ceil((billedEnd.getTime() - billedStart.getTime()) / (1000 * 60 * 60 * 24)),
-  )
+  const billedStart = startDate.getTime()
+  const billedEnd = Math.min(thirtyDaysAgo, endDate.getTime())
+  const billedDays = Math.max(0, Math.ceil((billedEnd - billedStart) / (1000 * 60 * 60 * 24)))
 
   // Calculate free portion (if any)
-  const freeStart = new Date(Math.max(thirtyDaysAgo.getTime(), startDate.getTime()))
-  const freeDays = Math.max(
-    0,
-    Math.ceil((endDate.getTime() - freeStart.getTime()) / (1000 * 60 * 60 * 24)),
-  )
+  const freeStart = Math.max(thirtyDaysAgo, startDate.getTime())
+  const freeDays = Math.max(0, Math.ceil((endDate.getTime() - freeStart) / (1000 * 60 * 60 * 24)))
 
   return {
     daysBeyond30,
@@ -2789,9 +3232,15 @@ const sortedOrgResults = computed(() => {
   })
 })
 
+// Computed property to check if credentials are configured
+const hasCredentials = computed(() => {
+  return !!(storage.credentials.value && storage.organizations.value.length > 0)
+})
+
 // Computed property to check if backtest can run
 const canRunBacktest = computed(() => {
   return (
+    hasCredentials.value &&
     backtestConfig.startDateTime &&
     backtestConfig.endDateTime &&
     currentRule.detectLogic.trim() &&
@@ -2800,9 +3249,35 @@ const canRunBacktest = computed(() => {
   )
 })
 
+// Computed property for backtest button tooltip
+const backtestDisabledTooltip = computed(() => {
+  if (!hasCredentials.value) {
+    return 'Please configure credentials on the Configuration page'
+  }
+  if (!currentRule.detectLogic.trim()) {
+    return 'Please add detection logic before running backtest'
+  }
+  if (backtestSelectedOids.value.length === 0) {
+    return 'Please select at least one organization'
+  }
+  if (!backtestConfig.startDateTime || !backtestConfig.endDateTime) {
+    return 'Please set start and end date/time'
+  }
+  if (
+    backtestConfig.startDateTime &&
+    backtestConfig.endDateTime &&
+    new Date(backtestConfig.startDateTime) >= new Date(backtestConfig.endDateTime)
+  ) {
+    return 'Start time must be before end time'
+  }
+  return ''
+})
+
 // Computed property to get available organizations for backtest selection
 const availableOrgsForBacktest = computed(() => {
-  return storage.organizations.value || []
+  const orgs = storage.organizations.value || []
+  // Sort organizations alphabetically by name
+  return [...orgs].sort((a, b) => a.name.localeCompare(b.name))
 })
 
 // Initialize backtest org selection when organizations change
@@ -2942,6 +3417,7 @@ interface BacktestOrgResult {
   orgName: string
   status: 'success' | 'error' | 'cancelled' | 'timeout'
   error?: string
+  retryCount?: number
   stats?: {
     n_scan: number
     n_bytes_scan: number
@@ -3183,6 +3659,12 @@ onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   window.addEventListener('pagehide', handleBeforeUnload)
 
+  // Start time update interval for accurate 30-day billing calculations
+  // Updates every minute (60000ms) to keep billingCurrentTime reactive and current
+  billingTimeUpdateInterval = window.setInterval(() => {
+    billingCurrentTime.value = Date.now()
+  }, 60000)
+
   // Mark initialization as complete
   isInitializing.value = false
 })
@@ -3195,6 +3677,12 @@ onUnmounted(() => {
   if (handleBeforeUnload) {
     window.removeEventListener('beforeunload', handleBeforeUnload)
     window.removeEventListener('pagehide', handleBeforeUnload)
+  }
+
+  // Clear billing time update interval
+  if (billingTimeUpdateInterval !== null) {
+    clearInterval(billingTimeUpdateInterval)
+    billingTimeUpdateInterval = null
   }
 
   // Final save before component unmount
@@ -3262,364 +3750,8 @@ function validateRule() {
   }
 }
 
-interface DetectionRuleLogic {
-  op: string
-  path?: string
-  value?: unknown
-  event?: string
-  events?: string[]
-  rules?: DetectionRuleLogic[]
-  target?: string
-  [key: string]: unknown
-}
-
-function validateDetectLogic(
-  detectLogicStr: string,
-  requireTopLevelEvent = true,
-  depth = 0,
-): string | null {
-  try {
-    const rule = yaml.load(detectLogicStr) as DetectionRuleLogic
-
-    if (Array.isArray(rule)) {
-      return 'Operation should be a dictionary, not a list.'
-    }
-
-    if (!rule || typeof rule !== 'object' || !('op' in rule)) {
-      return "Operation missing 'op' field."
-    }
-
-    // Check for top-level event or events requirement
-    if (
-      requireTopLevelEvent &&
-      depth === 0 &&
-      !('target' in rule && rule.target !== 'edr') &&
-      !('event' in rule) &&
-      !('events' in rule) &&
-      !(
-        rule.op === 'and' &&
-        rule.rules &&
-        rule.rules.length > 0 &&
-        rule.rules[0].op === 'is tagged'
-      )
-    ) {
-      return "Must specify either 'event' or 'events' at top level of rule, or have the top operator be an 'and' with its first 'rule' of 'is tagged'."
-    }
-
-    // Validate event field
-    if (depth === 0 && 'event' in rule && typeof rule.event !== 'string') {
-      return "'event' must be a string."
-    }
-
-    // Validate events field
-    if (depth === 0 && 'events' in rule && !Array.isArray(rule.events)) {
-      return "'events' must be a list."
-    }
-
-    // Check for both event and events
-    if (depth === 0 && 'event' in rule && 'events' in rule) {
-      return "Must specify either 'event' or 'events'; not both."
-    }
-
-    // Check nested event/events
-    if (depth > 0 && ('event' in rule || 'events' in rule)) {
-      return "'event' or 'events' must be specified at the root."
-    }
-
-    // Validate logical operators (and/or)
-    if (['and', 'or'].includes(rule.op.toLowerCase())) {
-      if (!('rules' in rule)) {
-        return "'and' and 'or' ops require a 'rules' list of operations."
-      }
-
-      if (!Array.isArray(rule.rules)) {
-        return "'rules' must be a list."
-      }
-
-      if (rule.rules.length < 2) {
-        return "'and' and 'or' op require at least 2 rules."
-      }
-
-      // Recursively validate nested rules
-      for (const nestedRule of rule.rules) {
-        const nestedError = validateDetectLogic(
-          yaml.dump(nestedRule),
-          requireTopLevelEvent,
-          depth + 1,
-        )
-        if (nestedError) {
-          return nestedError
-        }
-      }
-    }
-
-    // Validate other operators
-    const validOperators = [
-      'and',
-      'or',
-      'is',
-      'exists',
-      'contains',
-      'starts with',
-      'ends with',
-      'is greater than',
-      'is lower than',
-      'matches',
-      'string distance',
-      'is platform',
-      'is tagged',
-      'lookup',
-      'scope',
-      'cidr',
-      'is private address',
-      'is public address',
-      'is 32 bit',
-      'is 64 bit',
-      'is arm',
-      'is older than',
-      'file name',
-      'sub domain',
-    ]
-
-    if (!validOperators.includes(rule.op.toLowerCase())) {
-      return `Unknown operator: '${rule.op}'. Valid operators are: ${validOperators.join(', ')}`
-    }
-
-    // Validate path requirement for most operators
-    const pathRequiredOps = [
-      'is',
-      'exists',
-      'contains',
-      'starts with',
-      'ends with',
-      'is greater than',
-      'is lower than',
-      'matches',
-      'string distance',
-      'lookup',
-      'cidr',
-      'is private address',
-      'is public address',
-      'is older than',
-      'file name',
-      'sub domain',
-    ]
-    if (pathRequiredOps.includes(rule.op.toLowerCase()) && !('path' in rule)) {
-      return `Operator '${rule.op}' requires a 'path' field.`
-    }
-
-    // Validate value requirement for comparison operators
-    const valueRequiredOps = [
-      'is',
-      'contains',
-      'starts with',
-      'ends with',
-      'is greater than',
-      'is lower than',
-      'string distance',
-    ]
-    if (valueRequiredOps.includes(rule.op.toLowerCase()) && !('value' in rule)) {
-      return `Operator '${rule.op}' requires a 'value' field.`
-    }
-
-    // Validate re requirement for matches operator
-    if (rule.op.toLowerCase() === 'matches' && !('re' in rule)) {
-      return "Operator 'matches' requires a 're' field with the regular expression pattern."
-    }
-
-    // Validate seconds requirement for is older than operator
-    if (rule.op.toLowerCase() === 'is older than' && !('seconds' in rule)) {
-      return "Operator 'is older than' requires a 'seconds' field with the number of seconds."
-    }
-
-    return null // No errors
-  } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error)
-  }
-}
-
-interface ResponseAction {
-  action: string
-  name?: string
-  tag?: string
-  command?: string
-  investigation?: string
-  duration?: string | number
-  path?: string
-  value?: string
-  'extension name'?: string
-  'extension action'?: string
-  'extension request'?: Record<string, unknown>
-  'hive name'?: string
-  'record name'?: string
-  ttl?: number
-  entire_device?: boolean
-  publish?: boolean
-  priority?: number
-  metadata?: Record<string, unknown>
-  detect_data?: Record<string, unknown>
-  [key: string]: unknown
-}
-
-function validateRespondLogic(respondLogicStr: string): string | null {
-  try {
-    const responses = yaml.load(respondLogicStr) as ResponseAction[]
-
-    if (!Array.isArray(responses)) {
-      return 'Top level should be a list of actions.'
-    }
-
-    const validActions = [
-      'report',
-      'add tag',
-      'remove tag',
-      'task',
-      'add var',
-      'del var',
-      'extension request',
-      'isolate network',
-      'seal',
-      'unseal',
-      'output',
-      'rejoin network',
-      'undelete sensor',
-      'wait',
-      'add hive tag',
-      'remove hive tag',
-      'kill',
-      'suspend',
-      'resume',
-      'deny tree',
-      'delete',
-      'run command',
-      'get file',
-      'block',
-      'unblock',
-    ]
-
-    for (let i = 0; i < responses.length; i++) {
-      const response = responses[i]
-
-      if (typeof response !== 'object' || !('action' in response)) {
-        return `Item ${i + 1}: Each list item must specify an 'action' field`
-      }
-
-      if (!validActions.includes(response.action.toLowerCase())) {
-        return `Item ${i + 1}: Unknown action '${response.action}'. Valid actions are: ${validActions.join(', ')}`
-      }
-
-      // Validate specific action requirements
-      switch (response.action.toLowerCase()) {
-        case 'report':
-          if (!('name' in response)) {
-            return `Item ${i + 1}: 'report' action requires a 'name' field`
-          }
-          break
-        case 'add tag':
-        case 'remove tag':
-          if (!('tag' in response)) {
-            return `Item ${i + 1}: '${response.action}' action requires a 'tag' field`
-          }
-          break
-        case 'task':
-          if (!('command' in response)) {
-            return `Item ${i + 1}: 'task' action requires a 'command' field`
-          }
-          break
-        case 'run command':
-          if (!('command' in response)) {
-            return `Item ${i + 1}: 'run command' action requires a 'command' field`
-          }
-          break
-        case 'get file':
-          if (!('path' in response)) {
-            return `Item ${i + 1}: 'get file' action requires a 'path' field`
-          }
-          break
-        case 'add var':
-          if (!('name' in response)) {
-            return `Item ${i + 1}: 'add var' action requires a 'name' field`
-          }
-          if (!('value' in response)) {
-            return `Item ${i + 1}: 'add var' action requires a 'value' field`
-          }
-          break
-        case 'del var':
-          if (!('name' in response)) {
-            return `Item ${i + 1}: 'del var' action requires a 'name' field`
-          }
-          break
-        case 'extension request':
-          if (!('extension name' in response)) {
-            return `Item ${i + 1}: 'extension request' action requires an 'extension name' field`
-          }
-          if (!('extension action' in response)) {
-            return `Item ${i + 1}: 'extension request' action requires an 'extension action' field`
-          }
-          if (!('extension request' in response)) {
-            return `Item ${i + 1}: 'extension request' action requires an 'extension request' field`
-          }
-          break
-        case 'output':
-          if (!('name' in response)) {
-            return `Item ${i + 1}: 'output' action requires a 'name' field`
-          }
-          break
-        case 'wait':
-          if (!('duration' in response)) {
-            return `Item ${i + 1}: 'wait' action requires a 'duration' field`
-          }
-          // Validate duration format (string like "10s" or number for seconds)
-          if (typeof response.duration !== 'string' && typeof response.duration !== 'number') {
-            return `Item ${i + 1}: 'duration' must be a string (e.g., "10s") or number (seconds)`
-          }
-          if (
-            typeof response.duration === 'number' &&
-            (response.duration < 0 || response.duration > 60)
-          ) {
-            return `Item ${i + 1}: 'duration' must be between 0 and 60 seconds`
-          }
-          break
-        case 'add hive tag':
-          if (!('hive name' in response)) {
-            return `Item ${i + 1}: 'add hive tag' action requires a 'hive name' field`
-          }
-          if (!('record name' in response)) {
-            return `Item ${i + 1}: 'add hive tag' action requires a 'record name' field`
-          }
-          if (!('tag' in response)) {
-            return `Item ${i + 1}: 'add hive tag' action requires a 'tag' field`
-          }
-          break
-        case 'remove hive tag':
-          if (!('hive name' in response)) {
-            return `Item ${i + 1}: 'remove hive tag' action requires a 'hive name' field`
-          }
-          if (!('record name' in response)) {
-            return `Item ${i + 1}: 'remove hive tag' action requires a 'record name' field`
-          }
-          if (!('tag' in response)) {
-            return `Item ${i + 1}: 'remove hive tag' action requires a 'tag' field`
-          }
-          break
-      }
-
-      // Validate TTL if present
-      if ('ttl' in response && (typeof response.ttl !== 'number' || response.ttl < 0)) {
-        return `Item ${i + 1}: 'ttl' must be a positive number`
-      }
-
-      // Validate entire_device if present
-      if ('entire_device' in response && typeof response.entire_device !== 'boolean') {
-        return `Item ${i + 1}: 'entire_device' must be a boolean (true or false)`
-      }
-    }
-
-    return null // No errors
-  } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error)
-  }
-}
+// Rule validation - see src/utils/drValidation.ts for implementation
+// validateDetectLogic and validateRespondLogic are imported from there
 
 // Rule management functions
 function saveRule() {
@@ -4960,6 +5092,36 @@ async function runBacktest() {
     return
   }
 
+  // Validate rule before allowing backtest
+  const detectLogic = currentRule.detectLogic.trim()
+  if (!detectLogic) {
+    appStore.addNotification('error', 'Detect logic cannot be empty')
+    return
+  }
+
+  const detectError = validateDetectLogic(detectLogic)
+  if (detectError) {
+    appStore.addNotification('error', `Cannot run backtest: Invalid detect logic. ${detectError}`)
+    // Also update validation result display
+    validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Detect Logic: ${detectError}</div>`
+    return
+  }
+
+  // Validate respond logic if present
+  const respondLogic = currentRule.respondLogic.trim()
+  if (respondLogic) {
+    const respondError = validateRespondLogic(respondLogic)
+    if (respondError) {
+      appStore.addNotification(
+        'error',
+        `Cannot run backtest: Invalid respond logic. ${respondError}`,
+      )
+      // Also update validation result display
+      validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Respond Logic: ${respondError}</div>`
+      return
+    }
+  }
+
   // Always show billing warning for >30 day backtests
   if (isBeyond30DayFreePeriod.value) {
     showBillingWarning.value = true
@@ -4971,12 +5133,83 @@ async function runBacktest() {
 }
 
 async function confirmBillingAndRunBacktest() {
+  // Validate rule before proceeding (safety check)
+  const detectLogic = currentRule.detectLogic.trim()
+  if (!detectLogic) {
+    showBillingWarning.value = false
+    appStore.addNotification('error', 'Detect logic cannot be empty')
+    return
+  }
+
+  const detectError = validateDetectLogic(detectLogic)
+  if (detectError) {
+    showBillingWarning.value = false
+    appStore.addNotification('error', `Cannot run backtest: Invalid detect logic. ${detectError}`)
+    validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Detect Logic: ${detectError}</div>`
+    return
+  }
+
+  const respondLogic = currentRule.respondLogic.trim()
+  if (respondLogic) {
+    const respondError = validateRespondLogic(respondLogic)
+    if (respondError) {
+      showBillingWarning.value = false
+      appStore.addNotification(
+        'error',
+        `Cannot run backtest: Invalid respond logic. ${respondError}`,
+      )
+      validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Respond Logic: ${respondError}</div>`
+      return
+    }
+  }
+
+  // CRITICAL: Re-check 30-day period before execution (safety check for edge cases)
+  // This ensures users cannot bypass the warning even if time has passed since the modal opened
+  if (isBeyond30DayFreePeriod.value) {
+    appStore.addNotification(
+      'warning',
+      'Backtest parameters still extend beyond 30-day free period. Please review the billing warning.',
+    )
+    // Keep the warning open so user can see updated information
+    return
+  }
+
   // Close warning and proceed with backtest
   showBillingWarning.value = false
   await executeBacktest()
 }
 
 async function runCostEstimateFromWarning() {
+  // Validate rule before proceeding (safety check)
+  const detectLogic = currentRule.detectLogic.trim()
+  if (!detectLogic) {
+    showBillingWarning.value = false
+    appStore.addNotification('error', 'Detect logic cannot be empty')
+    return
+  }
+
+  const detectError = validateDetectLogic(detectLogic)
+  if (detectError) {
+    showBillingWarning.value = false
+    appStore.addNotification('error', `Cannot estimate cost: Invalid detect logic. ${detectError}`)
+    validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Detect Logic: ${detectError}</div>`
+    return
+  }
+
+  const respondLogic = currentRule.respondLogic.trim()
+  if (respondLogic) {
+    const respondError = validateRespondLogic(respondLogic)
+    if (respondError) {
+      showBillingWarning.value = false
+      appStore.addNotification(
+        'error',
+        `Cannot estimate cost: Invalid respond logic. ${respondError}`,
+      )
+      validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Respond Logic: ${respondError}</div>`
+      return
+    }
+  }
+
   // Close billing warning and run cost estimate
   showBillingWarning.value = false
   await estimateCost()
@@ -5067,112 +5300,174 @@ async function executeBacktest() {
       // PARALLEL EXECUTION
       // Create backtest promises for all organizations
       const backtestPromises = backtestSelectedOids.value.map(async (oid) => {
-        try {
-          // Check for cancellation before starting
-          if (isCancellingBacktest.value) {
-            throw new Error('Backtest cancelled')
-          }
+        const MAX_RETRIES = 4 // 4 retries = 5 total attempts
+        let retryAttempt = 0
+        let lastError: Error | null = null
 
-          // Update status to running and track start time
-          const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
-          if (orgStatus) {
-            orgStatus.status = 'running'
-            orgStatus.startTime = Date.now()
-          }
-
-          // Get the replay URL specific to this organization
-          const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
-          if (!orgReplayUrl) {
-            throw new Error(`Replay URL not available for organization ${oid}`)
-          }
-
-          // Check for cancellation before API call
-          if (isCancellingBacktest.value) {
-            throw new Error('Backtest cancelled')
-          }
-
-          // Run the backtest for this org
-          const response = await api.backtestDetectionRule(
-            orgReplayUrl,
-            oid,
-            currentRule.detectLogic,
-            currentRule.respondLogic,
-            startTimestamp,
-            endTimestamp,
-            backtestConfig.eventLimit,
-            backtestConfig.evalLimit,
-            backtestAbortController || undefined,
-            30 * 60 * 1000, // 30 minute timeout
-            undefined, // Let backend auto-detect stateful requirements
-            false, // isDryRun
-            '', // Initial cursor (empty string for new queries)
-            backtestConfig.sid, // Optional sensor ID
-            false, // isValidation (always false since we removed the toggle)
-            backtestConfig.stream, // Data stream
-          )
-
-          // Update progress for completed organization (atomic operation)
-          backtestProgress.value.current++
-
-          // Update status to completed and track end time
-          if (orgStatus) {
-            orgStatus.status = 'completed'
-            orgStatus.endTime = Date.now()
-            if (orgStatus.startTime) {
-              orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+        // Retry loop - attempt up to 5 times total
+        while (retryAttempt <= MAX_RETRIES) {
+          try {
+            // Check for cancellation before starting/retrying
+            if (isCancellingBacktest.value) {
+              throw new Error('Backtest cancelled')
             }
-            // Add result summary for parallel execution
-            orgStatus.matchCount = response.results?.length || 0
-            orgStatus.eventCount = response.stats?.n_event || 0
-            orgStatus.evalCount = response.stats?.n_evals || 0
-          }
 
-          // Store cursor information for pagination
-          if (backtestConfig.useChunkedResults) {
-            orgCursors.value[oid] = response.cursor || ''
-            orgHasMore.value[oid] = response.has_more || false
-          }
-
-          // Return successful result
-          return {
-            oid,
-            orgName: auth.getOrgName(oid),
-            status: 'success' as const,
-            stats: response.stats,
-            results: response.results || [],
-            did_match: response.did_match,
-            is_dry_run: response.is_dry_run,
-          }
-        } catch (error: unknown) {
-          // Update progress for failed organization (atomic operation)
-          backtestProgress.value.current++
-
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          const isCancelled =
-            errorMessage === 'Backtest cancelled' ||
-            (error instanceof DOMException && error.name === 'AbortError')
-          const isTimeout = errorMessage.includes('Backtest timeout')
-
-          // Update status appropriately and track end time
-          const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
-          if (orgStatus) {
-            orgStatus.status = isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error'
-            orgStatus.endTime = Date.now()
-            if (orgStatus.startTime) {
-              orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+            // Update status to running and track start time
+            const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+            if (orgStatus) {
+              orgStatus.status = 'running'
+              if (retryAttempt === 0) {
+                orgStatus.startTime = Date.now()
+                delete orgStatus.statusMessage // Clear any previous message
+              } else {
+                // Update status message for retry
+                orgStatus.statusMessage = `Retrying (${retryAttempt} failed)`
+              }
             }
-          }
 
-          // Return appropriate result
-          return {
-            oid,
-            orgName: auth.getOrgName(oid),
-            status: (isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error') as
-              | 'cancelled'
-              | 'timeout'
-              | 'error',
-            ...(isCancelled || isTimeout ? {} : { error: errorMessage }),
+            // Get the replay URL specific to this organization
+            const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+            if (!orgReplayUrl) {
+              throw new Error(`Replay URL not available for organization ${oid}`)
+            }
+
+            // Check for cancellation before API call
+            if (isCancellingBacktest.value) {
+              throw new Error('Backtest cancelled')
+            }
+
+            // Run the backtest for this org
+            const response = await api.backtestDetectionRule(
+              orgReplayUrl,
+              oid,
+              currentRule.detectLogic,
+              currentRule.respondLogic,
+              startTimestamp,
+              endTimestamp,
+              backtestConfig.eventLimit,
+              backtestConfig.evalLimit,
+              backtestAbortController || undefined,
+              30 * 60 * 1000, // 30 minute timeout
+              undefined, // Let backend auto-detect stateful requirements
+              false, // isDryRun
+              '', // Initial cursor (empty string for new queries)
+              backtestConfig.sid, // Optional sensor ID
+              false, // isValidation (always false since we removed the toggle)
+              backtestConfig.stream, // Data stream
+              backtestConfig.selector, // Optional sensor selector expression
+            )
+
+            // Success! Update progress for completed organization (atomic operation)
+            backtestProgress.value.current++
+
+            // Update status to completed and track end time
+            if (orgStatus) {
+              orgStatus.status = 'completed'
+              orgStatus.endTime = Date.now()
+              delete orgStatus.statusMessage // Clear retry message
+              if (orgStatus.startTime) {
+                orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+              }
+              // Add result summary for parallel execution
+              orgStatus.matchCount = response.results?.length || 0
+              orgStatus.eventCount = response.stats?.n_event || 0
+              orgStatus.evalCount = response.stats?.n_evals || 0
+              // Track retry count if there were retries
+              if (retryAttempt > 0) {
+                orgStatus.retryCount = retryAttempt
+              }
+            }
+
+            // Store cursor information for pagination
+            if (backtestConfig.useChunkedResults) {
+              orgCursors.value[oid] = response.cursor || ''
+              orgHasMore.value[oid] = response.has_more || false
+            }
+
+            // Return successful result
+            return {
+              oid,
+              orgName: auth.getOrgName(oid),
+              status: 'success' as const,
+              stats: response.stats,
+              results: response.results || [],
+              did_match: response.did_match,
+              is_dry_run: response.is_dry_run,
+              retryCount: retryAttempt > 0 ? retryAttempt : undefined,
+            }
+          } catch (error: unknown) {
+            lastError = error instanceof Error ? error : new Error('Unknown error')
+            const errorMessage = lastError.message
+            const isCancelled =
+              errorMessage === 'Backtest cancelled' ||
+              (error instanceof DOMException && error.name === 'AbortError')
+            const isTimeout = errorMessage.includes('Backtest timeout')
+
+            // Don't retry for cancellations or timeouts
+            if (isCancelled || isTimeout) {
+              // Update progress for failed organization (atomic operation)
+              backtestProgress.value.current++
+
+              // Update status appropriately and track end time
+              const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+              if (orgStatus) {
+                orgStatus.status = isCancelled ? 'cancelled' : 'timeout'
+                orgStatus.endTime = Date.now()
+                delete orgStatus.statusMessage // Clear retry message
+                if (orgStatus.startTime) {
+                  orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+                }
+              }
+
+              // Return appropriate result
+              return {
+                oid,
+                orgName: auth.getOrgName(oid),
+                status: (isCancelled ? 'cancelled' : 'timeout') as 'cancelled' | 'timeout',
+              }
+            }
+
+            // For other errors, check if we should retry
+            retryAttempt++
+
+            if (retryAttempt > MAX_RETRIES) {
+              // All retries exhausted - mark as failed
+              backtestProgress.value.current++
+
+              const orgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
+              if (orgStatus) {
+                orgStatus.status = 'error'
+                orgStatus.endTime = Date.now()
+                delete orgStatus.statusMessage // Clear retry message
+                if (orgStatus.startTime) {
+                  orgStatus.duration = orgStatus.endTime - orgStatus.startTime
+                }
+                // Track total retry attempts
+                if (retryAttempt - 1 > 0) {
+                  orgStatus.retryCount = retryAttempt - 1
+                }
+              }
+
+              // Return error result
+              return {
+                oid,
+                orgName: auth.getOrgName(oid),
+                status: 'error' as const,
+                error: errorMessage,
+                retryCount: retryAttempt - 1 > 0 ? retryAttempt - 1 : undefined,
+              }
+            }
+
+            // Continue to next retry iteration
           }
+        }
+
+        // Fallback return (should never reach here due to loop logic)
+        return {
+          oid,
+          orgName: auth.getOrgName(oid),
+          status: 'error' as const,
+          error: lastError?.message || 'Unknown error',
         }
       })
 
@@ -5242,110 +5537,174 @@ async function executeBacktest() {
         }
 
         const oid = backtestSelectedOids.value[i]
+        const MAX_RETRIES = 4 // 4 retries = 5 total attempts
+        let retryAttempt = 0
+        let lastError: Error | null = null
+        let success = false
 
-        try {
-          // Update progress
-          backtestProgress.value.current = i + 1
-          backtestProgress.value.currentOid = oid
-          backtestProgress.value.currentOrgName = auth.getOrgName(oid)
+        // Retry loop - attempt up to 5 times total
+        while (retryAttempt <= MAX_RETRIES && !success) {
+          try {
+            // Update progress
+            backtestProgress.value.current = i + 1
+            backtestProgress.value.currentOid = oid
+            backtestProgress.value.currentOrgName = auth.getOrgName(oid)
 
-          // Update org status if tracking and start timing
-          const runningOrgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
-          if (runningOrgStatus) {
-            runningOrgStatus.status = 'running'
-            runningOrgStatus.startTime = Date.now()
-          }
-
-          // Get the replay URL specific to this organization
-          const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
-          if (!orgReplayUrl) {
-            throw new Error(`Replay URL not available for organization ${oid}`)
-          }
-
-          // Run the backtest for this org
-          const response = await api.backtestDetectionRule(
-            orgReplayUrl,
-            oid,
-            currentRule.detectLogic,
-            currentRule.respondLogic,
-            startTimestamp,
-            endTimestamp,
-            backtestConfig.eventLimit,
-            backtestConfig.evalLimit,
-            backtestAbortController || undefined,
-            30 * 60 * 1000, // 30 minute timeout
-            undefined, // Let backend auto-detect stateful requirements
-            false, // isDryRun
-            '', // Initial cursor (empty string for new queries)
-            backtestConfig.sid, // Optional sensor ID
-            false, // isValidation (always false since we removed the toggle)
-            backtestConfig.stream, // Data stream
-          )
-
-          // Store cursor information for pagination
-          if (backtestConfig.useChunkedResults) {
-            orgCursors.value[oid] = response.cursor || ''
-            orgHasMore.value[oid] = response.has_more || false
-          }
-
-          // Add successful result
-          const result = {
-            oid,
-            orgName: auth.getOrgName(oid),
-            status: 'success' as const,
-            stats: response.stats,
-            results: response.results || [],
-            did_match: response.did_match,
-            is_dry_run: response.is_dry_run,
-          }
-          orgResults.push(result)
-          backtestLiveResults.value.push(result)
-
-          // Update org status to completed and track timing
-          const completedOrgStatus = backtestProgress.value.orgStatuses.find(
-            (org) => org.oid === oid,
-          )
-          if (completedOrgStatus) {
-            completedOrgStatus.status = 'completed'
-            completedOrgStatus.endTime = Date.now()
-            if (completedOrgStatus.startTime) {
-              completedOrgStatus.duration =
-                completedOrgStatus.endTime - completedOrgStatus.startTime
+            // Update org status if tracking and start timing
+            const runningOrgStatus = backtestProgress.value.orgStatuses.find(
+              (org) => org.oid === oid,
+            )
+            if (runningOrgStatus) {
+              runningOrgStatus.status = 'running'
+              if (retryAttempt === 0) {
+                runningOrgStatus.startTime = Date.now()
+                delete runningOrgStatus.statusMessage // Clear any previous message
+              } else {
+                // Update status message for retry
+                runningOrgStatus.statusMessage = `Retrying (${retryAttempt} failed)`
+              }
             }
-            // Add result summary
-            completedOrgStatus.matchCount = response.results?.length || 0
-            completedOrgStatus.eventCount = response.stats?.n_event || 0
-            completedOrgStatus.evalCount = response.stats?.n_evals || 0
-          }
-        } catch (error: unknown) {
-          // Backtest failed for this organization - handle error
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          const isCancelled =
-            errorMessage === 'Backtest cancelled' ||
-            (error instanceof DOMException && error.name === 'AbortError')
-          const isTimeout = errorMessage.includes('Backtest timeout')
 
-          // Add appropriate result
-          const errorResult = {
-            oid,
-            orgName: auth.getOrgName(oid),
-            status: (isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error') as
-              | 'cancelled'
-              | 'timeout'
-              | 'error',
-            ...(isCancelled || isTimeout ? {} : { error: errorMessage }),
-          }
-          orgResults.push(errorResult)
-          backtestLiveResults.value.push(errorResult)
-
-          // Update org status appropriately and track timing
-          const errorOrgStatus = backtestProgress.value.orgStatuses.find((org) => org.oid === oid)
-          if (errorOrgStatus) {
-            errorOrgStatus.status = isCancelled ? 'cancelled' : isTimeout ? 'timeout' : 'error'
-            errorOrgStatus.endTime = Date.now()
-            if (errorOrgStatus.startTime) {
-              errorOrgStatus.duration = errorOrgStatus.endTime - errorOrgStatus.startTime
+            // Get the replay URL specific to this organization
+            const orgReplayUrl = storage.getOrganizationReplayUrl(oid)
+            if (!orgReplayUrl) {
+              throw new Error(`Replay URL not available for organization ${oid}`)
             }
+
+            // Run the backtest for this org
+            const response = await api.backtestDetectionRule(
+              orgReplayUrl,
+              oid,
+              currentRule.detectLogic,
+              currentRule.respondLogic,
+              startTimestamp,
+              endTimestamp,
+              backtestConfig.eventLimit,
+              backtestConfig.evalLimit,
+              backtestAbortController || undefined,
+              30 * 60 * 1000, // 30 minute timeout
+              undefined, // Let backend auto-detect stateful requirements
+              false, // isDryRun
+              '', // Initial cursor (empty string for new queries)
+              backtestConfig.sid, // Optional sensor ID
+              false, // isValidation (always false since we removed the toggle)
+              backtestConfig.stream, // Data stream
+              backtestConfig.selector, // Optional sensor selector expression
+            )
+
+            // Store cursor information for pagination
+            if (backtestConfig.useChunkedResults) {
+              orgCursors.value[oid] = response.cursor || ''
+              orgHasMore.value[oid] = response.has_more || false
+            }
+
+            // Success! Add successful result
+            const result = {
+              oid,
+              orgName: auth.getOrgName(oid),
+              status: 'success' as const,
+              stats: response.stats,
+              results: response.results || [],
+              did_match: response.did_match,
+              is_dry_run: response.is_dry_run,
+              retryCount: retryAttempt > 0 ? retryAttempt : undefined,
+            }
+            orgResults.push(result)
+            backtestLiveResults.value.push(result)
+
+            // Update org status to completed and track timing
+            const completedOrgStatus = backtestProgress.value.orgStatuses.find(
+              (org) => org.oid === oid,
+            )
+            if (completedOrgStatus) {
+              completedOrgStatus.status = 'completed'
+              completedOrgStatus.endTime = Date.now()
+              delete completedOrgStatus.statusMessage // Clear retry message
+              if (completedOrgStatus.startTime) {
+                completedOrgStatus.duration =
+                  completedOrgStatus.endTime - completedOrgStatus.startTime
+              }
+              // Add result summary
+              completedOrgStatus.matchCount = response.results?.length || 0
+              completedOrgStatus.eventCount = response.stats?.n_event || 0
+              completedOrgStatus.evalCount = response.stats?.n_evals || 0
+              // Track retry count if there were retries
+              if (retryAttempt > 0) {
+                completedOrgStatus.retryCount = retryAttempt
+              }
+            }
+
+            success = true // Mark as successful to exit retry loop
+          } catch (error: unknown) {
+            // Backtest failed for this organization - handle error
+            lastError = error instanceof Error ? error : new Error('Unknown error')
+            const errorMessage = lastError.message
+            const isCancelled =
+              errorMessage === 'Backtest cancelled' ||
+              (error instanceof DOMException && error.name === 'AbortError')
+            const isTimeout = errorMessage.includes('Backtest timeout')
+
+            // Don't retry for cancellations or timeouts
+            if (isCancelled || isTimeout) {
+              // Add appropriate result
+              const errorResult = {
+                oid,
+                orgName: auth.getOrgName(oid),
+                status: (isCancelled ? 'cancelled' : 'timeout') as 'cancelled' | 'timeout',
+              }
+              orgResults.push(errorResult)
+              backtestLiveResults.value.push(errorResult)
+
+              // Update org status appropriately and track timing
+              const errorOrgStatus = backtestProgress.value.orgStatuses.find(
+                (org) => org.oid === oid,
+              )
+              if (errorOrgStatus) {
+                errorOrgStatus.status = isCancelled ? 'cancelled' : 'timeout'
+                errorOrgStatus.endTime = Date.now()
+                delete errorOrgStatus.statusMessage // Clear retry message
+                if (errorOrgStatus.startTime) {
+                  errorOrgStatus.duration = errorOrgStatus.endTime - errorOrgStatus.startTime
+                }
+              }
+
+              break // Exit retry loop
+            }
+
+            // For other errors, check if we should retry
+            retryAttempt++
+
+            if (retryAttempt > MAX_RETRIES) {
+              // All retries exhausted - add error result
+              const errorResult = {
+                oid,
+                orgName: auth.getOrgName(oid),
+                status: 'error' as const,
+                error: errorMessage,
+                retryCount: retryAttempt - 1 > 0 ? retryAttempt - 1 : undefined,
+              }
+              orgResults.push(errorResult)
+              backtestLiveResults.value.push(errorResult)
+
+              // Update org status appropriately and track timing
+              const errorOrgStatus = backtestProgress.value.orgStatuses.find(
+                (org) => org.oid === oid,
+              )
+              if (errorOrgStatus) {
+                errorOrgStatus.status = 'error'
+                errorOrgStatus.endTime = Date.now()
+                delete errorOrgStatus.statusMessage // Clear retry message
+                if (errorOrgStatus.startTime) {
+                  errorOrgStatus.duration = errorOrgStatus.endTime - errorOrgStatus.startTime
+                }
+                // Track total retry attempts
+                if (retryAttempt - 1 > 0) {
+                  errorOrgStatus.retryCount = retryAttempt - 1
+                }
+              }
+            }
+
+            // Continue to next retry iteration
           }
         }
       }
@@ -5479,6 +5838,36 @@ async function estimateCost() {
     return
   }
 
+  // Validate rule before allowing cost estimate
+  const detectLogic = currentRule.detectLogic.trim()
+  if (!detectLogic) {
+    appStore.addNotification('error', 'Detect logic cannot be empty')
+    return
+  }
+
+  const detectError = validateDetectLogic(detectLogic)
+  if (detectError) {
+    appStore.addNotification('error', `Cannot estimate cost: Invalid detect logic. ${detectError}`)
+    // Also update validation result display
+    validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Detect Logic: ${detectError}</div>`
+    return
+  }
+
+  // Validate respond logic if present
+  const respondLogic = currentRule.respondLogic.trim()
+  if (respondLogic) {
+    const respondError = validateRespondLogic(respondLogic)
+    if (respondError) {
+      appStore.addNotification(
+        'error',
+        `Cannot estimate cost: Invalid respond logic. ${respondError}`,
+      )
+      // Also update validation result display
+      validationResult.value = `<div class="rule-validation validation-error">✗ Validation failed:<br>• Respond Logic: ${respondError}</div>`
+      return
+    }
+  }
+
   try {
     isEstimatingCost.value = true
     costEstimateResults.value = null
@@ -5536,6 +5925,7 @@ async function estimateCost() {
           backtestConfig.sid, // Optional sensor ID
           false, // isValidation
           backtestConfig.stream, // Data stream
+          backtestConfig.selector, // Optional sensor selector expression
         )
 
         const billed = response.stats?.n_billed || 0
@@ -5578,6 +5968,11 @@ async function estimateCost() {
         startDateTime: backtestConfig.startDateTime,
         endDateTime: backtestConfig.endDateTime || null,
         oids: [...backtestSelectedOids.value],
+        selector: backtestConfig.selector,
+        sid: backtestConfig.sid,
+        stream: backtestConfig.stream,
+        eventLimit: backtestConfig.eventLimit,
+        evalLimit: backtestConfig.evalLimit,
       },
     }
 
@@ -5695,6 +6090,7 @@ async function loadMoreResultsForOrg(oid: string) {
       backtestConfig.sid, // Optional sensor ID
       false, // isValidation
       backtestConfig.stream, // Data stream
+      backtestConfig.selector, // Optional sensor selector expression
     )
 
     // Append new results to existing results
@@ -5819,10 +6215,8 @@ function exportBacktestSummaryAsMarkdown() {
   const telemetryEnd = new Date(results.timeframe.endTime).toISOString()
 
   // Calculate additional metrics
-  const failedTimeoutCount =
-    results.completionStats.failedOrgs +
-    results.completionStats.cancelledOrgs +
-    results.completionStats.timeoutOrgs
+  const cancelledTimeoutCount =
+    results.completionStats.cancelledOrgs + results.completionStats.timeoutOrgs
 
   const markdown = `# Backtest Summary
 
@@ -5841,6 +6235,18 @@ function exportBacktestSummaryAsMarkdown() {
 ## Telemetry Timeframe
 **Start:** ${telemetryStart} | **End:** ${telemetryEnd} | **Days Covered:** ${results.timeframe.durationDays.toFixed(1)}
 
+## Backtest Configuration
+
+| Setting | Value |
+|---------|-------|
+| Execution Mode | ${backtestConfig.runInParallel ? 'Parallel' : 'Series'} |
+| Sensor Selector | ${backtestConfig.selector || '(none)'} |
+| Event Limit | ${backtestConfig.eventLimit || 'No limit'} |
+| Evaluation Limit | ${backtestConfig.evalLimit || 'No limit'} |
+| Data Stream | ${backtestConfig.stream} |
+| Sensor ID | ${backtestConfig.sid || '(org-wide)'} |
+| Chunked Results | ${backtestConfig.useChunkedResults ? 'Enabled' : 'Disabled'} |
+
 ## Metrics Summary
 
 | Metric | Value |
@@ -5855,14 +6261,15 @@ function exportBacktestSummaryAsMarkdown() {
 | API Processing Time | ${results.totalStats.wall_time.toFixed(2)}s |
 | Total Backtest Time | ${results.executionStats.totalExecutionTime.toFixed(2)}s |
 | Organizations Completed | ${results.completionStats.completedOrgs} / ${results.completionStats.totalOrgs} |
-| Failed / Cancelled / Timeout | ${failedTimeoutCount} |
+| Failed Orgs | ${results.completionStats.failedOrgs} |
+| Cancelled / Timeout Orgs | ${cancelledTimeoutCount} |
 | Organizations with 0 Hits | ${results.completionStats.orgsWithZeroHits} |
 | Average Matches per Org | ${results.completionStats.avgMatchesPerOrg.toFixed(1)} |
 
 ## Organization Breakdown
 
-| Organization | Status | Matches | Billed | Free | Cost | Duration |
-|-------------|--------|---------|--------|------|------|----------|
+| Organization | Status | Matches | Billed | Free | Cost | Duration | Retries |
+|-------------|--------|---------|--------|------|------|----------|---------|
 ${results.orgResults
   .map((org) => {
     const matchCount = org.results?.length || 0
@@ -5871,6 +6278,7 @@ ${results.orgResults
     const cost =
       org.stats?.n_billed !== undefined ? formatCost(calculateCost(org.stats.n_billed)) : 'N/A'
     const duration = org.stats?.wall_time ? `${org.stats.wall_time.toFixed(2)}s` : 'N/A'
+    const retries = org.retryCount !== undefined && org.retryCount > 0 ? `${org.retryCount}` : '-'
     const statusIcon =
       org.status === 'success'
         ? '✅'
@@ -5879,7 +6287,7 @@ ${results.orgResults
           : org.status === 'cancelled'
             ? '⏹️'
             : '❌'
-    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${cost} | ${duration} |`
+    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${cost} | ${duration} | ${retries} |`
   })
   .join('\n')}
 
@@ -5971,6 +6379,109 @@ function clearBacktestResults() {
     currentOid: '',
     orgStatuses: [],
   }
+}
+
+// Selector Expression Builder Functions
+const builtSelectorExpression = computed(() => {
+  if (selectorBuilder.conditions.length === 0) return ''
+
+  return selectorBuilder.conditions
+    .map((condition, index) => {
+      // Format value with backticks for platform names starting with numbers
+      const formattedValue = formatConditionValue(condition.field, condition.value)
+
+      // Build condition string
+      let conditionStr = `${condition.field} ${condition.operator} ${formattedValue}`
+
+      // Add logic operator before condition (except for first one)
+      if (index > 0) {
+        conditionStr = `${condition.logic.toLowerCase()} ${conditionStr}`
+      }
+
+      // Wrap in parentheses if using OR logic with multiple conditions
+      if (selectorBuilder.conditions.length > 1 && condition.logic === 'OR' && index > 0) {
+        // Find where this OR group starts
+        const prevLogic = selectorBuilder.conditions[index - 1]?.logic
+        if (prevLogic === 'AND') {
+          // Need to handle grouping
+          return conditionStr
+        }
+      }
+
+      return conditionStr
+    })
+    .join(' ')
+})
+
+function formatConditionValue(field: string, value: string): string {
+  // Platform names starting with numbers need backticks
+  if (field === 'plat' && /^\d/.test(value)) {
+    return `\`${value}\``
+  }
+
+  // Tags should not be quoted (they're used with 'in' operator)
+  if (field === 'tags') {
+    return value
+  }
+
+  // Boolean values should not be quoted
+  if (value === 'true' || value === 'false') {
+    return value
+  }
+
+  // Numeric values for arch should not be quoted
+  if (field === 'arch' && /^\d+$/.test(value)) {
+    return value
+  }
+
+  // If value contains spaces or special characters, wrap in backticks
+  if (/[\s<>]/.test(value)) {
+    return `\`${value}\``
+  }
+
+  // Otherwise, return as-is
+  return value
+}
+
+function addSelectorCondition() {
+  if (
+    !selectorBuilder.currentField ||
+    !selectorBuilder.currentOperator ||
+    !selectorBuilder.currentValue
+  ) {
+    return
+  }
+
+  selectorBuilder.conditions.push({
+    field: selectorBuilder.currentField,
+    operator: selectorBuilder.currentOperator,
+    value: selectorBuilder.currentValue,
+    logic: selectorBuilder.defaultLogic,
+  })
+
+  // Clear current values
+  selectorBuilder.currentField = ''
+  selectorBuilder.currentOperator = ''
+  selectorBuilder.currentValue = ''
+}
+
+function removeSelectorCondition(index: number) {
+  selectorBuilder.conditions.splice(index, 1)
+}
+
+function clearSelectorBuilder() {
+  selectorBuilder.currentField = ''
+  selectorBuilder.currentOperator = ''
+  selectorBuilder.currentValue = ''
+  selectorBuilder.conditions = []
+}
+
+function insertSelectorExpression() {
+  if (!builtSelectorExpression.value) return
+
+  backtestConfig.selector = builtSelectorExpression.value
+  showSelectorBuilder.value = false
+  appStore.addNotification('success', 'Selector expression inserted successfully')
 }
 
 function cancelBacktest() {
@@ -6299,10 +6810,71 @@ async function copyFieldPathToClipboard(fieldPath: string) {
   }
 }
 
+// Clipboard functions for rule logic
+async function copyDetectLogicToClipboard() {
+  if (!currentRule.detectLogic.trim()) {
+    appStore.addNotification('warning', 'No detect logic to copy')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentRule.detectLogic)
+    appStore.addNotification('success', 'Detect logic copied to clipboard')
+  } catch (error) {
+    // Fallback for browsers that don't support clipboard API
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = currentRule.detectLogic
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      appStore.addNotification('success', 'Detect logic copied to clipboard')
+    } catch (_fallbackError) {
+      appStore.addNotification('error', 'Failed to copy detect logic to clipboard')
+      logger.error('Clipboard error:', error)
+    }
+  }
+}
+
+async function copyRespondLogicToClipboard() {
+  if (!currentRule.respondLogic.trim()) {
+    appStore.addNotification('warning', 'No respond logic to copy')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentRule.respondLogic)
+    appStore.addNotification('success', 'Respond logic copied to clipboard')
+  } catch (error) {
+    // Fallback for browsers that don't support clipboard API
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = currentRule.respondLogic
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      appStore.addNotification('success', 'Respond logic copied to clipboard')
+    } catch (_fallbackError) {
+      appStore.addNotification('error', 'Failed to copy respond logic to clipboard')
+      logger.error('Clipboard error:', error)
+    }
+  }
+}
+
 // Import from IaC functionality
 function clearIaCImport() {
   iacImportContent.value = ''
   iacImportResult.value = null
+}
+
+function closeImportIaCModal() {
+  clearIaCImport()
+  // Reset checkbox to reflect persistent setting for next import
+  iacImportAutoOpenFirstRule.value =
+    localStorage.getItem('detectionforge_auto_open_top_rule') === 'true'
+  showImportIaCModal.value = false
 }
 
 // Interface for IaC data structure
@@ -6344,6 +6916,30 @@ async function importFromIaC() {
   iacImportResult.value = null
 
   try {
+    // Helper function to extract test names from YAML comments
+    // DetectionForge exports test names as comments like "# Test 1: Friendly Name"
+    const extractTestNamesFromComments = (yamlText: string): Map<number, string> => {
+      const testNames = new Map<number, string>()
+      const lines = yamlText.split('\n')
+
+      // Pattern matches: "# Test 1: Friendly Name" or "# Test 1: Some description"
+      const commentPattern = /^\s*#\s*Test\s+(\d+):\s*(.+)$/
+
+      for (const line of lines) {
+        const match = line.match(commentPattern)
+        if (match) {
+          const testNumber = parseInt(match[1], 10)
+          const testName = match[2].trim()
+          testNames.set(testNumber, testName)
+        }
+      }
+
+      return testNames
+    }
+
+    // Extract friendly names from comments before parsing
+    const testNamesFromComments = extractTestNamesFromComments(iacImportContent.value)
+
     // Parse the YAML content
     const iacData = yaml.load(iacImportContent.value.trim()) as IaCData
 
@@ -6415,7 +7011,7 @@ async function importFromIaC() {
             description = ruleData.data.respond[0].metadata.description
           }
 
-          // Extract unit tests if present
+          // Extract unit tests if present (must be inside data section per IaC spec)
           const extractedUnitTests: UnitTest[] = []
           if (ruleData.data.tests) {
             let testIndex = 1
@@ -6424,9 +7020,13 @@ async function importFromIaC() {
             if (ruleData.data.tests.match && Array.isArray(ruleData.data.tests.match)) {
               for (const testCase of ruleData.data.tests.match) {
                 if (Array.isArray(testCase) && testCase.length > 0) {
+                  // Use friendly name from comment if available, otherwise use generic name
+                  const friendlyName = testNamesFromComments.get(testIndex)
+                  const testName = friendlyName || `Match Test ${testIndex}`
+
                   extractedUnitTests.push({
                     id: Date.now().toString() + '_' + testIndex,
-                    name: `Match Test ${testIndex}`,
+                    name: testName,
                     eventData: JSON.stringify(testCase[0], null, 2),
                     expectedMatch: true,
                     isCollapsed: false,
@@ -6440,9 +7040,13 @@ async function importFromIaC() {
             if (ruleData.data.tests.non_match && Array.isArray(ruleData.data.tests.non_match)) {
               for (const testCase of ruleData.data.tests.non_match) {
                 if (Array.isArray(testCase) && testCase.length > 0) {
+                  // Use friendly name from comment if available, otherwise use generic name
+                  const friendlyName = testNamesFromComments.get(testIndex)
+                  const testName = friendlyName || `Non-Match Test ${testIndex}`
+
                   extractedUnitTests.push({
                     id: Date.now().toString() + '_' + testIndex,
-                    name: `Non-Match Test ${testIndex}`,
+                    name: testName,
                     eventData: JSON.stringify(testCase[0], null, 2),
                     expectedMatch: false,
                     isCollapsed: false,
@@ -6505,7 +7109,7 @@ async function importFromIaC() {
       )
 
       // Auto-open the first successfully imported rule if checkbox is checked
-      if (localStorage.getItem('detectionforge_auto_open_first_imported_rule') === 'true') {
+      if (iacImportAutoOpenFirstRule.value) {
         const firstSuccessfulImport = importedRules.find((rule) => rule.success)
         if (firstSuccessfulImport) {
           // Find the rule ID by name from the saved rules
@@ -6519,8 +7123,8 @@ async function importFromIaC() {
               loadRule(ruleToOpen.id)
               // Add notification that rule was loaded to editor
               appStore.addNotification('info', `Loaded "${firstSuccessfulImport.name}" to editor`)
-              // Close the import modal
-              showImportIaCModal.value = false
+              // Close the import modal and clear its contents
+              closeImportIaCModal()
             })
           }
         }

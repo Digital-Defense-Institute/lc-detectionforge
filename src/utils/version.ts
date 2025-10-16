@@ -37,6 +37,37 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.7.0',
+    date: '2025-10-15',
+    description:
+      'Enhanced reliability and usability with sensor selector expression builder and automatic retry logic',
+    changes: {
+      added: [
+        'Sensor Selector Expression Builder with interactive modal for crafting complex selector expressions',
+        'Automatic retry logic for failed backtests/replays: Up to 2 retries (3 total attempts) for transient errors like network timeouts and I/O errors, with real-time status updates showing "Retrying (N failed)"',
+        'Retry count tracking: Display retry attempts in backtest results UI and include retry statistics in markdown export',
+        'Fuzzy matching for validation errors: Intelligent "Did you mean...?" suggestions for typos in operators and actions',
+        'Copy buttons for Detect Logic and Respond Logic editors with clipboard support and browser fallback (contributed by @bromiley)',
+      ],
+      changed: [
+        'Performance tip styling: Upgraded sensor selector performance note to prominent callout box with gradient background and success-colored accents for better visibility',
+        'Performance tip messaging: Enhanced to emphasize cost reduction benefits (10-100x faster, reduced costs, timeout prevention) and reference to new "Build Expression" button',
+        'Retry behavior: Smart retry logic that only retries actual errors while respecting intentional user actions (cancellations and timeouts)',
+        'Organization selection list in backtesting now displays in alphabetical order',
+        'D&R autocompletion enhanced with improved context detection and development-mode debug logging',
+        'Cost estimate invalidation now clears when any backtest parameter changes (dates, orgs, selector, limits, stream, sensor ID)',
+      ],
+      fixed: [
+        'Critical bug: Backtests now correctly detect and report failures when LimaCharlie replay API returns HTTP 200 OK status with nested error object in response body (previously misreported as "Success" with "0 matches")',
+        'Transient error resilience: Network errors, API timeouts, and I/O errors now trigger automatic retry instead of immediate failure',
+        'D&R autocompletion now correctly suggests operators, event types, and field names in array items and nested rules',
+        'Unit test and backtest buttons now properly disabled when credentials not configured, preventing immediate failures and guiding users to configuration page',
+        'Dark mode readability issues in Billing Notice and Cost Estimate modals with hardcoded light colors now properly use theme-aware CSS variables',
+        '30-day billing period calculation now uses reactive time tracking to ensure warnings appear correctly even if page is left open for extended periods',
+      ],
+    },
+  },
+  {
     version: '1.6.0',
     date: '2025-08-14',
     description:
