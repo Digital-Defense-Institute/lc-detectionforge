@@ -313,11 +313,11 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
 
   scope: {
     name: 'scope',
-    description: 'Limit matching scope',
-    requiredFields: ['rule', 'scope'],
-    optionalFields: [],
+    description: 'Iterate over array elements and apply rule to each',
+    requiredFields: ['path', 'rule'],
+    optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
     examples: [
-      'op: scope\nrule:\n  op: contains\n  path: event/COMMAND_LINE\n  value: malware\nscope: process',
+      'op: scope\npath: event/NETWORK_ACTIVITY\nrule:\n  op: is\n  path: event/DESTINATION/PORT\n  value: 443',
     ],
     category: 'advanced',
   },

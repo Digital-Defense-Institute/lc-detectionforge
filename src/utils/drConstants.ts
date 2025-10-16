@@ -142,6 +142,15 @@ export const VALID_DETECT_PROPERTIES = [
   'length of',
   'times',
   'with child',
+
+  // Transform modifiers (can be used as boolean fields with operators)
+  'file name',
+  'sub domain',
+
+  // Operator-specific fields
+  'cidr',
+  'lookup',
+  'scope',
 ] as const
 
 // ============================================================================
