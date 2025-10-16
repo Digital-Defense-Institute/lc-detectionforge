@@ -40,7 +40,14 @@ else
 fi
 
 # Check if changelog has been updated
-CHANGELOG_VERSION=$(node -p "require('./src/utils/version.ts').CHANGELOG[0].version" 2>/dev/null || echo "error")
+# Extract version from first entry in CHANGELOG array (grep works consistently on macOS and Linux)
+# Use grep -A to get lines after "export const CHANGELOG" to skip the TypeScript interface
+CHANGELOG_VERSION=$(grep -A 100 "export const CHANGELOG" src/utils/version.ts | grep -m 1 "version:" | grep -o "'[0-9.]*'" | tr -d "'")
+if [[ -z $CHANGELOG_VERSION ]]; then
+    echo -e "${RED}❌ Could not extract changelog version${NC}"
+    echo "   This might indicate a formatting issue in src/utils/version.ts"
+    exit 1
+fi
 if [[ $CHANGELOG_VERSION == $PACKAGE_VERSION ]]; then
     echo -e "${GREEN}✅ Changelog version matches package.json: $CHANGELOG_VERSION${NC}"
 else
@@ -51,7 +58,13 @@ else
 fi
 
 # Validate changelog date format
-CHANGELOG_DATE=$(node -p "require('./src/utils/version.ts').CHANGELOG[0].date" 2>/dev/null || echo "error")
+# Extract date from first entry in CHANGELOG array
+CHANGELOG_DATE=$(grep -A 100 "export const CHANGELOG" src/utils/version.ts | grep -m 1 "date:" | grep -o "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]")
+if [[ -z $CHANGELOG_DATE ]]; then
+    echo -e "${RED}❌ Could not extract changelog date${NC}"
+    echo "   This might indicate a formatting issue in src/utils/version.ts"
+    exit 1
+fi
 if [[ $CHANGELOG_DATE =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
     echo -e "${GREEN}✅ Valid changelog date format: $CHANGELOG_DATE${NC}"
 else
@@ -61,15 +74,11 @@ else
 fi
 
 # Check if changelog has content
-CHANGELOG_CHANGES=$(node -p "
-const changelog = require('./src/utils/version.ts').CHANGELOG[0].changes;
-const hasChanges = Object.keys(changelog).some(key => 
-    changelog[key] && changelog[key].length > 0
-);
-hasChanges.toString();
-" 2>/dev/null || echo "false")
+# Count entries with single-quoted strings in the first changelog entry
+# Start counting after "export const CHANGELOG" and stop at the first complete entry
+CHANGELOG_HAS_CONTENT=$(awk '/export const CHANGELOG/,/^  \},/ {print}' src/utils/version.ts | grep -c "^        '")
 
-if [[ $CHANGELOG_CHANGES == "true" ]]; then
+if [[ $CHANGELOG_HAS_CONTENT -gt 0 ]]; then
     echo -e "${GREEN}✅ Changelog contains changes${NC}"
 else
     echo -e "${RED}❌ Changelog appears empty${NC}"
