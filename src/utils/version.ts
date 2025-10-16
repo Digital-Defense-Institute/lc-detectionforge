@@ -43,12 +43,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Enhanced reliability and usability with sensor selector expression builder and automatic retry logic',
     changes: {
       added: [
-        'Sensor Selector Expression Builder: Interactive modal accessible via "Build Expression" button for easily crafting complex selector expressions without memorizing syntax',
-        'Expression builder field selection: Complete coverage of sensor IDs, platform/architecture, network/host info, state/tags, and timestamps with organized optgroups',
-        'Expression builder smart value inputs: Dropdowns for 50+ LimaCharlie platforms (EDR/XDR, OS, Cloud/SaaS, Security Tools, etc.) and 9 architecture types, boolean toggles for state fields, and text inputs for custom values',
-        'Expression builder documentation links: Direct access to Selector Expressions and ID Schemas documentation within the modal',
-        'Expression builder real-time preview: Live expression generation with automatic formatting including backtick quoting for platform names starting with numbers',
-        'Expression builder condition management: Add/remove conditions, toggle between AND/OR logic operators, and visual display of all current conditions',
+        'Sensor Selector Expression Builder with interactive modal for crafting complex selector expressions',
         'Automatic retry logic for failed backtests/replays: Up to 2 retries (3 total attempts) for transient errors like network timeouts and I/O errors, with real-time status updates showing "Retrying (N failed)"',
         'Retry count tracking: Display retry attempts in backtest results UI and include retry statistics in markdown export',
         'Fuzzy matching for validation errors: Intelligent "Did you mean...?" suggestions for typos in operators and actions',
