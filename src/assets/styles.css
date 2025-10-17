@@ -3955,6 +3955,51 @@ body.config {
   background: var(--bg-tertiary);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
+  cursor: help;
+  position: relative;
+}
+
+/* Custom instant tooltip */
+.match-timestamp[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(30, 30, 35, 0.98);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: pre-line;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  transition: opacity 0s, transform 0s;
+  text-align: center;
+  line-height: 1.6;
+  backdrop-filter: blur(8px);
+}
+
+.match-timestamp[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  border: 6px solid transparent;
+  border-top-color: rgba(30, 30, 35, 0.98);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1001;
+  transition: opacity 0s;
+}
+
+.match-timestamp[data-tooltip]:hover::after,
+.match-timestamp[data-tooltip]:hover::before {
+  opacity: 1;
 }
 
 .match-hostname {
@@ -3969,6 +4014,80 @@ body.config {
   border-radius: var(--radius-xl);
   font-size: 13px;
   font-weight: 500;
+}
+
+/* Severity badges for detection matches */
+.severity-badge {
+  padding: 4px 10px;
+  border-radius: var(--radius-xl);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 6px;
+  display: inline-block;
+}
+
+.severity-critical {
+  background: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+.severity-high {
+  background: #ffebe6;
+  color: #d64400;
+  border: 1px solid #ffd1c2;
+}
+
+.severity-medium {
+  background: #fff7e6;
+  color: #b8860b;
+  border: 1px solid #ffe4a3;
+}
+
+.severity-low {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+.severity-info,
+.severity-informational {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+/* Dark mode severity badges */
+[data-theme="dark"] .severity-critical {
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+[data-theme="dark"] .severity-high {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+[data-theme="dark"] .severity-medium {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+[data-theme="dark"] .severity-low {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+[data-theme="dark"] .severity-info,
+[data-theme="dark"] .severity-informational {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
 .match-toggle {
@@ -4231,6 +4350,48 @@ body.config {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   transition: color var(--transition-speed) ease;
+}
+
+/* Severity-colored stat values */
+.org-stat .stat-value.severity-critical {
+  color: #c00;
+}
+
+.org-stat .stat-value.severity-high {
+  color: #d64400;
+}
+
+.org-stat .stat-value.severity-medium {
+  color: #b8860b;
+}
+
+.org-stat .stat-value.severity-low {
+  color: #1976d2;
+}
+
+.org-stat .stat-value.severity-info {
+  color: #2e7d32;
+}
+
+/* Dark mode severity stat values */
+[data-theme="dark"] .org-stat .stat-value.severity-critical {
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .org-stat .stat-value.severity-high {
+  color: #fdba74;
+}
+
+[data-theme="dark"] .org-stat .stat-value.severity-medium {
+  color: #fde047;
+}
+
+[data-theme="dark"] .org-stat .stat-value.severity-low {
+  color: #93c5fd;
+}
+
+[data-theme="dark"] .org-stat .stat-value.severity-info {
+  color: #86efac;
 }
 
 .org-matches {

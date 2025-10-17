@@ -926,14 +926,23 @@
                     {{ backtestProgress.total }} organizations completed
                   </div>
                 </div>
-                <button
-                  v-if="backtestResults"
-                  class="btn btn-info btn-small"
-                  title="Copy backtest summary as Markdown table to clipboard"
-                  @click="exportBacktestSummaryAsMarkdown"
-                >
-                  📋 Copy Summary
-                </button>
+                <div v-if="backtestResults" style="display: flex; gap: 8px">
+                  <button
+                    class="btn btn-info btn-small"
+                    title="Copy backtest summary as Markdown table to clipboard"
+                    @click="exportBacktestSummaryAsMarkdown"
+                  >
+                    📋 Copy Summary
+                  </button>
+                  <button
+                    class="btn btn-success btn-small"
+                    title="Export all matches from all organizations as consolidated JSON"
+                    :disabled="!backtestResults.totalStats.totalMatches"
+                    @click="exportAllMatches"
+                  >
+                    📥 Export All Matches
+                  </button>
+                </div>
               </div>
 
               <!-- Overall Statistics Summary -->
@@ -1253,6 +1262,55 @@
                         </div>
                       </div>
 
+                      <!-- Severity Breakdown (if severity data present) -->
+                      <div
+                        v-if="getSeverityCounts(orgResult.results)"
+                        class="org-stats severity-stats"
+                        style="margin-top: 16px"
+                      >
+                        <h6
+                          style="margin-bottom: 12px; color: var(--text-secondary); font-size: 14px"
+                        >
+                          Matches by Severity
+                        </h6>
+                        <div
+                          v-if="getSeverityCounts(orgResult.results)!.critical > 0"
+                          class="org-stat"
+                        >
+                          <span class="stat-value severity-critical">{{
+                            getSeverityCounts(orgResult.results)!.critical.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Critical</span>
+                        </div>
+                        <div v-if="getSeverityCounts(orgResult.results)!.high > 0" class="org-stat">
+                          <span class="stat-value severity-high">{{
+                            getSeverityCounts(orgResult.results)!.high.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">High</span>
+                        </div>
+                        <div
+                          v-if="getSeverityCounts(orgResult.results)!.medium > 0"
+                          class="org-stat"
+                        >
+                          <span class="stat-value severity-medium">{{
+                            getSeverityCounts(orgResult.results)!.medium.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Medium</span>
+                        </div>
+                        <div v-if="getSeverityCounts(orgResult.results)!.low > 0" class="org-stat">
+                          <span class="stat-value severity-low">{{
+                            getSeverityCounts(orgResult.results)!.low.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Low</span>
+                        </div>
+                        <div v-if="getSeverityCounts(orgResult.results)!.info > 0" class="org-stat">
+                          <span class="stat-value severity-info">{{
+                            getSeverityCounts(orgResult.results)!.info.toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Info</span>
+                        </div>
+                      </div>
+
                       <!-- Organization Matches -->
                       <div
                         v-if="orgResult.results && orgResult.results.length > 0"
@@ -1284,15 +1342,25 @@
                               @click="toggleMatchDetails(orgResult.oid, matchIndex)"
                             >
                               <div class="match-info">
-                                <span class="match-timestamp">{{
-                                  formatTimestamp(result.data.detect.ts)
-                                }}</span>
+                                <span
+                                  class="match-timestamp"
+                                  :data-tooltip="getTimestampTooltip(result.data.detect.ts, `${orgResult.oid}-${matchIndex}`)"
+                                  @mouseenter="updateTimestampTooltip(result.data.detect.ts, `${orgResult.oid}-${matchIndex}`)"
+                                  >{{ formatTimestamp(result.data.detect.ts) }}</span
+                                >
                                 <span class="match-hostname">{{
                                   result.data.detect.routing.hostname
                                 }}</span>
                                 <span class="match-action"
                                   >{{ result.action }}: {{ result.data.cat }}</span
                                 >
+                                <span
+                                  v-if="result.data.detect_mtd?.level"
+                                  class="severity-badge"
+                                  :class="`severity-${result.data.detect_mtd.level.toLowerCase()}`"
+                                >
+                                  {{ result.data.detect_mtd.level }}
+                                </span>
                               </div>
                               <div class="match-toggle">
                                 {{
@@ -3060,6 +3128,7 @@ const expandedMatches = ref(new Set<string>()) // Changed to string to support o
 const activeMatchTab = ref<Record<string, string>>({}) // Changed to string keys
 const expandedOrgResults = ref(new Set<string>()) // Track which org results are expanded by OID
 const orgDisplayedResults = ref<Record<string, number>>({}) // Track displayed results per org by OID
+const timestampTooltips = ref<Record<string, string>>({}) // Store tooltip content for each timestamp
 
 // Cursor-based pagination state
 const orgCursors = ref<Record<string, string>>({}) // Track cursors per org by OID
@@ -3328,6 +3397,36 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(2)}`
 }
 
+// Calculate severity counts from match results
+function getSeverityCounts(results: BacktestMatch[] | undefined): Record<string, number> | null {
+  if (!results || results.length === 0) return null
+
+  const counts: Record<string, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    info: 0,
+  }
+
+  let hasSeverityData = false
+
+  results.forEach((result) => {
+    const level = result.data.detect_mtd?.level?.toLowerCase()
+    if (level) {
+      hasSeverityData = true
+      // Handle both 'info' and 'informational'
+      const normalizedLevel = level === 'informational' ? 'info' : level
+      if (counts[normalizedLevel] !== undefined) {
+        counts[normalizedLevel]++
+      }
+    }
+  })
+
+  // Only return counts if at least one result had severity data
+  return hasSeverityData ? counts : null
+}
+
 interface UnitTest {
   id: string
   name: string
@@ -3446,6 +3545,10 @@ interface BacktestMatch {
       ts: string
     }
     detect_id: string
+    detect_mtd?: {
+      level?: string
+      [key: string]: unknown
+    }
     gen_time: number
     link?: string
     mtd: Record<string, unknown>
@@ -6280,7 +6383,38 @@ ${results.orgResults
     return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${cost} | ${duration} | ${retries} |`
   })
   .join('\n')}
+${
+  // Add severity breakdown section if any org has severity data
+  (() => {
+    const orgsWithSeverity = results.orgResults.filter((org) => {
+      const severityCounts = getSeverityCounts(org.results)
+      return severityCounts !== null
+    })
 
+    if (orgsWithSeverity.length === 0) return ''
+
+    let severitySection = '\n## Severity Breakdown by Organization\n\n'
+
+    orgsWithSeverity.forEach((org) => {
+      const severityCounts = getSeverityCounts(org.results)
+      if (!severityCounts) return
+
+      severitySection += `**${org.orgName}** (${org.results?.length || 0} total matches)\n`
+
+      // Only show severity levels that have matches
+      const severityOrder = ['critical', 'high', 'medium', 'low', 'info']
+      severityOrder.forEach((level) => {
+        if (severityCounts[level] > 0) {
+          severitySection += `- ${level.charAt(0).toUpperCase() + level.slice(1)}: ${severityCounts[level].toLocaleString()}\n`
+        }
+      })
+
+      severitySection += '\n'
+    })
+
+    return severitySection
+  })()
+}
 ---
 *Generated by DetectionForge on ${new Date().toISOString()}*`
 
@@ -6294,6 +6428,82 @@ ${results.orgResults
       logger.error('Failed to copy to clipboard:', err)
       appStore.addNotification('error', 'Failed to copy to clipboard')
     })
+}
+
+function exportAllMatches() {
+  if (!backtestResults.value) return
+
+  // Filter organizations with matches
+  const orgsWithMatches = backtestResults.value.orgResults.filter(
+    (org) => org.status === 'success' && org.results && org.results.length > 0,
+  )
+
+  if (orgsWithMatches.length === 0) {
+    appStore.addNotification('info', 'No matches found in any organization')
+    return
+  }
+
+  // Consolidate all matches from all organizations
+  const allMatches: Array<BacktestMatch & { _metadata: { oid: string; orgName: string } }> = []
+  let totalMatches = 0
+
+  orgsWithMatches.forEach((org) => {
+    if (org.results) {
+      org.results.forEach((match) => {
+        allMatches.push({
+          ...match,
+          _metadata: {
+            oid: org.oid,
+            orgName: org.orgName,
+          },
+        })
+        totalMatches++
+      })
+    }
+  })
+
+  const exportData = {
+    backtest_metadata: {
+      rule_name: currentRule.name,
+      exported_at: new Date().toISOString(),
+      backtest_completed_at: backtestResults.value.completedAt,
+      timeframe: backtestResults.value.timeframe,
+      total_organizations_with_matches: orgsWithMatches.length,
+      total_organizations_tested: backtestResults.value.orgResults.length,
+      total_matches: totalMatches,
+      execution_stats: backtestResults.value.executionStats,
+      billing_summary: {
+        total_billed: backtestResults.value.totalStats.n_billed,
+        total_free: backtestResults.value.totalStats.n_free,
+        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
+      },
+      organizations: orgsWithMatches.map((org) => ({
+        oid: org.oid,
+        name: org.orgName,
+        match_count: org.results?.length || 0,
+        stats: org.stats,
+      })),
+    },
+    matches: allMatches,
+  }
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `backtest-all-matches-${currentRule.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+
+  appStore.addNotification(
+    'success',
+    `Exported ${totalMatches.toLocaleString()} matches from ${orgsWithMatches.length} organization${orgsWithMatches.length !== 1 ? 's' : ''}`,
+  )
 }
 
 function exportUnitTestSummaryAsMarkdown() {
@@ -6511,9 +6721,104 @@ function getOrgName(oid: string): string {
 }
 
 function formatTimestamp(timestamp: string | number): string {
-  const date = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp * 1000)
-  // Return UTC timestamp with 'Z' suffix to clearly indicate UTC timezone
-  return date.toISOString()
+  if (typeof timestamp === 'string') {
+    // If the timestamp is a string without timezone info, treat it as UTC
+    // Replace space with 'T' for ISO 8601 format and add 'Z' if not present
+    let utcTimestamp = timestamp
+    if (!timestamp.endsWith('Z')) {
+      // Replace space with 'T' and add 'Z' to indicate UTC
+      utcTimestamp = timestamp.replace(' ', 'T') + 'Z'
+    }
+    return new Date(utcTimestamp).toISOString()
+  }
+  // For numeric timestamps (Unix epoch in seconds), convert to milliseconds
+  return new Date(timestamp * 1000).toISOString()
+}
+
+function formatTimestampToLocal(timestamp: string | number): string {
+  let date: Date
+  if (typeof timestamp === 'string') {
+    // If the timestamp is a string without timezone info, treat it as UTC
+    let utcTimestamp = timestamp
+    if (!timestamp.endsWith('Z')) {
+      // Replace space with 'T' and add 'Z' to indicate UTC
+      utcTimestamp = timestamp.replace(' ', 'T') + 'Z'
+    }
+    date = new Date(utcTimestamp)
+  } else {
+    // For numeric timestamps (Unix epoch in seconds), convert to milliseconds
+    date = new Date(timestamp * 1000)
+  }
+
+  // Format as local time with timezone offset
+  const localString = date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+
+  // Get timezone offset in hours and minutes
+  const offset = -date.getTimezoneOffset()
+  const offsetHours = Math.floor(Math.abs(offset) / 60)
+  const offsetMinutes = Math.abs(offset) % 60
+  const offsetSign = offset >= 0 ? '+' : '-'
+  const timezone = `UTC${offsetSign}${offsetHours.toString().padStart(2, '0')}:${offsetMinutes.toString().padStart(2, '0')}`
+
+  return `${localString} (${timezone})`
+}
+
+function formatRelativeTime(timestamp: string | number): string {
+  let date: Date
+  if (typeof timestamp === 'string') {
+    // If the timestamp is a string without timezone info, treat it as UTC
+    let utcTimestamp = timestamp
+    if (!timestamp.endsWith('Z')) {
+      // Replace space with 'T' and add 'Z' to indicate UTC
+      utcTimestamp = timestamp.replace(' ', 'T') + 'Z'
+    }
+    date = new Date(utcTimestamp)
+  } else {
+    // For numeric timestamps (Unix epoch in seconds), convert to milliseconds
+    date = new Date(timestamp * 1000)
+  }
+
+  const now = Date.now()
+  const diffMs = now - date.getTime()
+
+  if (diffMs < 0) {
+    return 'in the future'
+  }
+
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+
+  const parts: string[] = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0) parts.push(`${hours}h`)
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`)
+
+  return `${parts.join(' ')} ago`
+}
+
+function updateTimestampTooltip(timestamp: string | number, matchId: string) {
+  const localTime = formatTimestampToLocal(timestamp)
+  const relativeTime = formatRelativeTime(timestamp)
+  timestampTooltips.value[matchId] = `${localTime}\n${relativeTime}`
+}
+
+function getTimestampTooltip(timestamp: string | number, matchId: string): string {
+  // Return cached tooltip if exists, otherwise compute initial one
+  if (timestampTooltips.value[matchId]) {
+    return timestampTooltips.value[matchId]
+  }
+  // Compute and cache initial tooltip
+  updateTimestampTooltip(timestamp, matchId)
+  return timestampTooltips.value[matchId]
 }
 
 function formatDate(dateString: string): string {

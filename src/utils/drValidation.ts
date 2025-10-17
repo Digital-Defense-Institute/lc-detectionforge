@@ -229,15 +229,33 @@ export function validateDetectLogic(
       }
     }
 
+    if (normalizedOp === 'lookup') {
+      const hasResource = 'resource' in rule
+      const hasLookup = 'lookup' in rule
+      if (!hasResource && !hasLookup) {
+        return "Operator 'lookup' requires either a 'resource' or 'lookup' field."
+      }
+    }
+
     // Validate unknown properties using shared constants - catch typos and invalid fields
     const validProperties = new Set<string>(VALID_DETECT_PROPERTIES)
+
+    // Allow operator-specific fields defined in the schema without duplicating them in globals
+    if (operatorSchema) {
+      for (const requiredField of operatorSchema.requiredFields) {
+        validProperties.add(requiredField)
+      }
+      for (const optionalField of operatorSchema.optionalFields) {
+        validProperties.add(optionalField.name)
+      }
+    }
 
     // Check all properties in the rule
     const ruleKeys = Object.keys(rule)
     for (const key of ruleKeys) {
       if (!validProperties.has(key)) {
         // Try to find similar property names to suggest
-        const suggestions = VALID_DETECT_PROPERTIES.filter(
+        const suggestions = Array.from(validProperties).filter(
           (prop) =>
             // Levenshtein-like fuzzy matching for common typos
             prop.toLowerCase().includes(key.toLowerCase()) ||
@@ -250,10 +268,43 @@ export function validateDetectLogic(
         if (suggestions.length > 0) {
           errorMsg += ` Did you mean: ${suggestions.map((s) => `'${s}'`).join(', ')}?`
         } else {
-          errorMsg += ` Valid properties include: ${VALID_DETECT_PROPERTIES.slice(0, 10).join(', ')}, etc.`
+          errorMsg += ` Valid properties include: ${Array.from(validProperties)
+            .slice(0, 10)
+            .join(', ')}, etc.`
         }
         return errorMsg
       }
+    }
+
+    if ('metadata_rules' in rule) {
+      const metadataRulesRaw = rule.metadata_rules
+
+      const metadataRuleList = Array.isArray(metadataRulesRaw)
+        ? metadataRulesRaw
+        : [metadataRulesRaw]
+
+      if (metadataRuleList.length === 0) {
+        return "Property 'metadata_rules' must contain at least one rule."
+      }
+
+      for (const [index, metadataRule] of metadataRuleList.entries()) {
+        if (!metadataRule || typeof metadataRule !== 'object' || Array.isArray(metadataRule)) {
+          return `metadata_rules[${index}] must be an object describing a rule.`
+        }
+
+        const nestedError = validateDetectLogic(
+          yaml.dump(metadataRule),
+          false,
+          depth + 1,
+        )
+        if (nestedError) {
+          return `metadata_rules[${index}]: ${nestedError}`
+        }
+      }
+    }
+
+    if ('truthy' in rule && typeof rule.truthy !== 'boolean') {
+      return "Property 'truthy' must be a boolean (true or false)."
     }
 
     // Validate 'not' property value - must be true if present
