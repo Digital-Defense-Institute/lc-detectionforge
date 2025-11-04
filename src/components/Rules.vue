@@ -946,6 +946,36 @@
               </div>
 
               <!-- Overall Statistics Summary -->
+              <div
+                v-if="suppressionOverviewForDisplay?.enabled"
+                class="suppression-summary-banner"
+              >
+                <div class="suppression-summary-primary">
+                  <strong>Suppression Applied:</strong>
+                  <span>
+                    {{ suppressionOverviewForDisplay.config?.actionName || 'Report action' }} · Period:
+                    {{ formatSuppressionPeriod(suppressionOverviewForDisplay.config?.periodMs) }} ·
+                    Threshold: {{ suppressionOverviewForDisplay.config?.minCount ?? 1 }} ·
+                    Max Alerts:
+                    {{
+                      suppressionOverviewForDisplay.config?.maxCount !== undefined
+                        ? suppressionOverviewForDisplay.config?.maxCount
+                        : '∞'
+                    }} · Keys:
+                    {{ suppressionOverviewForDisplay.config?.keys.length || 0 }}
+                  </span>
+                </div>
+                <div
+                  v-if="suppressionOverviewForDisplay.summary?.issues.length"
+                  class="suppression-summary-issues"
+                  :title="suppressionOverviewForDisplay.summary?.issues.join('\n')"
+                >
+                  ⚠️ {{ suppressionOverviewForDisplay.summary?.issues.length }} evaluation warning{{
+                    suppressionOverviewForDisplay.summary?.issues.length === 1 ? '' : 's'
+                  }}
+                </div>
+              </div>
+
               <div v-if="backtestResults" class="stats-summary">
                 <div
                   class="stat-card"
@@ -983,6 +1013,64 @@
                   </div>
                   <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
                     Total Matches Found
+                  </div>
+                </div>
+                <div
+                  v-if="backtestResults.totalStats.suppressedTotal > 0"
+                  class="stat-card"
+                >
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.suppressedTotal.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Suppressed Matches
+                  </div>
+                  <div class="suppressed-breakdown">
+                    <span class="suppressed-pill">
+                      Threshold
+                      <strong>{{
+                        backtestResults.totalStats.suppressedPreThreshold.toLocaleString()
+                      }}</strong>
+                    </span>
+                    <span class="suppressed-pill">
+                      Post-limit
+                      <strong>{{
+                        backtestResults.totalStats.suppressedPostThreshold.toLocaleString()
+                      }}</strong>
+                    </span>
+                  </div>
+                </div>
+                <div class="stat-card stat-card--primary">
+                  <div class="stat-number">
+                    {{ backtestResults.totalStats.actualAlerts.toLocaleString() }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Actual Alerts
+                  </div>
+                  <div
+                    v-if="backtestResults.totalStats.totalMatches > 0"
+                    class="suppressed-breakdown"
+                  >
+                    <span class="suppressed-pill">
+                      Reduction
+                      <strong>
+                        {{
+                          ((1 -
+                            backtestResults.totalStats.actualAlerts /
+                              backtestResults.totalStats.totalMatches) *
+                            100
+                          ).toFixed(1)
+                        }}%
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
+                    {{ backtestResults.completionStats.avgAlertsPerDay.toFixed(1) }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Avg Alerts per Day
                   </div>
                 </div>
                 <div class="stat-card">
@@ -1069,6 +1157,14 @@
                 </div>
                 <div class="stat-card">
                   <div class="stat-number">
+                    {{ backtestResults.completionStats.avgActualAlertsPerOrg.toFixed(1) }}
+                  </div>
+                  <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
+                    Avg Actual Alerts per Org
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-number">
                     {{ backtestResults.totalStats.n_billed.toLocaleString() }}
                   </div>
                   <div class="stat-label" style="word-wrap: break-word; overflow-wrap: break-word">
@@ -1137,11 +1233,126 @@
                       {{ formatTimestamp(backtestResults.timeframe.endTime) }}
                     </div>
                   </div>
+              </div>
+            </div>
+
+            <div v-if="alertsSparkline.points.length > 0" class="alerts-sparkline-card">
+              <div class="alerts-sparkline-header">
+                <h5>Alert Distribution</h5>
+                <div class="alerts-sparkline-meta">
+                  <span>
+                    Peak {{ alertsSparkline.maxCount.toLocaleString() }}/{{
+                      alertsSparklineGranularity === 'hourly' ? 'hour' : 'day'
+                    }}
+                  </span>
+                  <span>
+                    Avg {{ (backtestResults?.completionStats.avgAlertsPerDay ?? 0).toFixed(1) }}/day
+                  </span>
+                  <span>
+                    {{ alertsSparkline.points.length }}
+                    {{ alertsSparklineGranularity === 'hourly' ? 'hour' : 'day' }}{{
+                      alertsSparkline.points.length === 1 ? '' : 's'
+                    }} range
+                  </span>
                 </div>
               </div>
+              <div class="alerts-sparkline-wrapper" @mouseleave="sparklineTooltip = null">
+                <div class="alerts-sparkline-axes">
+                  <div class="alerts-sparkline-yaxis">
+                  <span>{{ alertsSparkline.maxCount.toLocaleString() }}</span>
+                  <span v-if="alertsSparkline.midTick && alertsSparkline.midTick > 0">
+                    {{ alertsSparkline.midTick.toLocaleString() }}
+                  </span>
+                  <span>0</span>
+                </div>
+                <svg
+                  class="alerts-sparkline-chart"
+                  viewBox="0 0 220 20"
+                  preserveAspectRatio="xMidYMid meet"
+                  role="img"
+                  aria-label="Sparkline showing alert distribution over time"
+                >
+                  <defs>
+                    <linearGradient id="alertsSparklineGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="rgba(59, 130, 246, 0.25)" />
+                      <stop offset="100%" stop-color="rgba(59, 130, 246, 0.02)" />
+                    </linearGradient>
+                    <linearGradient id="alertsSparklineGradientLine" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="var(--brand-purple)" />
+                      <stop offset="100%" stop-color="var(--brand-blue)" />
+                    </linearGradient>
+                  </defs>
+                <path
+                  :d="alertsSparkline.baselinePath"
+                  stroke="rgba(59, 130, 246, 0.25)"
+                  stroke-width="0.6"
+                  fill="none"
+                  stroke-linecap="round"
+                />
+                <path
+                  v-if="alertsSparkline.hasPositive"
+                  :d="alertsSparkline.fillPath"
+                  fill="url(#alertsSparklineGradient)"
+                  opacity="0.18"
+                />
+                    <path
+                      v-if="alertsSparkline.path"
+                      :d="alertsSparkline.path"
+                      stroke="url(#alertsSparklineGradientLine)"
+                      stroke-width="1.1"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  <g>
+                    <template
+                      v-for="point in alertsSparkline.points"
+                      :key="`${point.timestamp}-${point.count}`"
+                    >
+                      <g v-if="point.count > 0">
+                        <circle
+                          :cx="point.x"
+                          :cy="point.y"
+                          r="1.6"
+                          fill="var(--brand-blue)"
+                          stroke="var(--bg-secondary)"
+                          stroke-width="1"
+                          tabindex="0"
+                          @mouseenter="showSparklineTooltip(point)"
+                          @mouseleave="sparklineTooltip = null"
+                          @focus="showSparklineTooltip(point)"
+                          @blur="sparklineTooltip = null"
+                        />
+                        <circle
+                          :cx="point.x"
+                          :cy="point.y"
+                          r="3"
+                          fill="none"
+                          stroke="rgba(59, 130, 246, 0.25)"
+                          stroke-width="0.6"
+                        />
+                      </g>
+                    </template>
+                  </g>
+                  </svg>
+                  <div
+                    v-if="sparklineTooltip"
+                    class="alerts-sparkline-tooltip"
+                    :style="{ left: sparklineTooltip.left, top: sparklineTooltip.top }"
+                  >
+                    {{ sparklineTooltip.label }}
+                  </div>
+                </div>
+              </div>
+              <div class="alerts-sparkline-xaxis">
+                <span>{{ alertsSparklineXAxis.start }}</span>
+                <span v-if="alertsSparklineXAxis.mid">{{ alertsSparklineXAxis.mid }}</span>
+                <span>{{ alertsSparklineXAxis.end }}</span>
+              </div>
+            </div>
 
-              <!-- Per-Organization Results -->
-              <div class="org-results-section">
+            <!-- Per-Organization Results -->
+            <div class="org-results-section">
                 <h5>
                   Results by Organization ({{
                     backtestResults
@@ -1200,6 +1411,24 @@
                         >
                           {{ orgResult.results.length }}
                           {{ orgResult.results.length === 1 ? 'match' : 'matches' }}
+                          <span class="actual-alert-count">
+                            (Actual:
+                            {{
+                              orgResult.suppressionSummary
+                                ? orgResult.suppressionSummary.actualAlerts
+                                : orgResult.results.length
+                            }})
+                          </span>
+                          <span
+                            v-if="
+                              orgResult.suppressionSummary &&
+                              orgResult.suppressionSummary.suppressedTotal > 0
+                            "
+                            class="suppressed-count"
+                          >
+                            • Suppressed:
+                            {{ orgResult.suppressionSummary.suppressedTotal }}
+                          </span>
                         </span>
                       </span>
                       <span v-if="orgResult.status === 'cancelled'" class="cancelled-text">
@@ -1235,6 +1464,38 @@
                             (orgResult.results?.length || 0).toLocaleString()
                           }}</span>
                           <span class="stat-label">Matches</span>
+                        </div>
+                        <div class="org-stat">
+                          <span class="stat-value">{{
+                            (
+                              orgResult.suppressionSummary
+                                ? orgResult.suppressionSummary.actualAlerts
+                                : orgResult.results?.length || 0
+                            ).toLocaleString()
+                          }}</span>
+                          <span class="stat-label">Actual Alerts</span>
+                        </div>
+                        <div
+                          v-if="
+                            orgResult.suppressionSummary &&
+                            orgResult.suppressionSummary.suppressedTotal > 0
+                          "
+                          class="org-stat"
+                        >
+                          <span class="stat-value">
+                            {{ orgResult.suppressionSummary.suppressedTotal.toLocaleString() }}
+                            <span class="stat-sublabel">
+                              (Threshold:
+                              {{
+                                orgResult.suppressionSummary.suppressedPreThreshold.toLocaleString()
+                              }}
+                              · Post-limit:
+                              {{
+                                orgResult.suppressionSummary.suppressedPostThreshold.toLocaleString()
+                              }})
+                            </span>
+                          </span>
+                          <span class="stat-label">Suppressed</span>
                         </div>
                         <div class="org-stat">
                           <span class="stat-value"
@@ -1360,6 +1621,12 @@
                                   :class="`severity-${result.data.detect_mtd.level.toLowerCase()}`"
                                 >
                                   {{ result.data.detect_mtd.level }}
+                                </span>
+                                <span
+                                  :class="getSuppressionStatusClass(result)"
+                                  :title="getSuppressionTooltip(result)"
+                                >
+                                  {{ getSuppressionStatusLabel(result) }}
                                 </span>
                               </div>
                               <div class="match-toggle">
@@ -2769,6 +3036,14 @@ import { bracketMatching } from '@codemirror/language'
 import { linter, lintGutter } from '@codemirror/lint'
 import * as yaml from 'js-yaml'
 import { DRCompletionEngine } from '../utils/drCompletionEngine'
+import {
+  applySuppressionToMatches,
+  parseSuppressionFromRespondLogic,
+  type MatchSuppressionMetadata,
+  type ParsedSuppressionConfig,
+  type SuppressionSummaryPerKey,
+  type SuppressionComputationSummary,
+} from '../utils/suppression'
 
 const appStore = useAppStore()
 const api = useApi()
@@ -3130,6 +3405,8 @@ const expandedOrgResults = ref(new Set<string>()) // Track which org results are
 const orgDisplayedResults = ref<Record<string, number>>({}) // Track displayed results per org by OID
 const timestampTooltips = ref<Record<string, string>>({}) // Store tooltip content for each timestamp
 
+const sparklineTooltip = ref<{ left: string; top: string; label: string } | null>(null)
+
 // Cursor-based pagination state
 const orgCursors = ref<Record<string, string>>({}) // Track cursors per org by OID
 const orgHasMore = ref<Record<string, boolean>>({}) // Track if more results available per org by OID
@@ -3219,6 +3496,7 @@ watch(isEstimateValid, (valid) => {
   }
 })
 
+
 // Check if start date is beyond 30-day free period
 const isBeyond30DayFreePeriod = computed(() => {
   if (!backtestConfig.startDateTime) return false
@@ -3281,9 +3559,15 @@ const sortedOrgResults = computed(() => {
 
   // Create a copy to avoid mutating the original array
   return [...results].sort((a, b) => {
-    // First priority: Sort by match count (descending) - highest matches first
-    const aMatches = a.status === 'success' && a.results ? a.results.length : 0
-    const bMatches = b.status === 'success' && b.results ? b.results.length : 0
+    // First priority: Sort by actual alerts (descending)
+    const aMatches =
+      a.status === 'success' && a.results
+        ? a.suppressionSummary?.actualAlerts ?? a.results.length
+        : 0
+    const bMatches =
+      b.status === 'success' && b.results
+        ? b.suppressionSummary?.actualAlerts ?? b.results.length
+        : 0
     if (aMatches !== bMatches) {
       return bMatches - aMatches
     }
@@ -3300,6 +3584,220 @@ const sortedOrgResults = computed(() => {
     return aName.localeCompare(bName)
   })
 })
+
+const suppressionOverviewForDisplay = computed(() => backtestResults.value?.suppressionOverview)
+
+const alertsSparklineGranularity = computed<'daily' | 'hourly'>(() => {
+  if (!backtestResults.value) return 'daily'
+  const startMs = new Date(backtestResults.value.timeframe.startTime).getTime()
+  const endMs = new Date(backtestResults.value.timeframe.endTime).getTime()
+  const diff = Math.max(endMs - startMs, 0)
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+  return diff < THREE_DAYS_MS ? 'hourly' : 'daily'
+})
+
+const alertsSparklineData = computed(() => {
+  if (!backtestResults.value) return [] as Array<{ timestamp: number; count: number }>
+
+  const granularity = alertsSparklineGranularity.value
+  const bucketCounts = new Map<number, number>()
+  const hourMs = 60 * 60 * 1000
+  const dayMs = 24 * 60 * 60 * 1000
+
+  backtestResults.value.orgResults.forEach((orgResult) => {
+    if (orgResult.status !== 'success' || !orgResult.results) return
+
+    orgResult.results.forEach((match) => {
+      if (!isActualAlert(match)) return
+
+      const timestamp = getMatchTimestampMs(match)
+      const date = new Date(timestamp)
+      const bucketTimestamp =
+        granularity === 'hourly'
+          ? Date.UTC(
+              date.getUTCFullYear(),
+              date.getUTCMonth(),
+              date.getUTCDate(),
+              date.getUTCHours(),
+            )
+          : Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+      bucketCounts.set(bucketTimestamp, (bucketCounts.get(bucketTimestamp) || 0) + 1)
+    })
+  })
+
+  const timeframe = backtestResults.value.timeframe
+  const startDate = new Date(timeframe.startTime)
+  const endDate = new Date(timeframe.endTime)
+  const step = granularity === 'hourly' ? hourMs : dayMs
+
+  const startBucket =
+    granularity === 'hourly'
+      ? Date.UTC(
+          startDate.getUTCFullYear(),
+          startDate.getUTCMonth(),
+          startDate.getUTCDate(),
+          startDate.getUTCHours(),
+        )
+      : Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate())
+
+  const endBucket =
+    granularity === 'hourly'
+      ? Date.UTC(
+          endDate.getUTCFullYear(),
+          endDate.getUTCMonth(),
+          endDate.getUTCDate(),
+          endDate.getUTCHours(),
+        )
+      : Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate())
+
+  const data: Array<{ timestamp: number; count: number }> = []
+
+  if (endBucket < startBucket) {
+    data.push({ timestamp: startBucket, count: bucketCounts.get(startBucket) || 0 })
+    return data
+  }
+
+  for (let ts = startBucket; ts <= endBucket; ts += step) {
+    data.push({ timestamp: ts, count: bucketCounts.get(ts) || 0 })
+  }
+
+  return data
+})
+
+const alertsSparkline = computed(() => {
+  const data = alertsSparklineData.value
+  if (data.length === 0) {
+    return {
+      points: [] as Array<{ x: number; y: number; timestamp: number; count: number }>,
+      path: '',
+      fillPath: '',
+      baselinePath: '',
+      maxCount: 0,
+      totalAlerts: 0,
+      width: 220,
+      height: 36,
+      hasPositive: false,
+      midTick: 0,
+    }
+  }
+
+  const width = 220
+  const height = 20
+  const paddingX = 8
+  const paddingTop = 4
+  const paddingBottom = 4
+
+  const maxCount = data.reduce((max, item) => Math.max(max, item.count), 0)
+  const totalAlerts = data.reduce((sum, item) => sum + item.count, 0)
+
+  const timestamps = data.map((item) => item.timestamp)
+  let minTimestamp = Math.min(...timestamps)
+  let maxTimestamp = Math.max(...timestamps)
+  if (maxTimestamp === minTimestamp) {
+    maxTimestamp = minTimestamp + 24 * 60 * 60 * 1000
+  }
+
+  const range = maxTimestamp - minTimestamp || 1
+
+  const coordinates = data.map((item) => {
+    const position = (item.timestamp - minTimestamp) / range
+    const x = paddingX + position * (width - paddingX * 2)
+    const normalized = maxCount > 0 ? item.count / maxCount : 0
+    const y = height - paddingBottom - normalized * (height - paddingTop - paddingBottom)
+    return { ...item, x, y }
+  })
+
+  const linePath = coordinates
+    .map((point, idx) => `${idx === 0 ? 'M' : 'L'}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ')
+
+  const lastPoint = coordinates[coordinates.length - 1]
+  const firstPoint = coordinates[0]
+  const fillPath = `${linePath} L ${lastPoint.x.toFixed(2)} ${height - paddingBottom} L ${firstPoint.x.toFixed(2)} ${height - paddingBottom} Z`
+  const baselinePath = `M ${paddingX} ${height - paddingBottom} L ${width - paddingX} ${height - paddingBottom}`
+  const hasPositive = coordinates.some((point) => point.count > 0)
+  const midTick = maxCount > 1 ? Math.ceil(maxCount / 2) : 0
+
+  return {
+    points: coordinates,
+    path: linePath,
+    fillPath,
+    baselinePath,
+    maxCount,
+    totalAlerts,
+    width,
+    height,
+    hasPositive,
+    midTick,
+  }
+})
+
+watch(alertsSparklineData, () => {
+  sparklineTooltip.value = null
+})
+
+const alertsSparklineXAxis = computed(() => {
+  const data = alertsSparklineData.value
+  if (data.length === 0) {
+    return { start: '', mid: '', end: '' }
+  }
+
+  const granularity = alertsSparklineGranularity.value
+  const formatter =
+    granularity === 'hourly'
+      ? new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+
+  const startDate = new Date(data[0].timestamp)
+  const endDate = new Date(data[data.length - 1].timestamp)
+  let midLabel = ''
+  if (data.length > 2) {
+    const midIndex = Math.floor(data.length / 2)
+    const midDate = new Date(data[midIndex].timestamp)
+    midLabel = formatter.format(midDate)
+  }
+
+  return {
+    start: formatter.format(startDate),
+    mid: midLabel,
+    end: formatter.format(endDate),
+  }
+})
+
+function showSparklineTooltip(point: { x: number; y: number; timestamp: number; count: number }) {
+  const sparkline = alertsSparkline.value
+  if (!sparkline) return
+
+  const left = `${((point.x / sparkline.width) * 100).toFixed(2)}%`
+  const top = `${((point.y / sparkline.height) * 100).toFixed(2)}%`
+
+  const formatter =
+    alertsSparklineGranularity.value === 'hourly'
+      ? new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+
+  const label = `${formatter.format(new Date(point.timestamp))} · ${point.count.toLocaleString()} alert${
+    point.count === 1 ? '' : 's'
+  }`
+
+  sparklineTooltip.value = {
+    left,
+    top,
+    label,
+  }
+}
 
 // Computed property to check if credentials are configured
 const hasCredentials = computed(() => {
@@ -3427,6 +3925,70 @@ function getSeverityCounts(results: BacktestMatch[] | undefined): Record<string,
   return hasSeverityData ? counts : null
 }
 
+function getSuppressionStatusLabel(match: BacktestMatch): string {
+  const status = match.detectionforge_suppression?.status
+
+  switch (status) {
+    case 'suppressed-pre-threshold':
+      return 'Suppressed'
+    case 'suppressed-post-threshold':
+      return 'Suppressed'
+    case 'evaluation-error':
+      return 'Actual Alert'
+    case 'actual-alert':
+    default:
+      return 'Actual Alert'
+  }
+}
+
+function getSuppressionStatusClass(match: BacktestMatch): string {
+  const status = match.detectionforge_suppression?.status ?? 'actual-alert'
+  return `suppression-badge ${status}`
+}
+
+function getSuppressionTooltip(match: BacktestMatch): string | undefined {
+  if (
+    match.detectionforge_suppression?.reasons &&
+    match.detectionforge_suppression.reasons.length > 0
+  ) {
+    return match.detectionforge_suppression.reasons.join('\n')
+  }
+  return undefined
+}
+
+function isActualAlert(match: BacktestMatch): boolean {
+  const status = match.detectionforge_suppression?.status
+
+  if (!status) {
+    return true
+  }
+
+  return status === 'actual-alert' || status === 'evaluation-error'
+}
+
+function getMatchTimestampMs(match: BacktestMatch): number {
+  const routingEventTime = match.data?.detect?.routing?.event_time
+  if (typeof routingEventTime === 'number') {
+    return routingEventTime > 10 ** 12 ? routingEventTime : routingEventTime * 1000
+  }
+
+  const detectTs = match.data?.detect?.ts
+  if (typeof detectTs === 'string' && detectTs.trim().length > 0) {
+    const sanitized = detectTs.includes('T') ? detectTs : detectTs.replace(' ', 'T')
+    const timestamp = Date.parse(sanitized.endsWith('Z') ? sanitized : `${sanitized}Z`)
+    if (!Number.isNaN(timestamp)) {
+      return timestamp
+    }
+  }
+
+  const genTime = match.data?.gen_time
+  if (typeof genTime === 'number') {
+    return genTime > 10 ** 12 ? genTime : genTime * 1000
+  }
+
+  return Date.now()
+}
+
 interface UnitTest {
   id: string
   name: string
@@ -3462,6 +4024,20 @@ interface DetectionRule {
   unitTests?: UnitTest[]
 }
 
+interface BacktestSuppressionOverview {
+  enabled: boolean
+  config?: {
+    actionName?: string
+    periodMs: number
+    minCount?: number
+    maxCount?: number
+    isGlobal: boolean
+    keys: string[]
+  }
+  configIssues: string[]
+  summary?: SuppressionComputationSummary
+}
+
 interface BacktestResults {
   completedAt: string
   orgResults: BacktestOrgResult[]
@@ -3472,6 +4048,10 @@ interface BacktestResults {
     wall_time: number
     n_billed: number
     n_free: number
+    actualAlerts: number
+    suppressedPreThreshold: number
+    suppressedPostThreshold: number
+    suppressedTotal: number
   }
   timeframe: {
     startTime: string
@@ -3492,7 +4072,10 @@ interface BacktestResults {
     wasCancelled: boolean
     orgsWithZeroHits: number
     avgMatchesPerOrg: number
+    avgActualAlertsPerOrg: number
+    avgAlertsPerDay: number
   }
+  suppressionOverview?: BacktestSuppressionOverview
 }
 
 interface BacktestResponse {
@@ -3533,6 +4116,7 @@ interface BacktestOrgResult {
   results?: BacktestMatch[]
   did_match?: boolean
   is_dry_run?: boolean
+  suppressionSummary?: SuppressionComputationSummary
 }
 
 interface BacktestMatch {
@@ -3556,6 +4140,7 @@ interface BacktestMatch {
     source: string
     source_rule: string
   }
+  detectionforge_suppression?: MatchSuppressionMetadata
 }
 
 // Initialize editors on mount
@@ -5360,6 +5945,32 @@ async function executeBacktest() {
     const durationMs = endTime.getTime() - startTime.getTime()
     const durationDays = Math.round((durationMs / (1000 * 60 * 60 * 24)) * 100) / 100 // Round to 2 decimal places
 
+    let parsedSuppressionConfig: ParsedSuppressionConfig | null = null
+    let suppressionOverview: BacktestSuppressionOverview | undefined
+
+    if (currentRule.respondLogic.trim()) {
+      try {
+        const parsedRespondLogic = yaml.load(currentRule.respondLogic) as unknown
+        parsedSuppressionConfig = parseSuppressionFromRespondLogic(parsedRespondLogic)
+        if (parsedSuppressionConfig) {
+          suppressionOverview = {
+            enabled: true,
+            config: {
+              actionName: parsedSuppressionConfig.config.sourceActionName,
+              periodMs: parsedSuppressionConfig.config.periodMs,
+              minCount: parsedSuppressionConfig.config.minCount,
+              maxCount: parsedSuppressionConfig.config.maxCount,
+              isGlobal: parsedSuppressionConfig.config.isGlobal,
+              keys: parsedSuppressionConfig.config.keys,
+            },
+            configIssues: [...parsedSuppressionConfig.issues],
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to parse respond logic for suppression metadata', error)
+      }
+    }
+
     appStore.addNotification(
       'info',
       `Starting ${backtestConfig.runInParallel ? 'parallel' : 'sequential'} backtest for ${backtestSelectedOids.value.length} organization(s)... This may take several minutes for large time ranges.`,
@@ -5372,7 +5983,14 @@ async function executeBacktest() {
       wall_time: 0,
       n_billed: 0,
       n_free: 0,
+      actualAlerts: 0,
+      suppressedPreThreshold: 0,
+      suppressedPostThreshold: 0,
+      suppressedTotal: 0,
     }
+
+    let aggregateSuppressionSummary: SuppressionComputationSummary | null = null
+    const aggregateSuppressionPerKey = new Map<string, SuppressionSummaryPerKey>()
 
     // Initialize progress tracking
     backtestProgress.value = {
@@ -5691,13 +6309,16 @@ async function executeBacktest() {
               orgHasMore.value[oid] = response.has_more || false
             }
 
+            const orgName = auth.getOrgName(oid)
+            const matches = (response.results || []) as BacktestMatch[]
+
             // Success! Add successful result
             const result = {
               oid,
-              orgName: auth.getOrgName(oid),
+              orgName,
               status: 'success' as const,
               stats: response.stats,
-              results: response.results || [],
+              results: matches,
               did_match: response.did_match,
               is_dry_run: response.is_dry_run,
               retryCount: retryAttempt > 0 ? retryAttempt : undefined,
@@ -5803,6 +6424,80 @@ async function executeBacktest() {
       }
     }
 
+    if (parsedSuppressionConfig) {
+      const updatedOrgResults: BacktestOrgResult[] = []
+
+      orgResults.forEach((orgResult) => {
+        if (
+          orgResult.status !== 'success' ||
+          !orgResult.results ||
+          orgResult.results.length === 0
+        ) {
+          updatedOrgResults.push(orgResult)
+          return
+        }
+
+        let matches = orgResult.results
+        let summary = orgResult.suppressionSummary
+
+        const alreadyAnnotated = matches.every((match) => !!match.detectionforge_suppression)
+        if (!alreadyAnnotated || !summary) {
+          const suppressionResult = applySuppressionToMatches<BacktestMatch>(
+            parsedSuppressionConfig.config,
+            matches,
+            {
+              organizationId: orgResult.oid,
+              organizationName: orgResult.orgName,
+            },
+          )
+          matches = suppressionResult.matches
+          summary = suppressionResult.summary
+        }
+
+        if (suppressionOverview) {
+          suppressionOverview.configIssues.push(...summary.issues)
+        }
+
+        if (!aggregateSuppressionSummary) {
+          aggregateSuppressionSummary = {
+            actualAlerts: 0,
+            suppressedPreThreshold: 0,
+            suppressedPostThreshold: 0,
+            suppressedTotal: 0,
+            issues: [],
+            perKey: [],
+          }
+        }
+
+        aggregateSuppressionSummary.actualAlerts += summary.actualAlerts
+        aggregateSuppressionSummary.suppressedPreThreshold += summary.suppressedPreThreshold
+        aggregateSuppressionSummary.suppressedPostThreshold += summary.suppressedPostThreshold
+        aggregateSuppressionSummary.suppressedTotal += summary.suppressedTotal
+        aggregateSuppressionSummary.issues.push(...summary.issues)
+
+        summary.perKey.forEach((perKey) => {
+          const existing = aggregateSuppressionPerKey.get(perKey.key) || {
+            key: perKey.key,
+            actualAlerts: 0,
+            suppressedPreThreshold: 0,
+            suppressedPostThreshold: 0,
+          }
+          existing.actualAlerts += perKey.actualAlerts
+          existing.suppressedPreThreshold += perKey.suppressedPreThreshold
+          existing.suppressedPostThreshold += perKey.suppressedPostThreshold
+          aggregateSuppressionPerKey.set(perKey.key, existing)
+        })
+
+        updatedOrgResults.push({
+          ...orgResult,
+          results: matches,
+          suppressionSummary: summary,
+        })
+      })
+
+      orgResults = updatedOrgResults
+    }
+
     // Calculate total stats from all successful results
     orgResults.forEach((result) => {
       if (result.status === 'success' && result.stats) {
@@ -5814,6 +6509,38 @@ async function executeBacktest() {
         totalStats.n_free += result.stats.n_free || 0
       }
     })
+
+    if (aggregateSuppressionSummary) {
+      const summary: SuppressionComputationSummary = aggregateSuppressionSummary
+      summary.perKey = Array.from(aggregateSuppressionPerKey.values())
+      totalStats.actualAlerts = summary.actualAlerts
+      totalStats.suppressedPreThreshold = summary.suppressedPreThreshold
+      totalStats.suppressedPostThreshold = summary.suppressedPostThreshold
+      totalStats.suppressedTotal = summary.suppressedTotal
+      if (suppressionOverview) {
+        suppressionOverview.summary = {
+          ...summary,
+          perKey: summary.perKey,
+          issues: [...new Set(summary.issues)],
+        }
+        suppressionOverview.configIssues = [...new Set(suppressionOverview.configIssues)]
+      }
+    } else {
+      totalStats.actualAlerts = totalStats.totalMatches
+      totalStats.suppressedPreThreshold = 0
+      totalStats.suppressedPostThreshold = 0
+      totalStats.suppressedTotal = 0
+      if (suppressionOverview) {
+        suppressionOverview.summary = {
+          actualAlerts: 0,
+          suppressedPreThreshold: 0,
+          suppressedPostThreshold: 0,
+          suppressedTotal: 0,
+          issues: [...suppressionOverview.configIssues],
+          perKey: [],
+        }
+      }
+    }
 
     // Calculate execution timing
     const backtestEndTime = Date.now()
@@ -5831,6 +6558,16 @@ async function executeBacktest() {
     )
     const avgMatchesPerOrg =
       successfulOrgs.length > 0 ? totalMatchesAcrossOrgs / successfulOrgs.length : 0
+    const totalActualAlertsAcrossOrgs = successfulOrgs.reduce((sum, org) => {
+      const actual = org.suppressionSummary
+        ? org.suppressionSummary.actualAlerts
+        : org.results?.length || 0
+      return sum + actual
+    }, 0)
+    const avgActualAlertsPerOrg =
+      successfulOrgs.length > 0 ? totalActualAlertsAcrossOrgs / successfulOrgs.length : 0
+    const durationDaysForAverage = durationDays > 0 ? durationDays : 1
+    const avgAlertsPerDay = totalActualAlertsAcrossOrgs / durationDaysForAverage
 
     // Calculate completion stats
     const completionStats = {
@@ -5842,6 +6579,8 @@ async function executeBacktest() {
       wasCancelled: isCancellingBacktest.value,
       orgsWithZeroHits,
       avgMatchesPerOrg,
+      avgActualAlertsPerOrg,
+      avgAlertsPerDay,
     }
 
     // Store results with completion timestamp
@@ -5860,6 +6599,7 @@ async function executeBacktest() {
         totalExecutionTime: totalExecutionTime,
       },
       completionStats,
+      suppressionOverview,
     }
 
     // Reset display state
@@ -5882,10 +6622,14 @@ async function executeBacktest() {
       if (issues.length > 0) {
         message += ` ${issues.join(', ')}.`
       }
-      message += ` Found ${totalStats.totalMatches} total matches.`
+      message += ` Found ${totalStats.totalMatches} total matches (${totalStats.actualAlerts} actual alert${
+        totalStats.actualAlerts === 1 ? '' : 's'
+      }).`
       appStore.addNotification('warning', message)
     } else {
-      message = `Backtest completed! Found ${totalStats.totalMatches} total matches out of ${totalStats.n_proc.toLocaleString()} events processed across ${completedOrgs.length} organization(s).`
+      message = `Backtest completed! Found ${totalStats.totalMatches} total matches (${totalStats.actualAlerts} actual alert${
+        totalStats.actualAlerts === 1 ? '' : 's'
+      }) out of ${totalStats.n_proc.toLocaleString()} events processed across ${completedOrgs.length} organization(s).`
       const issues = []
       if (errorOrgs.length > 0) issues.push(`${errorOrgs.length} failed`)
       if (timedOutOrgs.length > 0) issues.push(`${timedOutOrgs.length} timed out`)
@@ -6220,28 +6964,39 @@ function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
   if (!orgResult.results || orgResult.status !== 'success') return
 
   const exportData = {
-    backtest_metadata: {
-      rule_name: currentRule.name,
-      organization: orgResult.orgName,
-      oid: orgResult.oid,
-      completed_at: backtestResults.value?.completedAt,
-      timeframe: backtestResults.value?.timeframe,
-      stats: orgResult.stats,
-      billing: {
-        n_billed: orgResult.stats?.n_billed || 0,
-        n_free: orgResult.stats?.n_free || 0,
-        actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
-        saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
-        cost_formatted: orgResult.stats?.n_billed
-          ? formatCost(calculateCost(orgResult.stats.n_billed))
-          : '$0.00',
-        saved_formatted: orgResult.stats?.n_free
-          ? formatCost(calculateCost(orgResult.stats.n_free))
-          : '$0.00',
+      backtest_metadata: {
+        rule_name: currentRule.name,
+        organization: orgResult.orgName,
+        oid: orgResult.oid,
+        completed_at: backtestResults.value?.completedAt,
+        timeframe: backtestResults.value?.timeframe,
+        stats: orgResult.stats,
+        billing: {
+          n_billed: orgResult.stats?.n_billed || 0,
+          n_free: orgResult.stats?.n_free || 0,
+          actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
+          saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
+          cost_formatted: orgResult.stats?.n_billed
+            ? formatCost(calculateCost(orgResult.stats.n_billed))
+            : '$0.00',
+          saved_formatted: orgResult.stats?.n_free
+            ? formatCost(calculateCost(orgResult.stats.n_free))
+            : '$0.00',
+        },
+        detectionforge_suppression: orgResult.suppressionSummary
+          ? {
+              actual_alerts: orgResult.suppressionSummary.actualAlerts,
+              suppressed_pre_threshold: orgResult.suppressionSummary.suppressedPreThreshold,
+              suppressed_post_threshold: orgResult.suppressionSummary.suppressedPostThreshold,
+              suppressed_total: orgResult.suppressionSummary.suppressedTotal,
+              issues: orgResult.suppressionSummary.issues,
+              per_key: orgResult.suppressionSummary.perKey,
+              config: backtestResults.value?.suppressionOverview?.config,
+            }
+          : undefined,
       },
-    },
-    matches: orgResult.results,
-  }
+      matches: orgResult.results,
+    }
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -6258,27 +7013,28 @@ function _exportBacktestResults() {
   if (!backtestResults.value) return
 
   const exportData = {
-    backtest_metadata: {
-      rule_name: currentRule.name,
-      completed_at: backtestResults.value.completedAt,
-      timeframe: backtestResults.value.timeframe,
-      total_stats: backtestResults.value.totalStats,
-      execution_stats: backtestResults.value.executionStats,
-      completion_stats: backtestResults.value.completionStats,
-      organizations: backtestResults.value.orgResults.length,
-      billing_summary: {
-        total_billed: backtestResults.value.totalStats.n_billed,
-        total_free: backtestResults.value.totalStats.n_free,
-        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
-        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
-        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
-        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
-        cost_per_block: 0.01,
-        events_per_block: 200000,
+      backtest_metadata: {
+        rule_name: currentRule.name,
+        completed_at: backtestResults.value.completedAt,
+        timeframe: backtestResults.value.timeframe,
+        total_stats: backtestResults.value.totalStats,
+        execution_stats: backtestResults.value.executionStats,
+        completion_stats: backtestResults.value.completionStats,
+        organizations: backtestResults.value.orgResults.length,
+        billing_summary: {
+          total_billed: backtestResults.value.totalStats.n_billed,
+          total_free: backtestResults.value.totalStats.n_free,
+          actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+          saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+          cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+          saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
+          cost_per_block: 0.01,
+          events_per_block: 200000,
+        },
+        detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
       },
-    },
-    org_results: backtestResults.value.orgResults,
-  }
+      org_results: backtestResults.value.orgResults,
+    }
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -6347,6 +7103,10 @@ function exportBacktestSummaryAsMarkdown() {
 | Total Events Processed | ${results.totalStats.n_proc.toLocaleString()} |
 | Total Rule Evaluations | ${results.totalStats.n_eval.toLocaleString()} |
 | Total Matches Found | ${results.totalStats.totalMatches.toLocaleString()} |
+| Actual Alerts | ${results.totalStats.actualAlerts.toLocaleString()} |
+| Suppressed Matches | ${results.totalStats.suppressedTotal.toLocaleString()} |
+| Suppressed (Threshold) | ${results.totalStats.suppressedPreThreshold.toLocaleString()} |
+| Suppressed (Post-limit) | ${results.totalStats.suppressedPostThreshold.toLocaleString()} |
 | Billed Events | ${results.totalStats.n_billed.toLocaleString()} |
 | Free Events | ${results.totalStats.n_free.toLocaleString()} |
 | Actual Cost | ${formatCost(calculateCost(results.totalStats.n_billed))} |
@@ -6358,14 +7118,22 @@ function exportBacktestSummaryAsMarkdown() {
 | Cancelled / Timeout Orgs | ${cancelledTimeoutCount} |
 | Organizations with 0 Hits | ${results.completionStats.orgsWithZeroHits} |
 | Average Matches per Org | ${results.completionStats.avgMatchesPerOrg.toFixed(1)} |
+| Average Actual Alerts per Org | ${results.completionStats.avgActualAlertsPerOrg.toFixed(1)} |
+| Average Alerts per Day | ${results.completionStats.avgAlertsPerDay.toFixed(1)} |
 
 ## Organization Breakdown
 
-| Organization | Status | Matches | Billed | Free | Cost | Duration | Retries |
-|-------------|--------|---------|--------|------|------|----------|---------|
+| Organization | Status | Matches | Actual Alerts | Suppressed | Billed | Free | Cost | Duration | Retries |
+|-------------|--------|---------|---------------|-----------|--------|------|------|----------|---------|
 ${results.orgResults
   .map((org) => {
     const matchCount = org.results?.length || 0
+    const actualAlerts = org.suppressionSummary
+      ? org.suppressionSummary.actualAlerts
+      : matchCount
+    const suppressedSummary = org.suppressionSummary
+      ? `${org.suppressionSummary.suppressedTotal.toLocaleString()} (T=${org.suppressionSummary.suppressedPreThreshold.toLocaleString()}, M=${org.suppressionSummary.suppressedPostThreshold.toLocaleString()})`
+      : '0'
     const billed = org.stats?.n_billed !== undefined ? org.stats.n_billed.toLocaleString() : 'N/A'
     const free = org.stats?.n_free !== undefined ? org.stats.n_free.toLocaleString() : 'N/A'
     const cost =
@@ -6380,7 +7148,7 @@ ${results.orgResults
           : org.status === 'cancelled'
             ? '⏹️'
             : '❌'
-    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${billed} | ${free} | ${cost} | ${duration} | ${retries} |`
+    return `| ${org.orgName} | ${statusIcon} ${org.status} | ${matchCount} | ${actualAlerts} | ${suppressedSummary} | ${billed} | ${free} | ${cost} | ${duration} | ${retries} |`
   })
   .join('\n')}
 ${
@@ -6446,6 +7214,8 @@ function exportAllMatches() {
   // Consolidate all matches from all organizations
   const allMatches: Array<BacktestMatch & { _metadata: { oid: string; orgName: string } }> = []
   let totalMatches = 0
+  let totalActualAlerts = 0
+  let totalSuppressed = 0
 
   orgsWithMatches.forEach((org) => {
     if (org.results) {
@@ -6459,6 +7229,11 @@ function exportAllMatches() {
         })
         totalMatches++
       })
+      const actualAlerts = org.suppressionSummary
+        ? org.suppressionSummary.actualAlerts
+        : org.results.length
+      totalActualAlerts += actualAlerts
+      totalSuppressed += org.suppressionSummary?.suppressedTotal ?? 0
     }
   })
 
@@ -6471,6 +7246,8 @@ function exportAllMatches() {
       total_organizations_with_matches: orgsWithMatches.length,
       total_organizations_tested: backtestResults.value.orgResults.length,
       total_matches: totalMatches,
+      total_actual_alerts: totalActualAlerts,
+      total_suppressed: totalSuppressed,
       execution_stats: backtestResults.value.executionStats,
       billing_summary: {
         total_billed: backtestResults.value.totalStats.n_billed,
@@ -6480,10 +7257,17 @@ function exportAllMatches() {
         cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
         saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
       },
+      detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
       organizations: orgsWithMatches.map((org) => ({
         oid: org.oid,
         name: org.orgName,
         match_count: org.results?.length || 0,
+        actual_alerts: org.suppressionSummary
+          ? org.suppressionSummary.actualAlerts
+          : org.results?.length || 0,
+        detectionforge_suppressed_total: org.suppressionSummary?.suppressedTotal || 0,
+        detectionforge_suppressed_pre_threshold: org.suppressionSummary?.suppressedPreThreshold || 0,
+        detectionforge_suppressed_post_threshold: org.suppressionSummary?.suppressedPostThreshold || 0,
         stats: org.stats,
       })),
     },
@@ -6502,7 +7286,9 @@ function exportAllMatches() {
 
   appStore.addNotification(
     'success',
-    `Exported ${totalMatches.toLocaleString()} matches from ${orgsWithMatches.length} organization${orgsWithMatches.length !== 1 ? 's' : ''}`,
+    `Exported ${totalMatches.toLocaleString()} matches (${totalActualAlerts.toLocaleString()} actual alert${
+      totalActualAlerts === 1 ? '' : 's'
+    }) from ${orgsWithMatches.length} organization${orgsWithMatches.length !== 1 ? 's' : ''}`,
   )
 }
 
@@ -6836,6 +7622,27 @@ function formatDuration(durationMs: number): string {
     return `${minutes}m ${remainingSeconds}s`
   }
   return `${remainingSeconds}s`
+}
+
+function formatSuppressionPeriod(periodMs?: number): string {
+  if (!periodMs || periodMs <= 0) return 'n/a'
+
+  const seconds = Math.round(periodMs / 1000)
+  const units = [
+    { label: 'day', seconds: 86400 },
+    { label: 'hour', seconds: 3600 },
+    { label: 'minute', seconds: 60 },
+    { label: 'second', seconds: 1 },
+  ]
+
+  for (const unit of units) {
+    if (seconds % unit.seconds === 0) {
+      const value = seconds / unit.seconds
+      return `${value} ${unit.label}${value === 1 ? '' : 's'}`
+    }
+  }
+
+  return `${seconds} seconds`
 }
 
 function formatSearchDuration(startTime: string | number, endTime: string | number): string {
