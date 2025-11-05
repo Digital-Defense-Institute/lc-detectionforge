@@ -1187,13 +1187,13 @@ const generateJWTForOrg = async (oid: string) => {
     throw new Error('Incomplete credentials - missing UID or API Key')
   }
 
-  const url = `https://jwt.limacharlie.io?oid=${oid}&uid=${credentials.uid}&secret=${credentials.apiKey}`
-
-  const response = await fetch(url, {
-    method: 'GET',
+  const response = await fetch('https://jwt.limacharlie.io', {
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json',
     },
+    body: `oid=${encodeURIComponent(oid)}&uid=${encodeURIComponent(credentials.uid)}&secret=${encodeURIComponent(credentials.apiKey)}`,
   })
 
   if (!response.ok) {
