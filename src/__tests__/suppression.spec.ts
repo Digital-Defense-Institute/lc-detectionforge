@@ -85,10 +85,7 @@ describe('suppression application', () => {
       keys: ['{{ bogus .event }}'],
     }
 
-    const matches = [
-      buildMatch(Date.UTC(2024, 0, 1, 0, 0)),
-      buildMatch(Date.UTC(2024, 0, 1, 0, 1)),
-    ]
+    const matches = [buildMatch(Date.UTC(2024, 0, 1, 0, 0)), buildMatch(Date.UTC(2024, 0, 1, 0, 1))]
 
     const result = applySuppressionToMatches(config, matches, {
       organizationId: 'oid',
@@ -100,9 +97,7 @@ describe('suppression application', () => {
       result.matches.every(
         (match) => match.detectionforge_suppression?.status === 'evaluation-error',
       ),
-    ).toBe(
-      true,
-    )
+    ).toBe(true)
   })
 
   it('handles consecutive windows when period expires', () => {

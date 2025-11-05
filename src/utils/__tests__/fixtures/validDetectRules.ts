@@ -10,9 +10,7 @@ const trim = (input: string) => {
     .filter((line) => line.trim().length > 0)
     .map((line) => line.match(/^\s*/)?.[0].length ?? 0)
   const minIndent = indents.length > 0 ? Math.min(...indents) : 0
-  return lines
-    .map((line) => line.slice(minIndent))
-    .join('\n')
+  return lines.map((line) => line.slice(minIndent)).join('\n')
 }
 
 export const validDetectRuleFixtures: DetectRuleFixture[] = [

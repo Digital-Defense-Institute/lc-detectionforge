@@ -26,9 +26,7 @@ describe('validateDetectLogic operator-specific behaviour', () => {
   it('rejects non-boolean truthy property', () => {
     const rule = `event: NEW_PROCESS\nop: exists\npath: event/PARENT\ntruthy: yes\n`
 
-    expect(validateDetectLogic(rule)).toBe(
-      "Property 'truthy' must be a boolean (true or false).",
-    )
+    expect(validateDetectLogic(rule)).toBe("Property 'truthy' must be a boolean (true or false).")
   })
 
   it('allows architecture checks without a path', () => {
@@ -46,9 +44,7 @@ describe('validateDetectLogic real-world fixtures', () => {
   }
 
   it('flags lookup rules missing resource or lookup', () => {
-    const fixture = validDetectRuleFixtures.find((item) =>
-      item.name.includes('Poor Reputation IP'),
-    )
+    const fixture = validDetectRuleFixtures.find((item) => item.name.includes('Poor Reputation IP'))
 
     expect(fixture).toBeDefined()
 
@@ -75,9 +71,7 @@ describe('validateDetectLogic real-world fixtures', () => {
   })
 
   it('validates metadata_rules payloads recursively', () => {
-    const fixture = validDetectRuleFixtures.find((item) =>
-      item.name.includes('Poor Reputation IP'),
-    )
+    const fixture = validDetectRuleFixtures.find((item) => item.name.includes('Poor Reputation IP'))
 
     expect(fixture).toBeDefined()
 
@@ -142,7 +136,9 @@ describe('validateDetectLogic aligns with LimaCharlie docs', () => {
     expect(validateDetectLogic(valid)).toBeNull()
 
     const invalid = `${baseEvent}\nop: string distance\npath: event/DOMAIN_NAME\nmax: 2\n`
-    expect(validateDetectLogic(invalid)).toBe("Operator 'string distance' requires a 'value' field.")
+    expect(validateDetectLogic(invalid)).toBe(
+      "Operator 'string distance' requires a 'value' field.",
+    )
   })
 
   it('covers platform and architecture operators', () => {
@@ -150,7 +146,9 @@ describe('validateDetectLogic aligns with LimaCharlie docs', () => {
     expect(validateDetectLogic(platformValid)).toBeNull()
 
     const platformInvalid = `${baseEvent}\nop: is platform\n`
-    expect(validateDetectLogic(platformInvalid)).toBe("Operator 'is platform' requires a 'name' field.")
+    expect(validateDetectLogic(platformInvalid)).toBe(
+      "Operator 'is platform' requires a 'name' field.",
+    )
 
     const archValid = `${baseEvent}\nop: and\nrules:\n  - op: is 32 bit\n  - op: is 64 bit\n    not: true\n`
     expect(validateDetectLogic(archValid)).toBeNull()
@@ -167,7 +165,9 @@ describe('validateDetectLogic aligns with LimaCharlie docs', () => {
     expect(validateDetectLogic(publicValid)).toBeNull()
 
     const publicMissing = `${baseEvent}\nop: is private address\n`
-    expect(validateDetectLogic(publicMissing)).toBe("Operator 'is private address' requires a 'path' field.")
+    expect(validateDetectLogic(publicMissing)).toBe(
+      "Operator 'is private address' requires a 'path' field.",
+    )
   })
 
   it('enforces lookup resource and metadata rules shape', () => {
@@ -201,7 +201,9 @@ describe('validateDetectLogic aligns with LimaCharlie docs', () => {
     expect(validateDetectLogic(valid)).toBeNull()
 
     const invalid = `${baseEvent}\nop: is older than\npath: routing/event_time\n`
-    expect(validateDetectLogic(invalid)).toBe("Operator 'is older than' requires a 'seconds' field.")
+    expect(validateDetectLogic(invalid)).toBe(
+      "Operator 'is older than' requires a 'seconds' field.",
+    )
   })
 
   it('permits documented transforms and times modifiers', () => {

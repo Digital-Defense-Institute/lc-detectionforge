@@ -946,22 +946,21 @@
               </div>
 
               <!-- Overall Statistics Summary -->
-              <div
-                v-if="suppressionOverviewForDisplay?.enabled"
-                class="suppression-summary-banner"
-              >
+              <div v-if="suppressionOverviewForDisplay?.enabled" class="suppression-summary-banner">
                 <div class="suppression-summary-primary">
                   <strong>Suppression Applied:</strong>
                   <span>
-                    {{ suppressionOverviewForDisplay.config?.actionName || 'Report action' }} · Period:
+                    {{ suppressionOverviewForDisplay.config?.actionName || 'Report action' }} ·
+                    Period:
                     {{ formatSuppressionPeriod(suppressionOverviewForDisplay.config?.periodMs) }} ·
-                    Threshold: {{ suppressionOverviewForDisplay.config?.minCount ?? 1 }} ·
-                    Max Alerts:
+                    Threshold: {{ suppressionOverviewForDisplay.config?.minCount ?? 1 }} · Max
+                    Alerts:
                     {{
                       suppressionOverviewForDisplay.config?.maxCount !== undefined
                         ? suppressionOverviewForDisplay.config?.maxCount
                         : '∞'
-                    }} · Keys:
+                    }}
+                    · Keys:
                     {{ suppressionOverviewForDisplay.config?.keys.length || 0 }}
                   </span>
                 </div>
@@ -1015,10 +1014,7 @@
                     Total Matches Found
                   </div>
                 </div>
-                <div
-                  v-if="backtestResults.totalStats.suppressedTotal > 0"
-                  class="stat-card"
-                >
+                <div v-if="backtestResults.totalStats.suppressedTotal > 0" class="stat-card">
                   <div class="stat-number">
                     {{ backtestResults.totalStats.suppressedTotal.toLocaleString() }}
                   </div>
@@ -1055,9 +1051,10 @@
                       Reduction
                       <strong>
                         {{
-                          ((1 -
-                            backtestResults.totalStats.actualAlerts /
-                              backtestResults.totalStats.totalMatches) *
+                          (
+                            (1 -
+                              backtestResults.totalStats.actualAlerts /
+                                backtestResults.totalStats.totalMatches) *
                             100
                           ).toFixed(1)
                         }}%
@@ -1233,126 +1230,132 @@
                       {{ formatTimestamp(backtestResults.timeframe.endTime) }}
                     </div>
                   </div>
+                </div>
               </div>
-            </div>
 
-            <div v-if="alertsSparkline.points.length > 0" class="alerts-sparkline-card">
-              <div class="alerts-sparkline-header">
-                <h5>Alert Distribution</h5>
-                <div class="alerts-sparkline-meta">
-                  <span>
-                    Peak {{ alertsSparkline.maxCount.toLocaleString() }}/{{
-                      alertsSparklineGranularity === 'hourly' ? 'hour' : 'day'
-                    }}
-                  </span>
-                  <span>
-                    Avg {{ (backtestResults?.completionStats.avgAlertsPerDay ?? 0).toFixed(1) }}/day
-                  </span>
-                  <span>
-                    {{ alertsSparkline.points.length }}
-                    {{ alertsSparklineGranularity === 'hourly' ? 'hour' : 'day' }}{{
-                      alertsSparkline.points.length === 1 ? '' : 's'
-                    }} range
-                  </span>
-                </div>
-              </div>
-              <div class="alerts-sparkline-wrapper" @mouseleave="sparklineTooltip = null">
-                <div class="alerts-sparkline-axes">
-                  <div class="alerts-sparkline-yaxis">
-                  <span>{{ alertsSparkline.maxCount.toLocaleString() }}</span>
-                  <span v-if="alertsSparkline.midTick && alertsSparkline.midTick > 0">
-                    {{ alertsSparkline.midTick.toLocaleString() }}
-                  </span>
-                  <span>0</span>
-                </div>
-                <svg
-                  class="alerts-sparkline-chart"
-                  viewBox="0 0 220 20"
-                  preserveAspectRatio="xMidYMid meet"
-                  role="img"
-                  aria-label="Sparkline showing alert distribution over time"
-                >
-                  <defs>
-                    <linearGradient id="alertsSparklineGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="rgba(59, 130, 246, 0.25)" />
-                      <stop offset="100%" stop-color="rgba(59, 130, 246, 0.02)" />
-                    </linearGradient>
-                    <linearGradient id="alertsSparklineGradientLine" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stop-color="var(--brand-purple)" />
-                      <stop offset="100%" stop-color="var(--brand-blue)" />
-                    </linearGradient>
-                  </defs>
-                <path
-                  :d="alertsSparkline.baselinePath"
-                  stroke="rgba(59, 130, 246, 0.25)"
-                  stroke-width="0.6"
-                  fill="none"
-                  stroke-linecap="round"
-                />
-                <path
-                  v-if="alertsSparkline.hasPositive"
-                  :d="alertsSparkline.fillPath"
-                  fill="url(#alertsSparklineGradient)"
-                  opacity="0.18"
-                />
-                    <path
-                      v-if="alertsSparkline.path"
-                      :d="alertsSparkline.path"
-                      stroke="url(#alertsSparklineGradientLine)"
-                      stroke-width="1.1"
-                      fill="none"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  <g>
-                    <template
-                      v-for="point in alertsSparkline.points"
-                      :key="`${point.timestamp}-${point.count}`"
-                    >
-                      <g v-if="point.count > 0">
-                        <circle
-                          :cx="point.x"
-                          :cy="point.y"
-                          r="1.6"
-                          fill="var(--brand-blue)"
-                          stroke="var(--bg-secondary)"
-                          stroke-width="1"
-                          tabindex="0"
-                          @mouseenter="showSparklineTooltip(point)"
-                          @mouseleave="sparklineTooltip = null"
-                          @focus="showSparklineTooltip(point)"
-                          @blur="sparklineTooltip = null"
-                        />
-                        <circle
-                          :cx="point.x"
-                          :cy="point.y"
-                          r="3"
-                          fill="none"
-                          stroke="rgba(59, 130, 246, 0.25)"
-                          stroke-width="0.6"
-                        />
-                      </g>
-                    </template>
-                  </g>
-                  </svg>
-                  <div
-                    v-if="sparklineTooltip"
-                    class="alerts-sparkline-tooltip"
-                    :style="{ left: sparklineTooltip.left, top: sparklineTooltip.top }"
-                  >
-                    {{ sparklineTooltip.label }}
+              <div v-if="alertsSparkline.points.length > 0" class="alerts-sparkline-card">
+                <div class="alerts-sparkline-header">
+                  <h5>Alert Distribution</h5>
+                  <div class="alerts-sparkline-meta">
+                    <span>
+                      Peak {{ alertsSparkline.maxCount.toLocaleString() }}/{{
+                        alertsSparklineGranularity === 'hourly' ? 'hour' : 'day'
+                      }}
+                    </span>
+                    <span>
+                      Avg
+                      {{ (backtestResults?.completionStats.avgAlertsPerDay ?? 0).toFixed(1) }}/day
+                    </span>
+                    <span>
+                      {{ alertsSparkline.points.length }}
+                      {{ alertsSparklineGranularity === 'hourly' ? 'hour' : 'day'
+                      }}{{ alertsSparkline.points.length === 1 ? '' : 's' }} range
+                    </span>
                   </div>
                 </div>
+                <div class="alerts-sparkline-wrapper" @mouseleave="sparklineTooltip = null">
+                  <div class="alerts-sparkline-axes">
+                    <div class="alerts-sparkline-yaxis">
+                      <span>{{ alertsSparkline.maxCount.toLocaleString() }}</span>
+                      <span v-if="alertsSparkline.midTick && alertsSparkline.midTick > 0">
+                        {{ alertsSparkline.midTick.toLocaleString() }}
+                      </span>
+                      <span>0</span>
+                    </div>
+                    <svg
+                      class="alerts-sparkline-chart"
+                      viewBox="0 0 220 20"
+                      preserveAspectRatio="xMidYMid meet"
+                      role="img"
+                      aria-label="Sparkline showing alert distribution over time"
+                    >
+                      <defs>
+                        <linearGradient id="alertsSparklineGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="rgba(59, 130, 246, 0.25)" />
+                          <stop offset="100%" stop-color="rgba(59, 130, 246, 0.02)" />
+                        </linearGradient>
+                        <linearGradient
+                          id="alertsSparklineGradientLine"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="0"
+                        >
+                          <stop offset="0%" stop-color="var(--brand-purple)" />
+                          <stop offset="100%" stop-color="var(--brand-blue)" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        :d="alertsSparkline.baselinePath"
+                        stroke="rgba(59, 130, 246, 0.25)"
+                        stroke-width="0.6"
+                        fill="none"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        v-if="alertsSparkline.hasPositive"
+                        :d="alertsSparkline.fillPath"
+                        fill="url(#alertsSparklineGradient)"
+                        opacity="0.18"
+                      />
+                      <path
+                        v-if="alertsSparkline.path"
+                        :d="alertsSparkline.path"
+                        stroke="url(#alertsSparklineGradientLine)"
+                        stroke-width="1.1"
+                        fill="none"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <g>
+                        <template
+                          v-for="point in alertsSparkline.points"
+                          :key="`${point.timestamp}-${point.count}`"
+                        >
+                          <g v-if="point.count > 0">
+                            <circle
+                              :cx="point.x"
+                              :cy="point.y"
+                              r="1.6"
+                              fill="var(--brand-blue)"
+                              stroke="var(--bg-secondary)"
+                              stroke-width="1"
+                              tabindex="0"
+                              @mouseenter="showSparklineTooltip(point)"
+                              @mouseleave="sparklineTooltip = null"
+                              @focus="showSparklineTooltip(point)"
+                              @blur="sparklineTooltip = null"
+                            />
+                            <circle
+                              :cx="point.x"
+                              :cy="point.y"
+                              r="3"
+                              fill="none"
+                              stroke="rgba(59, 130, 246, 0.25)"
+                              stroke-width="0.6"
+                            />
+                          </g>
+                        </template>
+                      </g>
+                    </svg>
+                    <div
+                      v-if="sparklineTooltip"
+                      class="alerts-sparkline-tooltip"
+                      :style="{ left: sparklineTooltip.left, top: sparklineTooltip.top }"
+                    >
+                      {{ sparklineTooltip.label }}
+                    </div>
+                  </div>
+                </div>
+                <div class="alerts-sparkline-xaxis">
+                  <span>{{ alertsSparklineXAxis.start }}</span>
+                  <span v-if="alertsSparklineXAxis.mid">{{ alertsSparklineXAxis.mid }}</span>
+                  <span>{{ alertsSparklineXAxis.end }}</span>
+                </div>
               </div>
-              <div class="alerts-sparkline-xaxis">
-                <span>{{ alertsSparklineXAxis.start }}</span>
-                <span v-if="alertsSparklineXAxis.mid">{{ alertsSparklineXAxis.mid }}</span>
-                <span>{{ alertsSparklineXAxis.end }}</span>
-              </div>
-            </div>
 
-            <!-- Per-Organization Results -->
-            <div class="org-results-section">
+              <!-- Per-Organization Results -->
+              <div class="org-results-section">
                 <h5>
                   Results by Organization ({{
                     backtestResults
@@ -1467,10 +1470,9 @@
                         </div>
                         <div class="org-stat">
                           <span class="stat-value">{{
-                            (
-                              orgResult.suppressionSummary
-                                ? orgResult.suppressionSummary.actualAlerts
-                                : orgResult.results?.length || 0
+                            (orgResult.suppressionSummary
+                              ? orgResult.suppressionSummary.actualAlerts
+                              : orgResult.results?.length || 0
                             ).toLocaleString()
                           }}</span>
                           <span class="stat-label">Actual Alerts</span>
@@ -1605,8 +1607,18 @@
                               <div class="match-info">
                                 <span
                                   class="match-timestamp"
-                                  :data-tooltip="getTimestampTooltip(result.data.detect.ts, `${orgResult.oid}-${matchIndex}`)"
-                                  @mouseenter="updateTimestampTooltip(result.data.detect.ts, `${orgResult.oid}-${matchIndex}`)"
+                                  :data-tooltip="
+                                    getTimestampTooltip(
+                                      result.data.detect.ts,
+                                      `${orgResult.oid}-${matchIndex}`,
+                                    )
+                                  "
+                                  @mouseenter="
+                                    updateTimestampTooltip(
+                                      result.data.detect.ts,
+                                      `${orgResult.oid}-${matchIndex}`,
+                                    )
+                                  "
                                   >{{ formatTimestamp(result.data.detect.ts) }}</span
                                 >
                                 <span class="match-hostname">{{
@@ -3496,7 +3508,6 @@ watch(isEstimateValid, (valid) => {
   }
 })
 
-
 // Check if start date is beyond 30-day free period
 const isBeyond30DayFreePeriod = computed(() => {
   if (!backtestConfig.startDateTime) return false
@@ -3562,11 +3573,11 @@ const sortedOrgResults = computed(() => {
     // First priority: Sort by actual alerts (descending)
     const aMatches =
       a.status === 'success' && a.results
-        ? a.suppressionSummary?.actualAlerts ?? a.results.length
+        ? (a.suppressionSummary?.actualAlerts ?? a.results.length)
         : 0
     const bMatches =
       b.status === 'success' && b.results
-        ? b.suppressionSummary?.actualAlerts ?? b.results.length
+        ? (b.suppressionSummary?.actualAlerts ?? b.results.length)
         : 0
     if (aMatches !== bMatches) {
       return bMatches - aMatches
@@ -3691,7 +3702,7 @@ const alertsSparkline = computed(() => {
   const totalAlerts = data.reduce((sum, item) => sum + item.count, 0)
 
   const timestamps = data.map((item) => item.timestamp)
-  let minTimestamp = Math.min(...timestamps)
+  const minTimestamp = Math.min(...timestamps)
   let maxTimestamp = Math.max(...timestamps)
   if (maxTimestamp === minTimestamp) {
     maxTimestamp = minTimestamp + 24 * 60 * 60 * 1000
@@ -6964,39 +6975,39 @@ function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
   if (!orgResult.results || orgResult.status !== 'success') return
 
   const exportData = {
-      backtest_metadata: {
-        rule_name: currentRule.name,
-        organization: orgResult.orgName,
-        oid: orgResult.oid,
-        completed_at: backtestResults.value?.completedAt,
-        timeframe: backtestResults.value?.timeframe,
-        stats: orgResult.stats,
-        billing: {
-          n_billed: orgResult.stats?.n_billed || 0,
-          n_free: orgResult.stats?.n_free || 0,
-          actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
-          saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
-          cost_formatted: orgResult.stats?.n_billed
-            ? formatCost(calculateCost(orgResult.stats.n_billed))
-            : '$0.00',
-          saved_formatted: orgResult.stats?.n_free
-            ? formatCost(calculateCost(orgResult.stats.n_free))
-            : '$0.00',
-        },
-        detectionforge_suppression: orgResult.suppressionSummary
-          ? {
-              actual_alerts: orgResult.suppressionSummary.actualAlerts,
-              suppressed_pre_threshold: orgResult.suppressionSummary.suppressedPreThreshold,
-              suppressed_post_threshold: orgResult.suppressionSummary.suppressedPostThreshold,
-              suppressed_total: orgResult.suppressionSummary.suppressedTotal,
-              issues: orgResult.suppressionSummary.issues,
-              per_key: orgResult.suppressionSummary.perKey,
-              config: backtestResults.value?.suppressionOverview?.config,
-            }
-          : undefined,
+    backtest_metadata: {
+      rule_name: currentRule.name,
+      organization: orgResult.orgName,
+      oid: orgResult.oid,
+      completed_at: backtestResults.value?.completedAt,
+      timeframe: backtestResults.value?.timeframe,
+      stats: orgResult.stats,
+      billing: {
+        n_billed: orgResult.stats?.n_billed || 0,
+        n_free: orgResult.stats?.n_free || 0,
+        actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
+        saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
+        cost_formatted: orgResult.stats?.n_billed
+          ? formatCost(calculateCost(orgResult.stats.n_billed))
+          : '$0.00',
+        saved_formatted: orgResult.stats?.n_free
+          ? formatCost(calculateCost(orgResult.stats.n_free))
+          : '$0.00',
       },
-      matches: orgResult.results,
-    }
+      detectionforge_suppression: orgResult.suppressionSummary
+        ? {
+            actual_alerts: orgResult.suppressionSummary.actualAlerts,
+            suppressed_pre_threshold: orgResult.suppressionSummary.suppressedPreThreshold,
+            suppressed_post_threshold: orgResult.suppressionSummary.suppressedPostThreshold,
+            suppressed_total: orgResult.suppressionSummary.suppressedTotal,
+            issues: orgResult.suppressionSummary.issues,
+            per_key: orgResult.suppressionSummary.perKey,
+            config: backtestResults.value?.suppressionOverview?.config,
+          }
+        : undefined,
+    },
+    matches: orgResult.results,
+  }
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -7013,28 +7024,28 @@ function _exportBacktestResults() {
   if (!backtestResults.value) return
 
   const exportData = {
-      backtest_metadata: {
-        rule_name: currentRule.name,
-        completed_at: backtestResults.value.completedAt,
-        timeframe: backtestResults.value.timeframe,
-        total_stats: backtestResults.value.totalStats,
-        execution_stats: backtestResults.value.executionStats,
-        completion_stats: backtestResults.value.completionStats,
-        organizations: backtestResults.value.orgResults.length,
-        billing_summary: {
-          total_billed: backtestResults.value.totalStats.n_billed,
-          total_free: backtestResults.value.totalStats.n_free,
-          actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
-          saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
-          cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
-          saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
-          cost_per_block: 0.01,
-          events_per_block: 200000,
-        },
-        detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
+    backtest_metadata: {
+      rule_name: currentRule.name,
+      completed_at: backtestResults.value.completedAt,
+      timeframe: backtestResults.value.timeframe,
+      total_stats: backtestResults.value.totalStats,
+      execution_stats: backtestResults.value.executionStats,
+      completion_stats: backtestResults.value.completionStats,
+      organizations: backtestResults.value.orgResults.length,
+      billing_summary: {
+        total_billed: backtestResults.value.totalStats.n_billed,
+        total_free: backtestResults.value.totalStats.n_free,
+        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
+        cost_per_block: 0.01,
+        events_per_block: 200000,
       },
-      org_results: backtestResults.value.orgResults,
-    }
+      detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
+    },
+    org_results: backtestResults.value.orgResults,
+  }
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -7128,9 +7139,7 @@ function exportBacktestSummaryAsMarkdown() {
 ${results.orgResults
   .map((org) => {
     const matchCount = org.results?.length || 0
-    const actualAlerts = org.suppressionSummary
-      ? org.suppressionSummary.actualAlerts
-      : matchCount
+    const actualAlerts = org.suppressionSummary ? org.suppressionSummary.actualAlerts : matchCount
     const suppressedSummary = org.suppressionSummary
       ? `${org.suppressionSummary.suppressedTotal.toLocaleString()} (T=${org.suppressionSummary.suppressedPreThreshold.toLocaleString()}, M=${org.suppressionSummary.suppressedPostThreshold.toLocaleString()})`
       : '0'
@@ -7266,8 +7275,10 @@ function exportAllMatches() {
           ? org.suppressionSummary.actualAlerts
           : org.results?.length || 0,
         detectionforge_suppressed_total: org.suppressionSummary?.suppressedTotal || 0,
-        detectionforge_suppressed_pre_threshold: org.suppressionSummary?.suppressedPreThreshold || 0,
-        detectionforge_suppressed_post_threshold: org.suppressionSummary?.suppressedPostThreshold || 0,
+        detectionforge_suppressed_pre_threshold:
+          org.suppressionSummary?.suppressedPreThreshold || 0,
+        detectionforge_suppressed_post_threshold:
+          org.suppressionSummary?.suppressedPostThreshold || 0,
         stats: org.stats,
       })),
     },
@@ -7544,7 +7555,7 @@ function formatTimestampToLocal(timestamp: string | number): string {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false
+    hour12: false,
   })
 
   // Get timezone offset in hours and minutes

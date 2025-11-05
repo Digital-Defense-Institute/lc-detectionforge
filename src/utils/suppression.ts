@@ -75,7 +75,8 @@ const PERIOD_MULTIPLIERS: Record<string, number> = {
   w: 7 * 24 * 60 * 60 * 1000,
 }
 
-const isWhitespace = (character: string) => character === ' ' || character === '\t' || character === '\n' || character === '\r'
+const isWhitespace = (character: string) =>
+  character === ' ' || character === '\t' || character === '\n' || character === '\r'
 
 const TEMPLATE_PATTERN = /{{\s*([^{}]+?)\s*}}/g
 
@@ -142,11 +143,13 @@ const decodeWithAtob = (value: string): string | null => {
 }
 
 const getNodeBuffer = () =>
-  (globalThis as unknown as {
-    Buffer?: {
-      from: (input: string, encoding: string) => { toString: (encoding: string) => string }
+  (
+    globalThis as unknown as {
+      Buffer?: {
+        from: (input: string, encoding: string) => { toString: (encoding: string) => string }
+      }
     }
-  }).Buffer
+  ).Buffer
 
 const cloneMatchWithSuppression = <TMatch extends SuppressionMatch>(
   match: TMatch,
@@ -309,7 +312,11 @@ type TransformFunction = (input: unknown, ...args: unknown[]) => unknown
 const transformLibrary: Record<string, TransformFunction> = {
   lower: (input: unknown) => ensureString(input).toLowerCase(),
   upper: (input: unknown) => ensureString(input).toUpperCase(),
-  title: (input: unknown) => ensureString(input).replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()),
+  title: (input: unknown) =>
+    ensureString(input).replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase(),
+    ),
   trim: (input: unknown, cutset?: unknown) => {
     const value = ensureString(input)
     if (cutset === undefined) return value.trim()
@@ -461,11 +468,14 @@ const transformLibrary: Record<string, TransformFunction> = {
   unescape: (input: unknown) => ensureString(input).replace(/\\(["'\\])/g, '$1'),
   len: (input: unknown) => {
     if (typeof input === 'string' || Array.isArray(input)) return input.length
-    if (input && typeof input === 'object') return Object.keys(input as Record<string, unknown>).length
+    if (input && typeof input === 'object')
+      return Object.keys(input as Record<string, unknown>).length
     return 0
   },
-  hasPrefix: (input: unknown, prefix: unknown) => ensureString(input).startsWith(ensureString(prefix)),
-  hasSuffix: (input: unknown, suffix: unknown) => ensureString(input).endsWith(ensureString(suffix)),
+  hasPrefix: (input: unknown, prefix: unknown) =>
+    ensureString(input).startsWith(ensureString(prefix)),
+  hasSuffix: (input: unknown, suffix: unknown) =>
+    ensureString(input).endsWith(ensureString(suffix)),
   contains: (input: unknown, substr: unknown) => ensureString(input).includes(ensureString(substr)),
 }
 
@@ -504,9 +514,11 @@ const evaluateExpression = (expression: string, context: TemplateContext) => {
         if (tokens.length > 1) {
           // Remaining tokens treated as function invocation with resolved value as input
           const fnName = tokens[1]
-          const args = tokens.slice(2).map((token) =>
-            token.startsWith('.') ? resolvePath(token, context) : parseLiteral(token),
-          )
+          const args = tokens
+            .slice(2)
+            .map((token) =>
+              token.startsWith('.') ? resolvePath(token, context) : parseLiteral(token),
+            )
           try {
             currentValue = applyTransform(fnName, currentValue, args)
           } catch (error) {
@@ -517,7 +529,9 @@ const evaluateExpression = (expression: string, context: TemplateContext) => {
         const fnName = tokens[0]
         const args = tokens
           .slice(1)
-          .map((token) => (token.startsWith('.') ? resolvePath(token, context) : parseLiteral(token)))
+          .map((token) =>
+            token.startsWith('.') ? resolvePath(token, context) : parseLiteral(token),
+          )
         try {
           currentValue = applyTransform(fnName, undefined, args)
         } catch (error) {
@@ -595,7 +609,11 @@ const findFirstReportAction = (respondLogic: unknown) => {
   if (Array.isArray(respondLogic)) {
     for (let index = 0; index < respondLogic.length; index++) {
       const entry = respondLogic[index]
-      if (entry && typeof entry === 'object' && (entry as Record<string, unknown>).action === 'report') {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        (entry as Record<string, unknown>).action === 'report'
+      ) {
         return { action: entry as Record<string, unknown>, index }
       }
     }
@@ -640,8 +658,8 @@ export const parseSuppressionFromRespondLogic = (
   const rawMaxCount = suppression.max_count
   const rawMinCount = suppression.min_count
 
-  const maxCount = rawMaxCount === undefined ? undefined : toNumber(rawMaxCount) ?? undefined
-  const minCount = rawMinCount === undefined ? undefined : toNumber(rawMinCount) ?? undefined
+  const maxCount = rawMaxCount === undefined ? undefined : (toNumber(rawMaxCount) ?? undefined)
+  const minCount = rawMinCount === undefined ? undefined : (toNumber(rawMinCount) ?? undefined)
 
   const isGlobal = Boolean(suppression.is_global)
   const rawKeys = Array.isArray(suppression.keys)
@@ -667,7 +685,9 @@ export const parseSuppressionFromRespondLogic = (
   }
 
   if (config.minCount && config.maxCount && config.minCount > config.maxCount) {
-    issues.push('Suppression min_count is greater than max_count; min_count will be clamped to max_count.')
+    issues.push(
+      'Suppression min_count is greater than max_count; min_count will be clamped to max_count.',
+    )
     config.minCount = config.maxCount
   }
 
@@ -822,7 +842,9 @@ export const applySuppressionToMatches = <TMatch extends SuppressionMatch>(
       if (windowCount < minCount) {
         status = 'suppressed-pre-threshold'
         isAlert = false
-        reasons = [`Threshold requires at least ${minCount} matches within ${config.periodMs / 1000}s`]
+        reasons = [
+          `Threshold requires at least ${minCount} matches within ${config.periodMs / 1000}s`,
+        ]
       } else if (state.alertCountInWindow >= maxCount) {
         status = 'suppressed-post-threshold'
         isAlert = false

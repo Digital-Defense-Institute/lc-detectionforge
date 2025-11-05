@@ -292,11 +292,7 @@ export function validateDetectLogic(
           return `metadata_rules[${index}] must be an object describing a rule.`
         }
 
-        const nestedError = validateDetectLogic(
-          yaml.dump(metadataRule),
-          false,
-          depth + 1,
-        )
+        const nestedError = validateDetectLogic(yaml.dump(metadataRule), false, depth + 1)
         if (nestedError) {
           return `metadata_rules[${index}]: ${nestedError}`
         }
