@@ -48,10 +48,12 @@ describe('validateDetectLogic real-world fixtures', () => {
 
     expect(fixture).toBeDefined()
 
-    const parsed = yaml.load(fixture!.yaml) as any
-    const mutated = JSON.parse(JSON.stringify(parsed))
-    const lookupOrRules: any[] = mutated.rules[1].rules[1].rules
-    let mutatedEntry: any | undefined
+    const parsed = yaml.load(fixture!.yaml) as Record<string, unknown>
+    const mutated = JSON.parse(JSON.stringify(parsed)) as Record<string, unknown>
+    const lookupOrRules = (
+      (mutated.rules as Record<string, unknown>[])[1].rules as Record<string, unknown>[]
+    )[1].rules as Record<string, unknown>[]
+    let mutatedEntry: Record<string, unknown> | undefined
     for (const candidate of lookupOrRules) {
       if (candidate.op === 'lookup') {
         delete candidate.resource
@@ -75,23 +77,29 @@ describe('validateDetectLogic real-world fixtures', () => {
 
     expect(fixture).toBeDefined()
 
-    const parsed = yaml.load(fixture!.yaml) as any
+    const parsed = yaml.load(fixture!.yaml) as Record<string, unknown>
 
-    const missingOp = JSON.parse(JSON.stringify(parsed))
-    const lookupVariant = missingOp.rules[1].rules[1].rules.find(
-      (entry: any) => entry.op === 'lookup' && entry.metadata_rules,
-    )
+    const missingOp = JSON.parse(JSON.stringify(parsed)) as Record<string, unknown>
+    const lookupVariant = (
+      ((missingOp.rules as Record<string, unknown>[])[1].rules as Record<string, unknown>[])[1]
+        .rules as Record<string, unknown>[]
+    ).find(
+      (entry: Record<string, unknown>) => entry.op === 'lookup' && entry.metadata_rules,
+    ) as Record<string, unknown>
     expect(lookupVariant).toBeDefined()
-    delete lookupVariant.metadata_rules.op
+    delete (lookupVariant.metadata_rules as Record<string, unknown>).op
 
     expect(validateDetectLogic(yaml.dump(missingOp))).toContain(
       "metadata_rules[0]: Operation missing 'op' field.",
     )
 
-    const emptyRules = JSON.parse(JSON.stringify(parsed))
-    const lookupEmpty = emptyRules.rules[1].rules[1].rules.find(
-      (entry: any) => entry.op === 'lookup' && entry.metadata_rules,
-    )
+    const emptyRules = JSON.parse(JSON.stringify(parsed)) as Record<string, unknown>
+    const lookupEmpty = (
+      ((emptyRules.rules as Record<string, unknown>[])[1].rules as Record<string, unknown>[])[1]
+        .rules as Record<string, unknown>[]
+    ).find(
+      (entry: Record<string, unknown>) => entry.op === 'lookup' && entry.metadata_rules,
+    ) as Record<string, unknown>
     expect(lookupEmpty).toBeDefined()
     lookupEmpty.metadata_rules = []
 
