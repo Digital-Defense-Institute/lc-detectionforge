@@ -122,7 +122,10 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
     name: 'exists',
     description: 'Check if field exists',
     requiredFields: ['path'],
-    optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
+    optionalFields: [
+      { name: 'not', type: 'boolean', description: 'Invert the result' },
+      { name: 'truthy', type: 'boolean', description: 'Treat null/empty strings as missing' },
+    ],
     examples: ['op: exists\npath: event/NETWORK_ACTIVITY'],
     category: 'numeric',
   },
@@ -194,9 +197,9 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
   'is platform': {
     name: 'is platform',
     description: 'Check sensor platform',
-    requiredFields: ['path', 'value'],
+    requiredFields: ['name'],
     optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
-    examples: ['op: is platform\npath: routing/platform\nvalue: windows'],
+    examples: ['op: is platform\nname: windows'],
     validTargets: ['edr'],
     category: 'system',
   },
@@ -214,9 +217,9 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
   'is 32 bit': {
     name: 'is 32 bit',
     description: 'Check if architecture is 32-bit',
-    requiredFields: ['path'],
+    requiredFields: [],
     optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
-    examples: ['op: is 32 bit\npath: routing/arch'],
+    examples: ['op: is 32 bit'],
     validTargets: ['edr'],
     category: 'system',
   },
@@ -224,9 +227,9 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
   'is 64 bit': {
     name: 'is 64 bit',
     description: 'Check if architecture is 64-bit',
-    requiredFields: ['path'],
+    requiredFields: [],
     optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
-    examples: ['op: is 64 bit\npath: routing/arch'],
+    examples: ['op: is 64 bit'],
     validTargets: ['edr'],
     category: 'system',
   },
@@ -234,9 +237,9 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
   'is arm': {
     name: 'is arm',
     description: 'Check if architecture is ARM',
-    requiredFields: ['path'],
+    requiredFields: [],
     optionalFields: [{ name: 'not', type: 'boolean', description: 'Invert the result' }],
-    examples: ['op: is arm\npath: routing/arch'],
+    examples: ['op: is arm'],
     validTargets: ['edr'],
     category: 'system',
   },
@@ -302,8 +305,15 @@ export const OPERATOR_SCHEMAS: Record<DetectOperator, OperatorSchema> = {
   lookup: {
     name: 'lookup',
     description: 'Threat intelligence lookup',
-    requiredFields: ['path', 'lookup'],
+    requiredFields: ['path'],
     optionalFields: [
+      { name: 'resource', type: 'string', description: 'Lookup resource URI' },
+      { name: 'lookup', type: 'string', description: 'Legacy lookup table name' },
+      {
+        name: 'metadata_rules',
+        type: 'object',
+        description: 'Additional rule applied to lookup metadata',
+      },
       { name: 'min_confidence', type: 'number', description: 'Minimum confidence threshold' },
       { name: 'not', type: 'boolean', description: 'Invert the result' },
     ],
@@ -387,8 +397,12 @@ export const ACTION_SCHEMAS: Record<ResponseAction, ActionSchema> = {
     optionalFields: [
       { name: 'ttl', type: 'number', description: 'Time to live in seconds', min: 0 },
       { name: 'entire_device', type: 'boolean', description: 'Tag entire device' },
+      { name: 'metadata', type: 'object', description: 'Custom metadata' },
     ],
-    examples: ['- action: add tag\n  tag: compromised\n  ttl: 3600\n  entire_device: true'],
+    examples: [
+      '- action: add tag\n  tag: compromised\n  ttl: 3600\n  entire_device: true',
+      '- action: add tag\n  tag: needs-sysmon\n  metadata:\n    id: d3f7b9a2-4e8c-4d1f-9b3e-5c2a7f8d1e4b',
+    ],
     category: 'core',
   },
 
@@ -398,8 +412,12 @@ export const ACTION_SCHEMAS: Record<ResponseAction, ActionSchema> = {
     requiredFields: [{ name: 'tag', type: 'string', description: 'Tag name' }],
     optionalFields: [
       { name: 'entire_device', type: 'boolean', description: 'Remove from entire device' },
+      { name: 'metadata', type: 'object', description: 'Custom metadata' },
     ],
-    examples: ['- action: remove tag\n  tag: clean'],
+    examples: [
+      '- action: remove tag\n  tag: clean',
+      '- action: remove tag\n  tag: suspicious\n  metadata:\n    id: a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6',
+    ],
     category: 'core',
   },
 

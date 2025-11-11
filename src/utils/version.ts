@@ -37,6 +37,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.0',
+    date: '2025-11-10',
+    description:
+      'Enhanced backtest analytics with severity breakdown, suppression tracking, and critical security fix',
+    changes: {
+      added: [
+        'Severity breakdown visualization with color-coded badges (critical/high/medium/low/info) and per-severity hit counts in backtest results',
+        'Suppression analytics tracking actual vs suppressed alerts with sparkline visualization of alert patterns',
+        'Export all matches functionality for consolidated JSON export of detection matches across organizations',
+        'Validation Test Suite documentation in README with comprehensive test coverage details',
+      ],
+      changed: [
+        'Code formatting improvements for better readability and maintainability across multiple files',
+      ],
+      fixed: [
+        'Operator schema validation: Corrected field requirements for exists, is platform, architecture operators (is 32 bit, is 64 bit, is arm), and lookup operator',
+        'Tag action schema now correctly supports metadata field for enhanced tagging capabilities',
+      ],
+      security: [
+        'JWT authentication credential exposure - Changed from GET with URL parameters to POST with form-encoded body, preventing credential exposure in browser history, server logs, network monitoring, and proxy caches',
+      ],
+    },
+  },
+  {
     version: '1.7.0',
     date: '2025-10-15',
     description:

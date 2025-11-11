@@ -94,13 +94,13 @@ export function useAuth() {
     const currentOid = primaryOid.value
     try {
       isAuthenticating.value = true
-      const url = `https://jwt.limacharlie.io?oid=${currentOid}&uid=${credentials.uid}&secret=${credentials.apiKey}`
-
-      const response = await fetch(url, {
-        method: 'GET',
+      const response = await fetch('https://jwt.limacharlie.io', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
         },
+        body: `oid=${encodeURIComponent(currentOid)}&uid=${encodeURIComponent(credentials.uid)}&secret=${encodeURIComponent(credentials.apiKey)}`,
       })
 
       if (!response.ok) {
@@ -134,13 +134,13 @@ export function useAuth() {
     }
 
     try {
-      const url = `https://jwt.limacharlie.io?oid=${oid}&uid=${credentials.uid}&secret=${credentials.apiKey}`
-
-      const response = await fetch(url, {
-        method: 'GET',
+      const response = await fetch('https://jwt.limacharlie.io', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
         },
+        body: `oid=${encodeURIComponent(oid)}&uid=${encodeURIComponent(credentials.uid)}&secret=${encodeURIComponent(credentials.apiKey)}`,
       })
 
       if (!response.ok) {
@@ -172,13 +172,13 @@ export function useAuth() {
 
     try {
       isAuthenticating.value = true
-      const url = `https://jwt.limacharlie.io?oid=${targetOid}&uid=${uid}&secret=${apiKey}`
-
-      const response = await fetch(url, {
-        method: 'GET',
+      const response = await fetch('https://jwt.limacharlie.io', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
         },
+        body: `oid=${encodeURIComponent(targetOid)}&uid=${encodeURIComponent(uid)}&secret=${encodeURIComponent(apiKey)}`,
       })
 
       if (!response.ok) {

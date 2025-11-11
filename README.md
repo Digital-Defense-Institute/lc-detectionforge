@@ -21,6 +21,7 @@ A comprehensive detection engineering environment built for crafting, validating
 - [Security Considerations](#security-considerations)
 - [LimaCharlie Integration](#limacharlie-integration)
 - [Documentation & Resources](#documentation--resources)
+- [Validation Test Suite](#validation-test-suite)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -77,6 +78,9 @@ DetectionForge is a **production-ready** detection engineering platform with com
 - **Unit Testing**: Built-in framework with preset event samples and custom test data support
 - **Historical Backtesting**: Multi-organization testing against historical telemetry via LimaCharlie's replay API
 - **Detection Impact Analysis**: Analyze rule effectiveness and potential false positives
+- **Severity Analytics**: Color-coded severity breakdown with badges (critical/high/medium/low/info) and per-severity hit counts
+- **Suppression Tracking**: Monitor actual vs suppressed alerts with sparkline visualization
+- **Match Export**: Export all detection matches across organizations for comprehensive analysis
 - **Auto-Draft System**: Automatic saving of work-in-progress with recovery capabilities
 - **Event Schema Explorer**: Browse and explore LimaCharlie event schemas with field type information
 
@@ -416,3 +420,16 @@ This means you can:
 **However**, if you modify DetectionForge and serve it where others can access it (including through a web interface), you **must** make your modified source code available under the same license. This ensures that improvements to DetectionForge always benefit the security community.
 
 For the complete license terms, see [LICENSE](LICENSE) or visit <https://www.gnu.org/licenses/agpl-3.0.html>.
+- [Test Harness for Detection Logic Validation](#validation-test-suite)
+- LimaCharlie Operator Reference: [Detection Logic Operators](https://docs.limacharlie.io/docs/detection-logic-operators)
+## Validation Test Suite
+
+DetectionForge includes a growing unit test harness that mirrors LimaCharlie’s detection logic specification. The suite lives under `src/utils/__tests__/` and is backed by sanitised rule fixtures in `src/utils/__tests__/fixtures/`.
+
+- `drValidation.spec.ts` keeps the validator aligned with the LimaCharlie operator contract. Each expectation maps to the official [Detection Logic Operators](https://docs.limacharlie.io/docs/detection-logic-operators) guide and covers both happy paths and invalid permutations.
+- `fixtures/validDetectRules.ts` captures representative “good” rules derived from production playbooks. The fixtures are stripped of sensitive identifiers and can be expanded as we add more coverage.
+- When adding operators or validation rules, drop new fixtures and assertions into the spec. Aim to encode every documented requirement (required fields, optional modifiers, transforms, and nested constructs) so regressions surface immediately.
+
+Run the suite with `npx vitest run src/utils/__tests__/drValidation.spec.ts`. For broader regression checks, execute `npx vitest run` or elevate the spec into the default test pipeline once we introduce additional suites.
+
+If you introduce new validation behaviours, update both the fixtures and this section with links or notes that reference the LimaCharlie docs. This keeps the harness maintainable as we add more real-world rules and variant operators over time.
