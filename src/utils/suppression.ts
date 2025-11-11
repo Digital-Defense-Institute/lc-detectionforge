@@ -1,5 +1,16 @@
 import { logger } from './logger'
 
+/**
+ * Represents the context object passed to template evaluation functions.
+ * 
+ * This interface is used throughout the template rendering system to provide
+ * dynamic data for template interpolation. Valid contexts typically include
+ * event data, routing information, timestamps, and other key-value pairs
+ * relevant to the template being rendered.
+ *
+ * Keys are strings representing context variable names, and values can be of any type.
+ * Consumers should document expected keys and value types for each template.
+ */
 interface TemplateContext {
   [key: string]: unknown
 }
