@@ -78,6 +78,9 @@ DetectionForge is a **production-ready** detection engineering platform with com
 - **Unit Testing**: Built-in framework with preset event samples and custom test data support
 - **Historical Backtesting**: Multi-organization testing against historical telemetry via LimaCharlie's replay API
 - **Detection Impact Analysis**: Analyze rule effectiveness and potential false positives
+- **Severity Analytics**: Color-coded severity breakdown with badges (critical/high/medium/low/info) and per-severity hit counts
+- **Suppression Tracking**: Monitor actual vs suppressed alerts with sparkline visualization
+- **Match Export**: Export all detection matches across organizations for comprehensive analysis
 - **Auto-Draft System**: Automatic saving of work-in-progress with recovery capabilities
 - **Event Schema Explorer**: Browse and explore LimaCharlie event schemas with field type information
 
