@@ -397,8 +397,12 @@ export const ACTION_SCHEMAS: Record<ResponseAction, ActionSchema> = {
     optionalFields: [
       { name: 'ttl', type: 'number', description: 'Time to live in seconds', min: 0 },
       { name: 'entire_device', type: 'boolean', description: 'Tag entire device' },
+      { name: 'metadata', type: 'object', description: 'Custom metadata' },
     ],
-    examples: ['- action: add tag\n  tag: compromised\n  ttl: 3600\n  entire_device: true'],
+    examples: [
+      '- action: add tag\n  tag: compromised\n  ttl: 3600\n  entire_device: true',
+      '- action: add tag\n  tag: needs-sysmon\n  metadata:\n    id: d3f7b9a2-4e8c-4d1f-9b3e-5c2a7f8d1e4b',
+    ],
     category: 'core',
   },
 
@@ -408,8 +412,12 @@ export const ACTION_SCHEMAS: Record<ResponseAction, ActionSchema> = {
     requiredFields: [{ name: 'tag', type: 'string', description: 'Tag name' }],
     optionalFields: [
       { name: 'entire_device', type: 'boolean', description: 'Remove from entire device' },
+      { name: 'metadata', type: 'object', description: 'Custom metadata' },
     ],
-    examples: ['- action: remove tag\n  tag: clean'],
+    examples: [
+      '- action: remove tag\n  tag: clean',
+      '- action: remove tag\n  tag: suspicious\n  metadata:\n    id: a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6',
+    ],
     category: 'core',
   },
 
