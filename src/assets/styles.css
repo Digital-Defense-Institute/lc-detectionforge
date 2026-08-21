@@ -3202,6 +3202,12 @@ body.config {
   border-radius: 0 0 4px 4px;
   font-size: 11px;
   line-height: 1.4;
+  /* Detection results can contain very long single-line values (raw syslog
+     lines, escalation messages). Wrap them so the whole value is readable
+     without scrolling the pane sideways; overflow-x stays as a fallback for
+     content with no break opportunity. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   overflow-x: auto;
   transition: all var(--transition-speed) ease;
 }

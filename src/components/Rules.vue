@@ -4920,7 +4920,7 @@ function formatTestResponse(response: BacktestResponse): string {
         }
 
         // Show full result as collapsible JSON
-        html += `<details class="result-json">`
+        html += `<details class="result-json" open>`
         html += `<summary>Full Result JSON</summary>`
         html += `<pre>${JSON.stringify(result, null, 2)}</pre>`
         html += `</details>`
