@@ -937,12 +937,63 @@
                   <button
                     class="btn btn-success btn-small"
                     title="Export all matches from all organizations as consolidated JSON"
-                    :disabled="!backtestResults.totalStats.totalMatches"
+                    :disabled="!backtestResults.totalStats.totalMatches || isExportingMatches"
                     @click="exportAllMatches"
                   >
-                    📥 Export All Matches
+                    <span v-if="isExportingTarget('all') && matchExportPercent !== null">
+                      📥 Exporting {{ matchExportPercent }}%
+                    </span>
+                    <span v-else-if="isExportingTarget('all')">📥 Exporting…</span>
+                    <span v-else>📥 Export All Matches</span>
                   </button>
                 </div>
+              </div>
+
+              <!-- Export progress: large exports stream for a while, so show
+                   percentage, record count and bytes written as they go. -->
+              <div v-if="matchExportProgress" class="export-progress">
+                <div class="export-progress-header">
+                  <span>
+                    Exporting
+                    <strong>{{ matchExportProgress.records.toLocaleString() }}</strong>
+                    <template v-if="matchExportProgress.recordCount">
+                      of
+                      <strong>{{ matchExportProgress.recordCount.toLocaleString() }}</strong>
+                    </template>
+                    matches
+                    <template v-if="matchExportProgress.bytes">
+                      · {{ formatBytes(matchExportProgress.bytes) }} written
+                    </template>
+                  </span>
+                  <span v-if="matchExportPercent !== null" class="export-progress-percent">
+                    {{ matchExportPercent }}%
+                  </span>
+                </div>
+                <div class="export-progress-track">
+                  <div
+                    class="export-progress-fill"
+                    :class="{ indeterminate: matchExportPercent === null }"
+                    :style="
+                      matchExportPercent !== null ? { width: matchExportPercent + '%' } : undefined
+                    "
+                  ></div>
+                </div>
+                <div class="export-progress-hint">
+                  Keep this tab open until the export finishes.
+                </div>
+              </div>
+
+              <!-- Export failure: kept visible until dismissed, since an export
+                   can run long enough for a toast to disappear unseen. -->
+              <div v-if="matchExportError" class="export-error">
+                <span>⚠️ {{ matchExportError }}</span>
+                <button
+                  class="btn btn-small btn-outline"
+                  title="Dismiss this export error"
+                  @click="dismissMatchExportError"
+                >
+                  Dismiss
+                </button>
               </div>
 
               <!-- Overall Statistics Summary -->
@@ -1584,9 +1635,21 @@
                           <div class="matches-controls">
                             <button
                               class="btn btn-small btn-outline"
+                              :disabled="isExportingMatches"
+                              :title="`Export all ${orgResult.results.length.toLocaleString()} matches for ${orgResult.orgName} as JSON`"
                               @click="exportOrgBacktestResults(orgResult)"
                             >
-                              📄 Export
+                              <span
+                                v-if="
+                                  isExportingTarget(orgResult.oid) && matchExportPercent !== null
+                                "
+                              >
+                                📄 Exporting {{ matchExportPercent }}%
+                              </span>
+                              <span v-else-if="isExportingTarget(orgResult.oid)">
+                                📄 Exporting…
+                              </span>
+                              <span v-else>📄 Export</span>
                             </button>
                           </div>
                         </div>
@@ -3025,6 +3088,7 @@ import { useStorage } from '../composables/useStorage'
 import { useAuth } from '../composables/useAuth'
 import { sanitizeHtml } from '../utils/sanitizer'
 import { logger } from '../utils/logger'
+import { exportJsonStream, formatBytes } from '../utils/streamingExport'
 import { getCurrentVersion } from '../utils/version'
 import { validateDetectLogic, validateRespondLogic } from '../utils/drValidation'
 import Logo from './Logo.vue'
@@ -6971,93 +7035,227 @@ function _loadMoreResults() {
   displayedResults.value += 10
 }
 
-function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
-  if (!orgResult.results || orgResult.status !== 'success') return
+/**
+ * Which export is running: 'all' for the consolidated export, or an org's oid
+ * for a single-org export. Null when idle.
+ */
+const activeExportId = ref<string | null>(null)
+const isExportingMatches = computed(() => activeExportId.value !== null)
 
-  const exportData = {
-    backtest_metadata: {
-      rule_name: currentRule.name,
-      organization: orgResult.orgName,
-      oid: orgResult.oid,
-      completed_at: backtestResults.value?.completedAt,
-      timeframe: backtestResults.value?.timeframe,
-      stats: orgResult.stats,
-      billing: {
-        n_billed: orgResult.stats?.n_billed || 0,
-        n_free: orgResult.stats?.n_free || 0,
-        actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
-        saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
-        cost_formatted: orgResult.stats?.n_billed
-          ? formatCost(calculateCost(orgResult.stats.n_billed))
-          : '$0.00',
-        saved_formatted: orgResult.stats?.n_free
-          ? formatCost(calculateCost(orgResult.stats.n_free))
-          : '$0.00',
-      },
-      detectionforge_suppression: orgResult.suppressionSummary
-        ? {
-            actual_alerts: orgResult.suppressionSummary.actualAlerts,
-            suppressed_pre_threshold: orgResult.suppressionSummary.suppressedPreThreshold,
-            suppressed_post_threshold: orgResult.suppressionSummary.suppressedPostThreshold,
-            suppressed_total: orgResult.suppressionSummary.suppressedTotal,
-            issues: orgResult.suppressionSummary.issues,
-            per_key: orgResult.suppressionSummary.perKey,
-            config: backtestResults.value?.suppressionOverview?.config,
-          }
-        : undefined,
-    },
-    matches: orgResult.results,
-  }
+/** Live progress for the running export, driving the percentage readout. */
+const matchExportProgress = ref<{
+  records: number
+  recordCount?: number
+  percent?: number
+  bytes: number
+} | null>(null)
 
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `backtest-results-${orgResult.orgName}-${new Date().toISOString().split('T')[0]}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+/**
+ * Last export failure. Kept until dismissed or superseded, because a toast that
+ * auto-hides after seven seconds is easy to miss on an export that ran for
+ * minutes.
+ */
+const matchExportError = ref<string | null>(null)
+
+/** Whole-percent readout for the running export. */
+const matchExportPercent = computed(() => {
+  const percent = matchExportProgress.value?.percent
+  return percent === undefined ? null : Math.floor(percent)
+})
+
+function isExportingTarget(id: string): boolean {
+  return activeExportId.value === id
 }
 
-function _exportBacktestResults() {
-  if (!backtestResults.value) return
+function dismissMatchExportError() {
+  matchExportError.value = null
+}
 
-  const exportData = {
-    backtest_metadata: {
-      rule_name: currentRule.name,
-      completed_at: backtestResults.value.completedAt,
-      timeframe: backtestResults.value.timeframe,
-      total_stats: backtestResults.value.totalStats,
-      execution_stats: backtestResults.value.executionStats,
-      completion_stats: backtestResults.value.completionStats,
-      organizations: backtestResults.value.orgResults.length,
-      billing_summary: {
-        total_billed: backtestResults.value.totalStats.n_billed,
-        total_free: backtestResults.value.totalStats.n_free,
-        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
-        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
-        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
-        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
-        cost_per_block: 0.01,
-        events_per_block: 200000,
-      },
-      detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
-    },
-    org_results: backtestResults.value.orgResults,
+interface MatchExportRequest<T> {
+  /** 'all', or the oid for a single-org export. */
+  exportId: string
+  fileName: string
+  /** Serialized ahead of the streamed `matches` array. */
+  properties: Record<string, unknown>
+  records: Iterable<T> | AsyncIterable<T>
+  recordCount: number
+  /** Where the matches came from, for the completion message. */
+  describeTarget: string
+  /** Optional extra detail for the completion message. */
+  successDetail?: string
+}
+
+/**
+ * Shared driver for every match export.
+ *
+ * Streams the document to disk rather than serializing it in memory, so export
+ * size is bounded only by available disk space. Failures are surfaced as both a
+ * notification and a persistent inline banner instead of dying silently inside
+ * the click handler.
+ */
+async function runMatchExport<T>(request: MatchExportRequest<T>) {
+  activeExportId.value = request.exportId
+  matchExportError.value = null
+  matchExportProgress.value = {
+    records: 0,
+    recordCount: request.recordCount,
+    percent: 0,
+    bytes: 0,
   }
 
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `backtest-results-all-orgs-${new Date().toISOString().split('T')[0]}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  try {
+    const result = await exportJsonStream({
+      fileName: request.fileName,
+      properties: request.properties,
+      arrayKey: 'matches',
+      records: request.records,
+      recordCount: request.recordCount,
+      onProgress: (progress) => {
+        matchExportProgress.value = progress
+      },
+    })
 
-  appStore.addNotification('success', 'Backtest results exported successfully')
+    if (!result.completed) {
+      appStore.addNotification('info', 'Export cancelled')
+      return
+    }
+
+    const detail = request.successDetail ? ` (${request.successDetail})` : ''
+    appStore.addNotification(
+      'success',
+      `Exported ${result.records.toLocaleString()} matches${detail} from ${request.describeTarget}, ${formatBytes(result.bytes)}`,
+    )
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'unknown error'
+    const written = matchExportProgress.value?.records ?? 0
+    logger.error('Match export failed:', error)
+    matchExportError.value =
+      `Export failed after ${written.toLocaleString()} of ` +
+      `${request.recordCount.toLocaleString()} matches: ${reason}. ` +
+      'The downloaded file, if any, is incomplete.'
+    appStore.addNotification('error', `Export failed: ${reason}`)
+  } finally {
+    activeExportId.value = null
+    matchExportProgress.value = null
+  }
+}
+
+async function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
+  if (!orgResult.results || orgResult.status !== 'success' || isExportingMatches.value) return
+
+  const matches = orgResult.results
+  const backtestMetadata = {
+    rule_name: currentRule.name,
+    organization: orgResult.orgName,
+    oid: orgResult.oid,
+    completed_at: backtestResults.value?.completedAt,
+    timeframe: backtestResults.value?.timeframe,
+    stats: orgResult.stats,
+    billing: {
+      n_billed: orgResult.stats?.n_billed || 0,
+      n_free: orgResult.stats?.n_free || 0,
+      actual_cost: orgResult.stats?.n_billed ? calculateCost(orgResult.stats.n_billed) : 0,
+      saved_cost: orgResult.stats?.n_free ? calculateCost(orgResult.stats.n_free) : 0,
+      cost_formatted: orgResult.stats?.n_billed
+        ? formatCost(calculateCost(orgResult.stats.n_billed))
+        : '$0.00',
+      saved_formatted: orgResult.stats?.n_free
+        ? formatCost(calculateCost(orgResult.stats.n_free))
+        : '$0.00',
+    },
+    detectionforge_suppression: orgResult.suppressionSummary
+      ? {
+          actual_alerts: orgResult.suppressionSummary.actualAlerts,
+          suppressed_pre_threshold: orgResult.suppressionSummary.suppressedPreThreshold,
+          suppressed_post_threshold: orgResult.suppressionSummary.suppressedPostThreshold,
+          suppressed_total: orgResult.suppressionSummary.suppressedTotal,
+          issues: orgResult.suppressionSummary.issues,
+          per_key: orgResult.suppressionSummary.perKey,
+          config: backtestResults.value?.suppressionOverview?.config,
+        }
+      : undefined,
+  }
+
+  await runMatchExport({
+    exportId: orgResult.oid,
+    fileName: `backtest-results-${orgResult.orgName}-${new Date().toISOString().split('T')[0]}.json`,
+    properties: { backtest_metadata: backtestMetadata },
+    records: matches,
+    recordCount: matches.length,
+    describeTarget: orgResult.orgName,
+  })
+}
+
+/**
+ * Currently unused. Streams at the organization level, so total export size is
+ * unbounded; a single organization whose matches exceed the ~512 MB string
+ * limit would still need per-match streaming (see exportAllMatches).
+ */
+async function _exportBacktestResults() {
+  if (!backtestResults.value || isExportingMatches.value) return
+
+  const backtestMetadata = {
+    rule_name: currentRule.name,
+    completed_at: backtestResults.value.completedAt,
+    timeframe: backtestResults.value.timeframe,
+    total_stats: backtestResults.value.totalStats,
+    execution_stats: backtestResults.value.executionStats,
+    completion_stats: backtestResults.value.completionStats,
+    organizations: backtestResults.value.orgResults.length,
+    billing_summary: {
+      total_billed: backtestResults.value.totalStats.n_billed,
+      total_free: backtestResults.value.totalStats.n_free,
+      actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+      saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+      cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+      saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
+      cost_per_block: 0.01,
+      events_per_block: 200000,
+    },
+    detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
+  }
+
+  const orgResults = backtestResults.value.orgResults
+  activeExportId.value = 'all-orgs'
+  matchExportError.value = null
+  matchExportProgress.value = {
+    records: 0,
+    recordCount: orgResults.length,
+    percent: 0,
+    bytes: 0,
+  }
+
+  try {
+    const result = await exportJsonStream({
+      fileName: `backtest-results-all-orgs-${new Date().toISOString().split('T')[0]}.json`,
+      properties: { backtest_metadata: backtestMetadata },
+      arrayKey: 'org_results',
+      records: orgResults,
+      recordCount: orgResults.length,
+      batchSize: 1,
+      onProgress: (progress) => {
+        matchExportProgress.value = progress
+      },
+    })
+
+    if (!result.completed) {
+      appStore.addNotification('info', 'Export cancelled')
+      return
+    }
+
+    appStore.addNotification(
+      'success',
+      `Backtest results exported successfully, ${formatBytes(result.bytes)}`,
+    )
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'unknown error'
+    logger.error('Backtest results export failed:', error)
+    matchExportError.value = `Export failed: ${reason}. The downloaded file, if any, is incomplete.`
+    appStore.addNotification('error', `Export failed: ${reason}`)
+  } finally {
+    activeExportId.value = null
+    matchExportProgress.value = null
+  }
 }
 
 function exportBacktestSummaryAsMarkdown() {
@@ -7207,8 +7405,25 @@ ${
     })
 }
 
-function exportAllMatches() {
-  if (!backtestResults.value) return
+/**
+ * Yields every match across the given organizations, tagged with its origin.
+ *
+ * A generator rather than an array: the streaming exporter consumes one record
+ * at a time, so the tagged clones stay transient and peak memory is a single
+ * match instead of a second copy of the entire result set.
+ */
+function* iterateTaggedMatches(
+  orgs: BacktestOrgResult[],
+): Generator<BacktestMatch & { _metadata: { oid: string; orgName: string } }, void, void> {
+  for (const org of orgs) {
+    for (const match of org.results ?? []) {
+      yield { ...match, _metadata: { oid: org.oid, orgName: org.orgName } }
+    }
+  }
+}
+
+async function exportAllMatches() {
+  if (!backtestResults.value || isExportingMatches.value) return
 
   // Filter organizations with matches
   const orgsWithMatches = backtestResults.value.orgResults.filter(
@@ -7220,87 +7435,66 @@ function exportAllMatches() {
     return
   }
 
-  // Consolidate all matches from all organizations
-  const allMatches: Array<BacktestMatch & { _metadata: { oid: string; orgName: string } }> = []
   let totalMatches = 0
   let totalActualAlerts = 0
   let totalSuppressed = 0
 
   orgsWithMatches.forEach((org) => {
     if (org.results) {
-      org.results.forEach((match) => {
-        allMatches.push({
-          ...match,
-          _metadata: {
-            oid: org.oid,
-            orgName: org.orgName,
-          },
-        })
-        totalMatches++
-      })
-      const actualAlerts = org.suppressionSummary
+      totalMatches += org.results.length
+      totalActualAlerts += org.suppressionSummary
         ? org.suppressionSummary.actualAlerts
         : org.results.length
-      totalActualAlerts += actualAlerts
       totalSuppressed += org.suppressionSummary?.suppressedTotal ?? 0
     }
   })
 
-  const exportData = {
-    backtest_metadata: {
-      rule_name: currentRule.name,
-      exported_at: new Date().toISOString(),
-      backtest_completed_at: backtestResults.value.completedAt,
-      timeframe: backtestResults.value.timeframe,
-      total_organizations_with_matches: orgsWithMatches.length,
-      total_organizations_tested: backtestResults.value.orgResults.length,
-      total_matches: totalMatches,
-      total_actual_alerts: totalActualAlerts,
-      total_suppressed: totalSuppressed,
-      execution_stats: backtestResults.value.executionStats,
-      billing_summary: {
-        total_billed: backtestResults.value.totalStats.n_billed,
-        total_free: backtestResults.value.totalStats.n_free,
-        actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
-        saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
-        cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
-        saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
-      },
-      detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
-      organizations: orgsWithMatches.map((org) => ({
-        oid: org.oid,
-        name: org.orgName,
-        match_count: org.results?.length || 0,
-        actual_alerts: org.suppressionSummary
-          ? org.suppressionSummary.actualAlerts
-          : org.results?.length || 0,
-        detectionforge_suppressed_total: org.suppressionSummary?.suppressedTotal || 0,
-        detectionforge_suppressed_pre_threshold:
-          org.suppressionSummary?.suppressedPreThreshold || 0,
-        detectionforge_suppressed_post_threshold:
-          org.suppressionSummary?.suppressedPostThreshold || 0,
-        stats: org.stats,
-      })),
+  const backtestMetadata = {
+    rule_name: currentRule.name,
+    exported_at: new Date().toISOString(),
+    backtest_completed_at: backtestResults.value.completedAt,
+    timeframe: backtestResults.value.timeframe,
+    total_organizations_with_matches: orgsWithMatches.length,
+    total_organizations_tested: backtestResults.value.orgResults.length,
+    total_matches: totalMatches,
+    total_actual_alerts: totalActualAlerts,
+    total_suppressed: totalSuppressed,
+    execution_stats: backtestResults.value.executionStats,
+    billing_summary: {
+      total_billed: backtestResults.value.totalStats.n_billed,
+      total_free: backtestResults.value.totalStats.n_free,
+      actual_cost: calculateCost(backtestResults.value.totalStats.n_billed),
+      saved_cost: calculateCost(backtestResults.value.totalStats.n_free),
+      cost_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_billed)),
+      saved_formatted: formatCost(calculateCost(backtestResults.value.totalStats.n_free)),
     },
-    matches: allMatches,
+    detectionforge_suppression_overview: backtestResults.value.suppressionOverview,
+    organizations: orgsWithMatches.map((org) => ({
+      oid: org.oid,
+      name: org.orgName,
+      match_count: org.results?.length || 0,
+      actual_alerts: org.suppressionSummary
+        ? org.suppressionSummary.actualAlerts
+        : org.results?.length || 0,
+      detectionforge_suppressed_total: org.suppressionSummary?.suppressedTotal || 0,
+      detectionforge_suppressed_pre_threshold: org.suppressionSummary?.suppressedPreThreshold || 0,
+      detectionforge_suppressed_post_threshold:
+        org.suppressionSummary?.suppressedPostThreshold || 0,
+      stats: org.stats,
+    })),
   }
 
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `backtest-all-matches-${currentRule.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-
-  appStore.addNotification(
-    'success',
-    `Exported ${totalMatches.toLocaleString()} matches (${totalActualAlerts.toLocaleString()} actual alert${
+  await runMatchExport({
+    exportId: 'all',
+    fileName: `backtest-all-matches-${currentRule.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.json`,
+    properties: { backtest_metadata: backtestMetadata },
+    records: iterateTaggedMatches(orgsWithMatches),
+    recordCount: totalMatches,
+    describeTarget: `${orgsWithMatches.length} organization${orgsWithMatches.length !== 1 ? 's' : ''}`,
+    successDetail: `${totalActualAlerts.toLocaleString()} actual alert${
       totalActualAlerts === 1 ? '' : 's'
-    }) from ${orgsWithMatches.length} organization${orgsWithMatches.length !== 1 ? 's' : ''}`,
-  )
+    }`,
+  })
 }
 
 function exportUnitTestSummaryAsMarkdown() {
