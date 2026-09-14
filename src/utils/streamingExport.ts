@@ -15,17 +15,23 @@ import { logger } from './logger'
  *
  *  - `file-system-access`: writes straight to the file the user picked, so peak
  *    memory is a single record regardless of export size.
- *  - `blob`: buffers a bounded window of chunks, converts each window to a
- *    `Blob` and releases the strings. Blob payloads live in the browser's blob
- *    store (disk-backed once large), so the JS heap stays bounded while the
- *    file itself can far exceed any string length limit.
+ *  - `blob`: a compatibility fallback for browsers without direct file-system
+ *    writes. It avoids a single giant string, but the completed payload still
+ *    lives in browser-managed Blob storage until the download starts.
  *
- * Both paths are effectively unbounded, so callers do not need to cap, chunk,
- * or sample their result sets before exporting.
+ * Direct file-system exports are bounded only by available disk space. Blob
+ * exports are capped explicitly so an implementation-specific Blob quota or
+ * memory limit becomes a visible error rather than another silent failure.
  */
 
-/** Chunk characters buffered before being folded into a Blob part. */
-const BLOB_FLUSH_THRESHOLD_CHARS = 16 * 1024 * 1024
+/** Encoded bytes buffered before being folded into a Blob part. */
+const BLOB_FLUSH_THRESHOLD_BYTES = 16 * 1024 * 1024
+
+/** Conservative cross-browser ceiling for the in-browser Blob fallback. */
+const DEFAULT_BLOB_FALLBACK_MAX_BYTES = 512 * 1024 * 1024
+
+/** Time allowed for the browser download subsystem to resolve the Blob URL. */
+const BLOB_URL_REVOKE_DELAY_MS = 5 * 60 * 1000
 
 /**
  * Chunk characters buffered before a write to the file stream. Batching keeps
@@ -50,12 +56,15 @@ const JSON_MIME_TYPE = 'application/json'
 export type ExportTransport = 'file-system-access' | 'blob'
 
 export interface StreamingExportResult {
-  /** False when the user dismissed the save dialog. */
+  /**
+   * False when the user dismissed the save dialog. For Blob exports, true
+   * means the browser download was started; browsers expose no completion API.
+   */
   completed: boolean
   transport: ExportTransport
-  /** Records written. */
+  /** Records serialized. */
   records: number
-  /** Bytes written (UTF-8). */
+  /** Final UTF-8 file size. */
   bytes: number
 }
 
@@ -65,7 +74,7 @@ export interface ExportProgress {
   records: number
   /** Total records, when the caller knew it up front. */
   recordCount?: number
-  /** Bytes handed to the sink so far (UTF-8). */
+  /** UTF-8 bytes written or prepared so far. */
   bytes: number
   /** 0-100, or undefined when the total is unknown. */
   percent?: number
@@ -99,6 +108,12 @@ export interface StreamingJsonExportOptions<T> extends SerializeJsonObjectOption
   fileName: string
   /** Called after each batch so callers can surface progress. */
   onProgress?: (progress: ExportProgress) => void
+  /**
+   * Maximum size accepted by the compatibility Blob path. Direct file-system
+   * streaming ignores this value. Primarily configurable for tests and hosts
+   * that choose a different browser-storage tradeoff.
+   */
+  blobFallbackMaxBytes?: number
 }
 
 /** Minimal shape of the File System Access API bits used here. */
@@ -316,6 +331,18 @@ const writeViaFileSystemAccess = async <T>(
     }
     await flush()
     await writable.close()
+
+    // The serializer's final callback runs before its closing JSON chunk is
+    // consumed. Publish one exact snapshot after the stream is closed.
+    options.onProgress?.({
+      records,
+      recordCount: options.recordCount,
+      bytes,
+      percent:
+        options.recordCount && options.recordCount > 0
+          ? Math.min(100, (records / options.recordCount) * 100)
+          : undefined,
+    })
   } catch (error) {
     try {
       await writable.abort?.(error)
@@ -338,40 +365,48 @@ const triggerBlobDownload = (blob: Blob, fileName: string): void => {
   anchor.click()
   document.body.removeChild(anchor)
 
-  // The browser reads from this URL for as long as the download takes, and
-  // there is no completion event for an anchor download. Revoking on a timer
-  // would impose an implicit size ceiling - a download slower than the timer
-  // gets cut off - so the URL is instead released when the page goes away.
-  // Blob payloads are disk-backed, so holding the reference costs no heap.
+  // Anchor downloads expose no completion event. Keep the URL alive for a
+  // conservative handoff window, then release it so repeated exports in a
+  // long-lived tab or installed PWA do not retain every prior Blob forever.
+  let released = false
+  let releaseTimer: ReturnType<typeof setTimeout> | null = null
   const release = () => {
+    if (released) return
+    released = true
     URL.revokeObjectURL(url)
+    if (releaseTimer !== null) clearTimeout(releaseTimer)
     window.removeEventListener('pagehide', release)
   }
   window.addEventListener('pagehide', release)
+  releaseTimer = setTimeout(release, BLOB_URL_REVOKE_DELAY_MS)
 }
 
 /**
- * Buffers a bounded window of chunks, folding each window into a Blob part and
- * releasing the strings. The JS heap stays bounded by the flush threshold while
- * the assembled Blob can far exceed the string length limit.
+ * Compatibility path for browsers without direct file-system writes. Buffers
+ * encoded chunks into Blob parts, but caps the total browser-managed payload so
+ * large exports fail visibly instead of depending on an opaque browser quota.
  */
 const writeViaBlob = async <T>(
   options: StreamingJsonExportOptions<T>,
 ): Promise<StreamingExportResult> => {
   const parts: Blob[] = []
-  let buffer: string[] = []
-  let bufferedChars = 0
+  const encoder = new TextEncoder()
+  let buffer: Uint8Array[] = []
+  let bufferedBytes = 0
   let records = 0
-  // Character count, used only to drive the progress readout. The exact UTF-8
-  // size comes from `blob.size` once the parts are assembled.
   let bytes = 0
+  const maxBytes = options.blobFallbackMaxBytes ?? DEFAULT_BLOB_FALLBACK_MAX_BYTES
+
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0) {
+    throw new Error('Blob fallback size limit must be a positive, finite byte count')
+  }
 
   const flush = () => {
-    if (bufferedChars === 0) return
+    if (bufferedBytes === 0) return
     parts.push(new Blob(buffer, { type: JSON_MIME_TYPE }))
-    // Drop the references so the strings become collectable immediately.
+    // Drop encoded-chunk references; the Blob part now owns these bytes.
     buffer = []
-    bufferedChars = 0
+    bufferedBytes = 0
   }
 
   for await (const chunk of serializeJsonObject({
@@ -384,22 +419,45 @@ const writeViaBlob = async <T>(
       },
     ),
   })) {
-    buffer.push(chunk)
-    bytes += chunk.length
-    bufferedChars += chunk.length
-    if (bufferedChars >= BLOB_FLUSH_THRESHOLD_CHARS) flush()
+    const encoded = encoder.encode(chunk)
+    const nextBytes = bytes + encoded.byteLength
+    if (nextBytes > maxBytes) {
+      throw new Error(
+        `This browser cannot stream directly to disk, and the export exceeds the ` +
+          `${formatBytes(maxBytes)} safe Blob download limit. Use desktop Chrome or Edge ` +
+          'with File System Access enabled for larger exports.',
+      )
+    }
+
+    buffer.push(encoded)
+    bytes = nextBytes
+    bufferedBytes += encoded.byteLength
+    if (bufferedBytes >= BLOB_FLUSH_THRESHOLD_BYTES) flush()
   }
   flush()
 
   const blob = new Blob(parts, { type: JSON_MIME_TYPE })
   triggerBlobDownload(blob, options.fileName)
 
+  // The serializer reports 100% before its closing chunk reaches this sink;
+  // replace that estimate with the exact UTF-8 Blob size.
+  options.onProgress?.({
+    records,
+    recordCount: options.recordCount,
+    bytes: blob.size,
+    percent:
+      options.recordCount && options.recordCount > 0
+        ? Math.min(100, (records / options.recordCount) * 100)
+        : undefined,
+  })
+
   return { completed: true, transport: 'blob', records, bytes: blob.size }
 }
 
 /**
- * Exports a JSON object whose bulk lives in one array, without ever holding the
- * document in memory. Works for arbitrarily large record sets.
+ * Exports a JSON object whose bulk lives in one array without creating one
+ * document-sized JavaScript string. Direct file-system writes support very
+ * large exports; the compatibility Blob path has an explicit safety limit.
  *
  * Must be called from a user gesture (e.g. a click handler) so the save dialog
  * is permitted; pass a generator for `records` to keep peak memory flat.

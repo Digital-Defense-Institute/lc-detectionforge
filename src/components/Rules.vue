@@ -714,7 +714,9 @@
             <div class="backtest-actions">
               <button
                 class="btn btn-primary btn-large"
-                :disabled="!canRunBacktest || isRunningBacktest || isEstimatingCost"
+                :disabled="
+                  !canRunBacktest || isRunningBacktest || isEstimatingCost || isExportingMatches
+                "
                 :title="backtestDisabledTooltip"
                 @click="runBacktest"
               >
@@ -742,7 +744,7 @@
               </button>
               <button
                 class="btn btn-secondary"
-                :disabled="!backtestResults"
+                :disabled="!backtestResults || isExportingMatches"
                 @click="clearBacktestResults"
               >
                 Clear Results
@@ -950,7 +952,7 @@
               </div>
 
               <!-- Export progress: large exports stream for a while, so show
-                   percentage, record count and bytes written as they go. -->
+                   percentage, record count and bytes prepared as they go. -->
               <div v-if="matchExportProgress" class="export-progress">
                 <div class="export-progress-header">
                   <span>
@@ -962,7 +964,7 @@
                     </template>
                     matches
                     <template v-if="matchExportProgress.bytes">
-                      · {{ formatBytes(matchExportProgress.bytes) }} written
+                      · {{ formatBytes(matchExportProgress.bytes) }} prepared
                     </template>
                   </span>
                   <span v-if="matchExportPercent !== null" class="export-progress-percent">
@@ -1800,7 +1802,7 @@
                         >
                           <button
                             class="btn btn-small btn-primary"
-                            :disabled="orgLoadingMore[orgResult.oid]"
+                            :disabled="orgLoadingMore[orgResult.oid] || isExportingMatches"
                             @click="loadMoreResultsForOrg(orgResult.oid)"
                           >
                             <span v-if="orgLoadingMore[orgResult.oid]"
@@ -5969,6 +5971,14 @@ async function runCostEstimateFromWarning() {
 }
 
 async function executeBacktest() {
+  if (isExportingMatches.value) {
+    appStore.addNotification('info', 'Wait for the current match export to finish')
+    return
+  }
+
+  // Export failures belong to the result set that produced them.
+  matchExportError.value = null
+
   try {
     isRunningBacktest.value = true
     isCancellingBacktest.value = false
@@ -6954,6 +6964,8 @@ function getDisplayedResultsForOrg(oid: string): number {
 }
 
 async function loadMoreResultsForOrg(oid: string) {
+  if (isExportingMatches.value) return
+
   // If not using chunked results, fall back to simple display increment
   if (!backtestConfig.useChunkedResults || !backtestResults.value) {
     orgDisplayedResults.value[oid] = (orgDisplayedResults.value[oid] || 10) + 10
@@ -7121,10 +7133,18 @@ async function runMatchExport<T>(request: MatchExportRequest<T>) {
     }
 
     const detail = request.successDetail ? ` (${request.successDetail})` : ''
-    appStore.addNotification(
-      'success',
-      `Exported ${result.records.toLocaleString()} matches${detail} from ${request.describeTarget}, ${formatBytes(result.bytes)}`,
-    )
+    if (result.transport === 'blob') {
+      appStore.addNotification(
+        'info',
+        `Prepared ${result.records.toLocaleString()} matches${detail} from ${request.describeTarget}, ` +
+          `${formatBytes(result.bytes)}. Browser download started; confirm it finishes.`,
+      )
+    } else {
+      appStore.addNotification(
+        'success',
+        `Exported ${result.records.toLocaleString()} matches${detail} from ${request.describeTarget}, ${formatBytes(result.bytes)}`,
+      )
+    }
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error'
     const written = matchExportProgress.value?.records ?? 0
@@ -7187,9 +7207,10 @@ async function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
 }
 
 /**
- * Currently unused. Streams at the organization level, so total export size is
- * unbounded; a single organization whose matches exceed the ~512 MB string
- * limit would still need per-match streaming (see exportAllMatches).
+ * Currently unused. The direct file-system path streams at the organization
+ * level, but a single organization whose matches exceed the ~512 MB string
+ * limit would still need per-match streaming (see exportAllMatches). The Blob
+ * compatibility path also applies its explicit total-size safety limit.
  */
 async function _exportBacktestResults() {
   if (!backtestResults.value || isExportingMatches.value) return
@@ -7244,8 +7265,10 @@ async function _exportBacktestResults() {
     }
 
     appStore.addNotification(
-      'success',
-      `Backtest results exported successfully, ${formatBytes(result.bytes)}`,
+      result.transport === 'blob' ? 'info' : 'success',
+      result.transport === 'blob'
+        ? `Backtest export prepared, ${formatBytes(result.bytes)}. Browser download started; confirm it finishes.`
+        : `Backtest results exported successfully, ${formatBytes(result.bytes)}`,
     )
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error'
@@ -7550,6 +7573,9 @@ ${unitTests.value
 }
 
 function clearBacktestResults() {
+  if (isExportingMatches.value) return
+
+  matchExportError.value = null
   backtestResults.value = null
   backtestLiveResults.value = []
   expandedMatches.value.clear()

@@ -320,6 +320,7 @@ describe('exportJsonStream (file system access path)', () => {
     expect(percents).toEqual([...percents].sort((a, b) => (a ?? 0) - (b ?? 0)))
     expect(percents.at(-1)).toBe(100)
     expect(seen.at(-1)?.records).toBe(1000)
+    expect(seen.at(-1)?.bytes).toBe(result.bytes)
     expect(seen.every((p) => (p.percent ?? 0) >= 0 && (p.percent ?? 0) <= 100)).toBe(true)
 
     // The bytes written match the file that was actually produced, and parse.
@@ -402,5 +403,147 @@ describe('exportJsonStream (file system access path)', () => {
     ).rejects.toThrow('result set went away')
 
     expect(file.aborted).toBe(true)
+  })
+})
+
+describe('exportJsonStream (Blob fallback path)', () => {
+  const stubBlobDownload = () => {
+    let capturedBlob: Blob | undefined
+    const anchor = {
+      href: '',
+      download: '',
+      style: { display: '' },
+      click: vi.fn(),
+    }
+    const pagehideListeners = new Set<() => void>()
+    const createObjectURL = vi.fn((blob: Blob) => {
+      capturedBlob = blob
+      return 'blob:test-export'
+    })
+    const revokeObjectURL = vi.fn()
+    const addEventListener = vi.fn((type: string, listener: () => void) => {
+      if (type === 'pagehide') pagehideListeners.add(listener)
+    })
+    const removeEventListener = vi.fn((type: string, listener: () => void) => {
+      if (type === 'pagehide') pagehideListeners.delete(listener)
+    })
+
+    const fakeWindow = { addEventListener, removeEventListener } as unknown as Window &
+      typeof globalThis
+    ;(fakeWindow as unknown as { self: unknown }).self = fakeWindow
+    ;(fakeWindow as unknown as { top: unknown }).top = fakeWindow
+
+    vi.stubGlobal('window', fakeWindow)
+    vi.stubGlobal('document', {
+      body: { appendChild: vi.fn(), removeChild: vi.fn() },
+      createElement: vi.fn(() => anchor),
+    })
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
+
+    return {
+      anchor,
+      createObjectURL,
+      revokeObjectURL,
+      pagehideListeners,
+      getBlob: () => capturedBlob,
+    }
+  }
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('produces exact UTF-8 output and exact final byte progress', async () => {
+    vi.useFakeTimers()
+    const download = stubBlobDownload()
+    const properties = { note: 'emoji 📥 and 日本語' }
+    const records = [{ path: 'C:\\Users\\Ünïcødé', label: 'Ж' }]
+    const progress: ExportProgress[] = []
+
+    const result = await exportJsonStream({
+      fileName: 'unicode.json',
+      properties,
+      arrayKey: 'matches',
+      records,
+      recordCount: records.length,
+      batchSize: 1,
+      onProgress: (entry) => progress.push({ ...entry }),
+    })
+
+    const expected = JSON.stringify({ ...properties, matches: records }, null, 2)
+    const blob = download.getBlob()
+    expect(blob).toBeDefined()
+    expect(await blob?.text()).toBe(expected)
+    expect(result).toEqual({
+      completed: true,
+      transport: 'blob',
+      records: 1,
+      bytes: new TextEncoder().encode(expected).byteLength,
+    })
+    expect(progress.at(-1)?.bytes).toBe(result.bytes)
+    expect(progress.at(-1)?.percent).toBe(100)
+    expect(download.anchor.download).toBe('unicode.json')
+    expect(download.anchor.click).toHaveBeenCalledOnce()
+  })
+
+  it('fails visibly before starting a download when the fallback limit is exceeded', async () => {
+    vi.useFakeTimers()
+    const download = stubBlobDownload()
+
+    await expect(
+      exportJsonStream({
+        fileName: 'too-large.json',
+        arrayKey: 'matches',
+        records: [{ value: 'x'.repeat(100) }],
+        recordCount: 1,
+        blobFallbackMaxBytes: 64,
+      }),
+    ).rejects.toThrow('safe Blob download limit')
+
+    expect(download.createObjectURL).not.toHaveBeenCalled()
+    expect(download.anchor.click).not.toHaveBeenCalled()
+  })
+
+  it('revokes the object URL after the browser handoff window', async () => {
+    vi.useFakeTimers()
+    const download = stubBlobDownload()
+
+    await exportJsonStream({
+      fileName: 'cleanup.json',
+      arrayKey: 'matches',
+      records: [{ value: 1 }],
+      recordCount: 1,
+    })
+
+    expect(download.revokeObjectURL).not.toHaveBeenCalled()
+    expect(download.pagehideListeners.size).toBe(1)
+
+    await vi.runOnlyPendingTimersAsync()
+
+    expect(download.revokeObjectURL).toHaveBeenCalledOnce()
+    expect(download.revokeObjectURL).toHaveBeenCalledWith('blob:test-export')
+    expect(download.pagehideListeners.size).toBe(0)
+  })
+
+  it('releases the object URL immediately on pagehide without double-revoking', async () => {
+    vi.useFakeTimers()
+    const download = stubBlobDownload()
+
+    await exportJsonStream({
+      fileName: 'pagehide.json',
+      arrayKey: 'matches',
+      records: [{ value: 1 }],
+      recordCount: 1,
+    })
+
+    const [release] = [...download.pagehideListeners]
+    expect(release).toBeDefined()
+    release?.()
+    await vi.runOnlyPendingTimersAsync()
+
+    expect(download.revokeObjectURL).toHaveBeenCalledOnce()
+    expect(download.pagehideListeners.size).toBe(0)
   })
 })

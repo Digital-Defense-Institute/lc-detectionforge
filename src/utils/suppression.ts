@@ -2,7 +2,7 @@ import { logger } from './logger'
 
 /**
  * Represents the context object passed to template evaluation functions.
- * 
+ *
  * This interface is used throughout the template rendering system to provide
  * dynamic data for template interpolation. Valid contexts typically include
  * event data, routing information, timestamps, and other key-value pairs

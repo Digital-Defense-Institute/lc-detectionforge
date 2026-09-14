@@ -3704,7 +3704,7 @@ body.config {
 }
 
 /* Export progress: large match exports stream for a while, so surface
-   percentage, counts and bytes written rather than leaving the button silent. */
+   percentage, counts and bytes prepared rather than leaving the button silent. */
 .export-progress {
   margin-bottom: var(--space-lg);
   padding: var(--space-md) 16px;
