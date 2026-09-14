@@ -147,7 +147,10 @@ const getSaveFilePicker = (): SaveFilePicker | null => {
     return null
   }
 
-  return picker
+  // Web IDL methods may validate their receiver. Preserve `window` when the
+  // picker is passed through the transport helper instead of invoking the
+  // extracted native method as a bare function.
+  return picker.bind(window)
 }
 
 /** True when the browser can stream directly to a user-chosen file. */

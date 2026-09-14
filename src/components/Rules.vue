@@ -939,7 +939,11 @@
                   <button
                     class="btn btn-success btn-small"
                     title="Export all matches from all organizations as consolidated JSON"
-                    :disabled="!backtestResults.totalStats.totalMatches || isExportingMatches"
+                    :disabled="
+                      !backtestResults.totalStats.totalMatches ||
+                      isExportingMatches ||
+                      isLoadingMoreResults
+                    "
                     @click="exportAllMatches"
                   >
                     <span v-if="isExportingTarget('all') && matchExportPercent !== null">
@@ -1637,7 +1641,7 @@
                           <div class="matches-controls">
                             <button
                               class="btn btn-small btn-outline"
-                              :disabled="isExportingMatches"
+                              :disabled="isExportingMatches || isLoadingMoreResults"
                               :title="`Export all ${orgResult.results.length.toLocaleString()} matches for ${orgResult.orgName} as JSON`"
                               @click="exportOrgBacktestResults(orgResult)"
                             >
@@ -3489,6 +3493,7 @@ const sparklineTooltip = ref<{ left: string; top: string; label: string } | null
 const orgCursors = ref<Record<string, string>>({}) // Track cursors per org by OID
 const orgHasMore = ref<Record<string, boolean>>({}) // Track if more results available per org by OID
 const orgLoadingMore = ref<Record<string, boolean>>({}) // Track loading state per org by OID
+const isLoadingMoreResults = computed(() => Object.values(orgLoadingMore.value).some(Boolean))
 
 // Backtest-specific organization selection
 const backtestSelectedOids = ref<string[]>([])
@@ -7100,8 +7105,9 @@ interface MatchExportRequest<T> {
 /**
  * Shared driver for every match export.
  *
- * Streams the document to disk rather than serializing it in memory, so export
- * size is bounded only by available disk space. Failures are surfaced as both a
+ * Streams the document rather than serializing it into one giant string. The
+ * direct file-system path is bounded only by available disk space; the Blob
+ * fallback has an explicit safety limit. Failures are surfaced as both a
  * notification and a persistent inline banner instead of dying silently inside
  * the click handler.
  */
@@ -7161,7 +7167,13 @@ async function runMatchExport<T>(request: MatchExportRequest<T>) {
 }
 
 async function exportOrgBacktestResults(orgResult: BacktestOrgResult) {
-  if (!orgResult.results || orgResult.status !== 'success' || isExportingMatches.value) return
+  if (
+    !orgResult.results ||
+    orgResult.status !== 'success' ||
+    isExportingMatches.value ||
+    isLoadingMoreResults.value
+  )
+    return
 
   const matches = orgResult.results
   const backtestMetadata = {
@@ -7446,7 +7458,7 @@ function* iterateTaggedMatches(
 }
 
 async function exportAllMatches() {
-  if (!backtestResults.value || isExportingMatches.value) return
+  if (!backtestResults.value || isExportingMatches.value || isLoadingMoreResults.value) return
 
   // Filter organizations with matches
   const orgsWithMatches = backtestResults.value.orgResults.filter(

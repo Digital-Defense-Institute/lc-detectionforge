@@ -263,7 +263,9 @@ describe('exportJsonStream (file system access path)', () => {
     file: FakeFile,
     behaviour: { pickerError?: unknown; writeError?: unknown } = {},
   ) => {
-    const showSaveFilePicker = async () => {
+    const receiver: { current?: unknown } = {}
+    const showSaveFilePicker = async function (this: unknown) {
+      receiver.current = this
       if (behaviour.pickerError) throw behaviour.pickerError
       return {
         createWritable: async () => ({
@@ -284,6 +286,7 @@ describe('exportJsonStream (file system access path)', () => {
     ;(fakeWindow as unknown as { self: unknown }).self = fakeWindow
     ;(fakeWindow as unknown as { top: unknown }).top = fakeWindow
     vi.stubGlobal('window', fakeWindow)
+    return receiver
   }
 
   const makeFile = (): FakeFile => ({ chunks: [], closed: false, aborted: false })
@@ -294,7 +297,7 @@ describe('exportJsonStream (file system access path)', () => {
 
   it('streams to the picked file and reports monotonic percentage up to 100', async () => {
     const file = makeFile()
-    stubPicker(file)
+    const receiver = stubPicker(file)
 
     const records = Array.from({ length: 1000 }, (_, i) => sampleMatch(i))
     const seen: ExportProgress[] = []
@@ -312,6 +315,7 @@ describe('exportJsonStream (file system access path)', () => {
     expect(result.completed).toBe(true)
     expect(result.transport).toBe('file-system-access')
     expect(result.records).toBe(1000)
+    expect(receiver.current).toBe(window)
     expect(file.closed).toBe(true)
     expect(file.aborted).toBe(false)
 
