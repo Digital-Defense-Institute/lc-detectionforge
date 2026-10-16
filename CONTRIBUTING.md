@@ -178,6 +178,9 @@ npm run dev
 # Type checking
 npm run type-check
 
+# Unit tests
+npm test
+
 # Linting and auto-fix
 npm run lint
 
@@ -227,15 +230,21 @@ For functionality changes:
 
 ### Automated Testing
 
-Currently, DetectionForge relies primarily on:
-- TypeScript compilation checks
-- ESLint static analysis
-- Manual testing workflows
+DetectionForge uses Vitest for fast, isolated unit tests. Run the full suite with
+`npm test`; tests live alongside their unit under `src/**/__tests__/` or in
+`src/__tests__/` for cross-cutting utilities.
 
-Future testing improvements may include:
-- Unit tests for utility functions
-- Component testing for Vue components
-- E2E testing for critical workflows
+When changing a utility or business-rule module:
+
+- Add or update focused tests for the public behavior, including an important
+  failure or boundary case.
+- Keep unit tests deterministic: mock browser APIs and network boundaries rather
+  than calling LimaCharlie services.
+- Run `npm test` and `npm run type-check` before opening a pull request.
+
+Component and end-to-end coverage can be added where it provides more value than
+unit coverage, but core rule parsing, validation, suppression, and export logic
+should remain covered by unit tests.
 
 ## 🚨 Security Considerations
 
