@@ -26,3 +26,6 @@ page after opt-in; memory-only credentials do not provide script isolation.
 
 Consent withdrawal reloads to unload third-party code. Keep the warning about saving work and
 re-entering credentials, cross-tab withdrawal, and fail-closed behavior when storage is unavailable.
+
+Consent controls can be used before the initial lazy route resolves. Keep tag startup gated on
+route-aware initialization; an early grant must not load the tag or be disabled by later initialization.

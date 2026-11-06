@@ -74,7 +74,8 @@ router.beforeEach((to, from, next) => {
 // Create Pinia store
 const pinia = createPinia()
 
-// Wait for the initial route so a direct visit is counted under the right section.
+// Consent may be saved before a lazy route resolves; tag startup stays deferred
+// until initialization below, so a direct visit uses the resolved section.
 router.afterEach((to, _from, failure) => {
   if (!failure) analytics.trackPage(to.path)
 })

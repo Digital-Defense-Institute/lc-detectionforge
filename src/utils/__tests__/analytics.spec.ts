@@ -98,6 +98,52 @@ describe('optional analytics consent and data boundaries', () => {
     expect(s.values.get(CONSENT_KEY)).toBe('granted')
   })
 
+  it('defers an early consent grant until the initial route is ready', () => {
+    const s = setup()
+    // The notice can be used while Vue Router is still loading a lazy route.
+    s.analytics.setConsent('granted')
+    s.analytics.trackAction('rule_export')
+    expect(s.scripts).toHaveLength(0)
+    expect(s.commands()).toEqual([])
+    expect(s.values.get(CONSENT_KEY)).toBe('granted')
+
+    s.analytics.trackPage('/config')
+    s.analytics.initialize()
+    s.load()
+    s.analytics.initialize()
+    expect(s.scripts).toHaveLength(1)
+    expect(s.browser[`ga-disable-${MEASUREMENT_ID}`]).toBe(false)
+    expect(s.analytics.status.value).toBe('active')
+    expect(s.commands().find((c) => c[0] === 'config')?.[2]).toMatchObject({
+      page_location: 'https://detectionforge.ddi.sh/config',
+      page_title: 'Configuration',
+    })
+    expect(s.commands().filter((c) => c[0] === 'event')).toEqual([
+      [
+        'event',
+        'page_view',
+        {
+          page_location: 'https://detectionforge.ddi.sh/config',
+          page_title: 'Configuration',
+          page_referrer: '',
+        },
+      ],
+    ])
+  })
+
+  it('honors withdrawal of an early grant before route readiness without loading the tag', () => {
+    const s = setup()
+    s.analytics.setConsent('granted')
+    s.analytics.setConsent('denied')
+    s.analytics.trackPage('/workbench')
+    s.analytics.initialize()
+    expect(s.scripts).toHaveLength(0)
+    expect(s.commands()).toEqual([])
+    expect(s.analytics.consent.value).toBe('denied')
+    expect(s.browser[`ga-disable-${MEASUREMENT_ID}`]).toBe(true)
+    expect(s.browser.location.reload).not.toHaveBeenCalled()
+  })
+
   it('uses fixed page metadata and ignores arbitrary event parameters at runtime', () => {
     const s = setup(true, 'granted')
     s.analytics.trackPage('/workbench')

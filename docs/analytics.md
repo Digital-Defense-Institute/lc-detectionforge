@@ -12,6 +12,8 @@ The measurement ID is `G-P0C3RG2X1T`. This is a public identifier, not a secret.
   The notice is nonblocking and **Privacy & analytics** is available on every page.
 - Before consent or after declining, the app does not load the Google tag, create analytics cookies,
   send analytics requests (including consent pings), or queue historical activity.
+- Consent can be saved while the initial route is loading. Tag startup waits until that route is
+  ready, so the first page view uses the resolved section and initialization cannot disable an early grant.
 - The versioned local preference is `df_analytics_consent_v1`. It is separate from workbench settings
   and configuration exports; importing a configuration must never grant analytics consent.
 - Withdrawal disables collection immediately, deletes only `df_usage_` cookies, and reloads to unload

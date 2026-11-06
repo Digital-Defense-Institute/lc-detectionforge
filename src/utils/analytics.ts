@@ -96,7 +96,9 @@ export function createAnalytics(browser: Window, doc: Document, available: boole
   }
 
   const start = () => {
-    if (!available || consent.value !== 'granted' || script) return
+    // The notice can save consent while the initial lazy route is loading.
+    // Wait for route-aware initialization before loading the tag or sending events.
+    if (!initialized || !available || consent.value !== 'granted' || script) return
     win[`ga-disable-${MEASUREMENT_ID}`] = false
     win.dataLayer = []
     status.value = 'loading'
