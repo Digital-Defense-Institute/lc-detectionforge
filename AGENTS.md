@@ -29,3 +29,5 @@ re-entering credentials, cross-tab withdrawal, and fail-closed behavior when sto
 
 Consent controls can be used before the initial lazy route resolves. Keep tag startup gated on
 route-aware initialization; an early grant must not load the tag or be disabled by later initialization.
+A withdrawal that cannot be persisted must override stale storage within that document during
+initialization and storage events; only a new explicit grant that saves successfully may clear it.

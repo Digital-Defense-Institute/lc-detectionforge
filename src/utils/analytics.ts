@@ -29,9 +29,13 @@ export function createAnalytics(browser: Window, doc: Document, available: boole
   const storageError = ref(false)
   let currentPath = '/'
   let initialized = false
+  let withdrawalNotPersisted = false
   let script: HTMLScriptElement | null = null
 
   const readConsent = (): Consent => {
+    // A failed withdrawal takes priority over stale storage in this document,
+    // including during initialization and when another tab changes its choice.
+    if (withdrawalNotPersisted) return 'denied'
     try {
       const stored = win.localStorage.getItem(CONSENT_KEY)
       return stored === 'granted' || stored === 'denied' ? stored : null
@@ -160,6 +164,7 @@ export function createAnalytics(browser: Window, doc: Document, available: boole
         persisted = false
       }
     }
+    withdrawalNotPersisted = next === 'denied' && !persisted
     consent.value = next
     if (next === 'granted') start()
     else stop(persisted)

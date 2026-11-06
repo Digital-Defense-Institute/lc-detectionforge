@@ -144,6 +144,40 @@ describe('optional analytics consent and data boundaries', () => {
     expect(s.browser.location.reload).not.toHaveBeenCalled()
   })
 
+  it('preserves a failed early withdrawal through initialization and storage events', () => {
+    const s = setup()
+    s.analytics.setConsent('granted')
+    s.browser.localStorage.setItem.mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    s.browser.localStorage.removeItem.mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    s.analytics.setConsent('denied')
+    expect(s.values.get(CONSENT_KEY)).toBe('granted')
+
+    s.analytics.trackPage('/config')
+    s.analytics.initialize()
+    expect(s.analytics.consent.value).toBe('denied')
+    expect(s.scripts).toHaveLength(0)
+    s.storageEvent('granted')
+    expect(s.analytics.consent.value).toBe('denied')
+    expect(s.analytics.storageError.value).toBe(true)
+    expect(s.scripts).toHaveLength(0)
+    expect(s.commands()).toEqual([])
+    expect(s.browser[`ga-disable-${MEASUREMENT_ID}`]).toBe(true)
+
+    // Only a new explicit grant that can be saved may override the withdrawal.
+    s.analytics.setConsent('granted')
+    expect(s.scripts).toHaveLength(0)
+    s.browser.localStorage.setItem.mockImplementation((key, value) => s.values.set(key, value))
+    s.analytics.setConsent('granted')
+    s.load()
+    expect(s.analytics.consent.value).toBe('granted')
+    expect(s.scripts).toHaveLength(1)
+    expect(s.browser[`ga-disable-${MEASUREMENT_ID}`]).toBe(false)
+  })
+
   it('uses fixed page metadata and ignores arbitrary event parameters at runtime', () => {
     const s = setup(true, 'granted')
     s.analytics.trackPage('/workbench')

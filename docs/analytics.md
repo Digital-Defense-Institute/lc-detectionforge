@@ -22,6 +22,8 @@ The measurement ID is `G-P0C3RG2X1T`. This is a public identifier, not a secret.
 - Storage failures fail closed for new grants. If withdrawal cannot be saved, removal of the saved
   grant is attempted. If both operations fail, collection stops in that tab without reloading into
   stale consent; the UI explains how to clear site storage. Requests already in flight cannot be recalled.
+  That failed-withdrawal override also survives initialization and storage events within the current
+  document; only a new explicit grant that saves successfully clears it.
 - A failed or blocked tag does not prevent the app from working. No proxy or blocker bypass is used.
 - Credentials/JWTs remain in memory and are sent to LimaCharlie for normal authentication/API use.
   They are not read or included in analytics by our integration.
