@@ -18,7 +18,11 @@
 
 <template>
   <div id="app" class="detection-forge">
+    <AnalyticsNotice />
     <RouterView />
+    <footer class="privacy-footer">
+      <RouterLink to="/privacy">Privacy & analytics</RouterLink>
+    </footer>
     <Notifications />
     <PwaInstallPrompt />
     <UpdateNotifier />
@@ -29,6 +33,7 @@
 import Notifications from './components/Notifications.vue'
 import PwaInstallPrompt from './components/PwaInstallPrompt.vue'
 import UpdateNotifier from './components/UpdateNotifier.vue'
+import AnalyticsNotice from './components/AnalyticsNotice.vue'
 import { useTheme } from './composables/useTheme'
 
 // Initialize theme system
@@ -36,3 +41,14 @@ useTheme()
 
 // Main app component with router outlet and notifications
 </script>
+
+<style scoped>
+.privacy-footer {
+  padding: 1rem;
+  text-align: center;
+}
+.privacy-footer a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+</style>

@@ -20,6 +20,7 @@ import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import App from './App.vue'
+import { analytics } from './composables/useAnalytics'
 
 // Import styles
 import './assets/styles.css'
@@ -53,6 +54,12 @@ const router = createRouter({
       meta: { title: 'Changelog - DetectionForge' },
     },
     { path: '/rules', redirect: '/workbench' }, // Redirect old route for backward compatibility
+    {
+      path: '/privacy',
+      name: 'Privacy',
+      component: () => import('./components/Privacy.vue'),
+      meta: { title: 'Privacy & analytics - DetectionForge' },
+    },
   ],
 })
 
@@ -66,6 +73,13 @@ router.beforeEach((to, from, next) => {
 
 // Create Pinia store
 const pinia = createPinia()
+
+// Consent may be saved before a lazy route resolves; tag startup stays deferred
+// until initialization below, so a direct visit uses the resolved section.
+router.afterEach((to, _from, failure) => {
+  if (!failure) analytics.trackPage(to.path)
+})
+void router.isReady().then(() => analytics.initialize())
 
 const app = createApp(App)
 app.use(router)

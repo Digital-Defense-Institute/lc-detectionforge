@@ -3096,6 +3096,7 @@ import { sanitizeHtml } from '../utils/sanitizer'
 import { logger } from '../utils/logger'
 import { exportJsonStream, formatBytes } from '../utils/streamingExport'
 import { getCurrentVersion } from '../utils/version'
+import { analytics } from '../composables/useAnalytics'
 import { validateDetectLogic, validateRespondLogic } from '../utils/drValidation'
 import Logo from './Logo.vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -4725,6 +4726,7 @@ function exportToIaC() {
 
   try {
     // Helper function to format unit tests for IaC
+    analytics.trackAction('rule_export')
     const formatUnitTestsForIaC = (): string => {
       if (!unitTests.value || unitTests.value.length === 0) {
         return ''
@@ -5795,6 +5797,7 @@ async function runSingleUnitTest(test: UnitTest) {
   }
 
   // Call the API to test the detection rule
+  analytics.trackAction('unit_test_run')
   const response = await api.testDetectionRule(
     orgReplayUrl,
     auth.primaryOid.value,
@@ -6065,6 +6068,7 @@ async function executeBacktest() {
       'info',
       `Starting ${backtestConfig.runInParallel ? 'parallel' : 'sequential'} backtest for ${backtestSelectedOids.value.length} organization(s)... This may take several minutes for large time ranges.`,
     )
+    analytics.trackAction('backtest_run')
 
     const totalStats = {
       n_proc: 0,
