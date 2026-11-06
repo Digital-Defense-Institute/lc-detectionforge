@@ -278,6 +278,17 @@ Create detection rules using:
 
 ## Security Considerations
 
+### Optional usage analytics
+
+Optional Google Analytics helps us understand usage, prioritize improvements, and justify continued
+maintenance. It loads only after explicit opt-in; all features work with analytics off or blocked.
+The app includes a **Privacy & analytics** page with controls and a description of what is measured.
+Our event payloads exclude API credentials, organization details, rules, and event data. Google's
+script runs on the same page after consent; memory-only storage does not isolate credentials from
+third-party JavaScript. See [the event contract and deployment controls](docs/analytics.md).
+
+### Credential storage
+
 This workbench uses a secure, memory-only credential storage approach:
 
 - **In-Memory Only**: API credentials and JWT tokens are stored only in browser memory and automatically clear when the app is closed
