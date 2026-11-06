@@ -69,7 +69,7 @@ describe('optional analytics consent and data boundaries', () => {
     },
   )
 
-  it('keeps development and deployments without explicit enablement off, even with saved consent', () => {
+  it('keeps analytics unavailable outside the hosted production app, even with saved consent', () => {
     const s = setup(false, 'granted')
     s.analytics.initialize()
     s.analytics.setConsent('granted')

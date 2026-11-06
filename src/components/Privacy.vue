@@ -14,7 +14,10 @@
       is optional; every feature works with it off or blocked.
     </p>
     <h2>Your choice</h2>
-    <p v-if="!analytics.available">Analytics is not enabled in this deployment.</p>
+    <p v-if="!analytics.available">
+      Usage analytics is offered only on detectionforge.ddi.sh. Local and self-hosted copies do not
+      send usage to DetectionForge’s Google Analytics property.
+    </p>
     <p v-else>
       Analytics is <strong>{{ consent === 'granted' ? 'allowed' : 'off' }}</strong> in this browser.
       <span v-if="consent === 'granted' && status === 'blocked'">
@@ -62,28 +65,25 @@
       Our event payloads use fixed names and page labels. They exclude credentials, JWTs, user and
       organization IDs, organization names, rule names and contents, event samples, test results,
       filenames, API URLs, and error messages. We replace page URLs with fixed section URLs and omit
-      query strings, fragments, and referrers. We do not enable automatic form, search, download, or
-      outbound-link tracking, advertising personalization, or Google Signals.
+      query strings, fragments, and referrers. Our code does not read form values or add automatic
+      form, search, download, or outbound-link tracking. Advertising personalization and Google
+      Signals are disabled in our tag configuration.
     </p>
     <h2>Google’s involvement</h2>
     <p>
       If you allow analytics, your browser loads Google’s analytics script and sends usage data
-      directly to Google for property G-P0C3RG2X1T. Google receives network information, including
-      your IP address, when your browser connects. This is not an anonymous or isolated execution
-      environment: third-party JavaScript runs on the same page as the app. Keeping credentials in
-      memory does not isolate them from scripts on that page. Our analytics integration does not
-      read or attach them to events.
+      directly to Google. Google receives browser and network information, including your IP
+      address, when your browser connects. Google’s script runs on the same page as the app;
+      memory-only storage does not isolate credentials from third-party JavaScript. Our integration
+      does not read or attach credentials to events.
     </p>
     <p>
-      We configure first-party analytics cookies with the prefix <code>df_usage_</code>, a 30-day
-      lifetime without renewal on each visit, and no sharing across subdomains. They distinguish
-      visits and returning browsers. The local consent preference remains until you change it or
-      clear browser storage. Declining analytics prevents Google Analytics from loading.
+      Analytics uses first-party cookies with a 30-day lifetime to distinguish visits and returning
+      browsers. The local consent preference remains until you change it or clear browser storage.
+      Declining analytics prevents Google Analytics from loading.
     </p>
     <p>
-      Our deployment policy requires two-month event/user data retention in Google Analytics with
-      renewal on new activity disabled. Standard aggregated reports can be retained longer; this is
-      not a promise that all Google-held data is deleted after two months. See
+      Google’s handling and retention of analytics data are described in
       <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer"
         >Google’s privacy policy</a
       >
@@ -96,9 +96,9 @@
       >.
     </p>
     <p>
-      The exact event list and deployment controls are documented in
+      The application event list is documented in
       <a
-        href="https://github.com/Digital-Defense-Institute/lc-detectionforge/blob/main/docs/analytics.md"
+        href="https://github.com/Digital-Defense-Institute/lc-detectionforge/blob/main/src/utils/analytics.ts"
         target="_blank"
         rel="noopener noreferrer"
         >the public source</a

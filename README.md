@@ -285,7 +285,7 @@ maintenance. It loads only after explicit opt-in; all features work with analyti
 The app includes a **Privacy & analytics** page with controls and a description of what is measured.
 Our event payloads exclude API credentials, organization details, rules, and event data. Google's
 script runs on the same page after consent; memory-only storage does not isolate credentials from
-third-party JavaScript. See [the event contract and deployment controls](docs/analytics.md).
+third-party JavaScript. The [analytics source](src/utils/analytics.ts) defines the event allowlist.
 
 ### Credential storage
 
